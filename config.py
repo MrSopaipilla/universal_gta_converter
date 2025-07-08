@@ -9,23 +9,23 @@ def validate_name_input(self, context):
     # Validar skin_name
     if self.skin_name:
         # Solo permitir letras, números, guiones y guiones bajos
-        if not re.match(r'^[a-zA-Z0-9_-]+$', self.skin_name):
-            self.name_validation_message = "Skin name: Solo se permiten letras, numeros, _ y -"
+        if not re.match(r'^[a-zA-Z0-9_-]+, self.skin_name):
+            self.name_validation_message = "❌ Skin name: Solo se permiten letras, números, _ y -"
             # Limpiar caracteres inválidos
             self.skin_name = re.sub(r'[^a-zA-Z0-9_-]', '', self.skin_name)
         else:
-            self.name_validation_message = "Skin name valido"
+            self.name_validation_message = "✅ Skin name válido"
     
     # Validar author_nickname
     if self.author_nickname:
-        if not re.match(r'^[a-zA-Z0-9_-]+$', self.author_nickname):
-            if "Solo se permiten" not in self.name_validation_message:
-                self.name_validation_message = "Author nickname: Solo se permiten letras, numeros, _ y -"
+        if not re.match(r'^[a-zA-Z0-9_-]+, self.author_nickname):
+            if "❌" not in self.name_validation_message:
+                self.name_validation_message = "❌ Author nickname: Solo se permiten letras, números, _ y -"
             # Limpiar caracteres inválidos
             self.author_nickname = re.sub(r'[^a-zA-Z0-9_-]', '', self.author_nickname)
         else:
-            if "Solo se permiten" not in self.name_validation_message:
-                self.name_validation_message = "Nombres validos"
+            if "❌" not in self.name_validation_message:
+                self.name_validation_message = "✅ Nombres válidos"
 
 class BoneMappingItem(PropertyGroup):
     """Elemento de mapeo de huesos"""
@@ -79,7 +79,7 @@ class UniversalGTASettings(PropertyGroup):
     # NUEVAS PROPIEDADES PARA NOMBRES PERSONALIZADOS CON VALIDACIÓN
     skin_name: StringProperty(
         name="Skin Name",
-        description="Nombre del skin (solo caracteres alfanumericos, guiones y guiones bajos)",
+        description="Nombre del skin (solo caracteres alfanuméricos, guiones y guiones bajos)",
         default="MySkin",
         maxlen=32,
         update=validate_name_input
@@ -87,7 +87,7 @@ class UniversalGTASettings(PropertyGroup):
     
     author_nickname: StringProperty(
         name="Author Nickname", 
-        description="Nickname del autor (solo caracteres alfanumericos, guiones y guiones bajos)",
+        description="Nickname del autor (solo caracteres alfanuméricos, guiones y guiones bajos)",
         default="Author",
         maxlen=32,
         update=validate_name_input
@@ -98,13 +98,13 @@ class UniversalGTASettings(PropertyGroup):
         name="Predefined Animation",
         description="Selecciona una animación predefinida para cargar",
         items=[
-            ('NONE', 'None', 'Sin animacion'),
+            ('NONE', 'None', 'Sin animación'),
             ('IDLE', 'Idle', 'Pose de espera'),
             ('WALK', 'Walk', 'Caminata'),
             ('RUNNING', 'Running', 'Corriendo'),
             ('JUMP', 'Jump', 'Salto'),
             ('CHAT', 'Chat', 'Hablando'),
-            ('FACIAL', 'Facial', 'Expresion facial'),
+            ('FACIAL', 'Facial', 'Expresión facial'),
         ],
         default='NONE'
     )
@@ -128,7 +128,7 @@ class UniversalGTASettings(PropertyGroup):
     
     jaw_expression: FloatProperty(
         name="Jaw Expression", 
-        description="Expresion de la mandibula",
+        description="Expresión de la mandíbula",
         default=0.0,
         min=-0.3,
         max=0.3
@@ -137,7 +137,7 @@ class UniversalGTASettings(PropertyGroup):
     # PROPIEDADES PARA VALIDACIÓN DE NOMBRES
     name_validation_message: StringProperty(
         name="Name Validation",
-        description="Mensaje de validacion de nombres",
+        description="Mensaje de validación de nombres",
         default=""
     )
 
