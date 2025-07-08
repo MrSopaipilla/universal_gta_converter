@@ -40,54 +40,58 @@ class UNIVERSALGTA_OT_show_gta_bone_reference(Operator):
         """Retorna los nombres exactos de los huesos de GTA SA organizados por categoría"""
         return {
             "columna_vertebral": [
-                " Pelvis",      # SIN espacio
-                " Spine",
-                " Spine1", 
-                " Spine2",
-                " Neck",
-                " Head"
+                "Pelvis",      # Sin espacio al inicio
+                " Spine",      # CON espacio al inicio
+                " Spine1",     # CON espacio al inicio
+                " Neck",       # CON espacio al inicio
+                " Head"        # CON espacio al inicio
             ],
             "brazo_izquierdo": [
-                "Bip01 L Clavicle",  # CON espacio
-                " L UpperArm",  # CON espacio
-                " L Forearm",   # CON espacio
-                " L Hand",      # CON espacio
-                " L Finger",    # CON espacio
-                "L Finger01"   # CON espacio
+                "Bip01 L Clavicle",  # Sin espacio al inicio
+                " L UpperArm",       # CON espacio al inicio
+                " L ForeArm",        # CON espacio al inicio (y es ForeArm, no Forearm)
+                " L Hand",           # CON espacio al inicio
+                " L Finger",         # CON espacio al inicio
+                "L Finger01"         # Sin espacio al inicio
             ],
             "brazo_derecho": [
-                "R Clavicle",  # CON espacio
-                "R UpperArm",  # CON espacio
-                "R Forearm",   # CON espacio
-                "R Hand",      # CON espacio
-                "R Finger",    # CON espacio
-                "R Finger1",   # CON espacio
-                "R Finger01"   # CON espacio
+                "Bip01 R Clavicle",  # Sin espacio al inicio
+                " R UpperArm",       # CON espacio al inicio
+                " R ForeArm",        # CON espacio al inicio (y es ForeArm, no Forearm)
+                " R Hand",           # CON espacio al inicio
+                " R Finger",         # CON espacio al inicio
+                "R Finger01"         # Sin espacio al inicio
             ],
             "pierna_izquierda": [
-                "L Thigh",     # CON espacio
-                "L Calf",      # CON espacio
-                "L Foot",      # CON espacio
-                "L Toe0"       # CON espacio
+                " L Thigh",          # CON espacio al inicio
+                " L Calf",           # CON espacio al inicio
+                " L Foot",           # CON espacio al inicio
+                " L Toe0"            # CON espacio al inicio
             ],
             "pierna_derecha": [
-                "R Thigh",     # CON espacio
-                "R Calf",      # CON espacio
-                "R Foot",      # CON espacio
-                "R Toe0"       # CON espacio
+                " R Thigh",          # CON espacio al inicio
+                " R Calf",           # CON espacio al inicio
+                " R Foot",           # CON espacio al inicio
+                " R Toe0"            # CON espacio al inicio
             ],
             "facial": [
-                "L Brow",      # CON espacio
-                "R Brow",      # CON espacio
-                "Jaw"
+                "Jaw",               # Sin espacio al inicio
+                "L Brow",            # Sin espacio al inicio
+                "R Brow"             # Sin espacio al inicio
             ],
             "cuerpo_especial": [
-                "L breast",    # SIN espacio entre L y breast
-                "R breast",    # SIN espacio entre R y breast
-                "Belly"        # SIN espacio
+                "L breast",          # Sin espacio al inicio
+                "R breast",          # Sin espacio al inicio
+                "Belly"              # Sin espacio al inicio
             ],
             "excluidos": [
-                "Root"         # SIEMPRE excluido
+                "Root"               # SIEMPRE excluido
+            ]
+        }",          # SIN espacio entre R y breast
+                "Belly"              # Sin espacio, con B mayúscula
+            ],
+            "excluidos": [
+                "Root"               # SIEMPRE excluido
             ]
         }
 
@@ -140,72 +144,184 @@ class UNIVERSALGTA_OT_create_gta_armature_template(Operator):
             return {'CANCELLED'}
     
     def _get_basic_bone_structure(self):
-        """Define la estructura básica de huesos de GTA SA con posiciones"""
+        """Define la estructura básica de huesos de GTA SA con posiciones y nombres EXACTOS"""
         return {
-            # Columna vertebral
+            # Columna vertebral (algunos con espacio al inicio, otros sin)
             "Pelvis": {
                 'head': (0.0, 0.0, 0.0),
                 'tail': (0.0, 0.0, 0.1),
                 'parent': None
             },
-            "Spine": {
+            " Spine": {  # CON espacio al inicio
                 'head': (0.0, 0.0, 0.1),
                 'tail': (0.0, 0.0, 0.3),
                 'parent': "Pelvis"
             },
-            "Spine1": {
+            " Spine1": {  # CON espacio al inicio
                 'head': (0.0, 0.0, 0.3),
                 'tail': (0.0, 0.0, 0.5),
-                'parent': "Spine"
+                'parent': " Spine"
             },
-            "Spine2": {
+            " Neck": {  # CON espacio al inicio
                 'head': (0.0, 0.0, 0.5),
-                'tail': (0.0, 0.0, 0.7),
-                'parent': "Spine1"
+                'tail': (0.0, 0.0, 0.6),
+                'parent': " Spine1"
             },
-            "Neck": {
-                'head': (0.0, 0.0, 0.7),
+            " Head": {  # CON espacio al inicio
+                'head': (0.0, 0.0, 0.6),
                 'tail': (0.0, 0.0, 0.8),
-                'parent': "Spine2"
-            },
-            "Head": {
-                'head': (0.0, 0.0, 0.8),
-                'tail': (0.0, 0.0, 1.0),
-                'parent': "Neck"
+                'parent': " Neck"
             },
             
-            # Brazo izquierdo (CON ESPACIOS)
-            "L Clavicle": {
-                'head': (0.0, 0.0, 0.6),
-                'tail': (0.2, 0.0, 0.6),
-                'parent': "Spine2"
+            # Brazo izquierdo (nombres exactos)
+            "Bip01 L Clavicle": {  # SIN espacio al inicio
+                'head': (0.0, 0.0, 0.45),
+                'tail': (0.2, 0.0, 0.45),
+                'parent': " Spine1"
             },
-            "L UpperArm": {
-                'head': (0.2, 0.0, 0.6),
-                'tail': (0.5, 0.0, 0.6),
-                'parent': "L Clavicle"
+            " L UpperArm": {  # CON espacio al inicio
+                'head': (0.2, 0.0, 0.45),
+                'tail': (0.5, 0.0, 0.45),
+                'parent': "Bip01 L Clavicle"
             },
-            "L Forearm": {
-                'head': (0.5, 0.0, 0.6),
-                'tail': (0.8, 0.0, 0.6),
-                'parent': "L UpperArm"
+            " L ForeArm": {  # CON espacio al inicio, ForeArm (no Forearm)
+                'head': (0.5, 0.0, 0.45),
+                'tail': (0.8, 0.0, 0.45),
+                'parent': " L UpperArm"
             },
-            "L Hand": {
-                'head': (0.8, 0.0, 0.6),
-                'tail': (0.9, 0.0, 0.6),
-                'parent': "L Forearm"
+            " L Hand": {  # CON espacio al inicio
+                'head': (0.8, 0.0, 0.45),
+                'tail': (0.9, 0.0, 0.45),
+                'parent': " L ForeArm"
+            },
+            " L Finger": {  # CON espacio al inicio
+                'head': (0.9, 0.0, 0.45),
+                'tail': (0.95, 0.0, 0.45),
+                'parent': " L Hand"
+            },
+            "L Finger01": {  # SIN espacio al inicio
+                'head': (0.95, 0.0, 0.45),
+                'tail': (1.0, 0.0, 0.45),
+                'parent': " L Finger"
             },
             
-            # Brazo derecho (CON ESPACIOS)
-            "R Clavicle": {
-                'head': (0.0, 0.0, 0.6),
+            # Brazo derecho (nombres exactos)
+            "Bip01 R Clavicle": {  # SIN espacio al inicio
+                'head': (0.0, 0.0, 0.45),
+                'tail': (-0.2, 0.0, 0.45),
+                'parent': " Spine1"
+            },
+            " R UpperArm": {  # CON espacio al inicio
+                'head': (-0.2, 0.0, 0.45),
+                'tail': (-0.5, 0.0, 0.45),
+                'parent': "Bip01 R Clavicle"
+            },
+            " R ForeArm": {  # CON espacio al inicio, ForeArm (no Forearm)
+                'head': (-0.5, 0.0, 0.45),
+                'tail': (-0.8, 0.0, 0.45),
+                'parent': " R UpperArm"
+            },
+            " R Hand": {  # CON espacio al inicio
+                'head': (-0.8, 0.0, 0.45),
+                'tail': (-0.9, 0.0, 0.45),
+                'parent': " R ForeArm"
+            },
+            " R Finger": {  # CON espacio al inicio
+                'head': (-0.9, 0.0, 0.45),
+                'tail': (-0.95, 0.0, 0.45),
+                'parent': " R Hand"
+            },
+            "R Finger01": {  # SIN espacio al inicio
+                'head': (-0.95, 0.0, 0.45),
+                'tail': (-1.0, 0.0, 0.45),
+                'parent': " R Finger"
+            },
+            
+            # Piernas izquierdas (CON espacios al inicio)
+            " L Thigh": {  # CON espacio al inicio
+                'head': (0.1, 0.0, 0.0),
+                'tail': (0.1, 0.0, -0.4),
+                'parent': "Pelvis"
+            },
+            " L Calf": {  # CON espacio al inicio
+                'head': (0.1, 0.0, -0.4),
+                'tail': (0.1, 0.0, -0.8),
+                'parent': " L Thigh"
+            },
+            " L Foot": {  # CON espacio al inicio
+                'head': (0.1, 0.0, -0.8),
+                'tail': (0.1, 0.2, -0.8),
+                'parent': " L Calf"
+            },
+            " L Toe0": {  # CON espacio al inicio
+                'head': (0.1, 0.2, -0.8),
+                'tail': (0.1, 0.25, -0.8),
+                'parent': " L Foot"
+            },
+            
+            # Piernas derechas (CON espacios al inicio)
+            " R Thigh": {  # CON espacio al inicio
+                'head': (-0.1, 0.0, 0.0),
+                'tail': (-0.1, 0.0, -0.4),
+                'parent': "Pelvis"
+            },
+            " R Calf": {  # CON espacio al inicio
+                'head': (-0.1, 0.0, -0.4),
+                'tail': (-0.1, 0.0, -0.8),
+                'parent': " R Thigh"
+            },
+            " R Foot": {  # CON espacio al inicio
+                'head': (-0.1, 0.0, -0.8),
+                'tail': (-0.1, 0.2, -0.8),
+                'parent': " R Calf"
+            },
+            " R Toe0": {  # CON espacio al inicio
+                'head': (-0.1, 0.2, -0.8),
+                'tail': (-0.1, 0.25, -0.8),
+                'parent': " R Foot"
+            },
+            
+            # Facial (SIN espacios al inicio)
+            "Jaw": {  # SIN espacio al inicio
+                'head': (0.0, 0.05, 0.75),
+                'tail': (0.0, 0.08, 0.75),
+                'parent': " Head"
+            },
+            "L Brow": {  # SIN espacio al inicio
+                'head': (0.05, 0.08, 0.77),
+                'tail': (0.05, 0.1, 0.77),
+                'parent': " Head"
+            },
+            "R Brow": {  # SIN espacio al inicio
+                'head': (-0.05, 0.08, 0.77),
+                'tail': (-0.05, 0.1, 0.77),
+                'parent': " Head"
+            },
+            
+            # Cuerpo especial (SIN espacios al inicio)
+            "L breast": {  # SIN espacio al inicio
+                'head': (0.08, 0.05, 0.35),
+                'tail': (0.08, 0.1, 0.35),
+                'parent': " Spine1"
+            },
+            "R breast": {  # SIN espacio al inicio
+                'head': (-0.08, 0.05, 0.35),
+                'tail': (-0.08, 0.1, 0.35),
+                'parent': " Spine1"
+            },
+            "Belly": {  # SIN espacio al inicio
+                'head': (0.0, 0.05, 0.2),
+                'tail': (0.0, 0.1, 0.2),
+                'parent': " Spine"
+            }
+        }head': (0.0, 0.0, 0.6),
                 'tail': (-0.2, 0.0, 0.6),
                 'parent': "Spine2"
             },
             "R UpperArm": {
                 'head': (-0.2, 0.0, 0.6),
                 'tail': (-0.5, 0.0, 0.6),
-                'parent': "R Clavicle"
+                'parent': "Bip01 R Clavicle"
             },
             "R Forearm": {
                 'head': (-0.5, 0.0, 0.6),
@@ -217,8 +333,23 @@ class UNIVERSALGTA_OT_create_gta_armature_template(Operator):
                 'tail': (-0.9, 0.0, 0.6),
                 'parent': "R Forearm"
             },
+            "R Finger": {
+                'head': (-0.9, 0.0, 0.6),
+                'tail': (-0.95, 0.0, 0.6),
+                'parent': "R Hand"
+            },
+            "R Finger1": {
+                'head': (-0.95, 0.0, 0.6),
+                'tail': (-0.97, 0.0, 0.6),
+                'parent': "R Finger"
+            },
+            "R Finger01": {
+                'head': (-0.97, 0.0, 0.6),
+                'tail': (-1.0, 0.0, 0.6),
+                'parent': "R Finger1"
+            },
             
-            # Pierna izquierda (CON ESPACIOS)
+            # Pierna izquierda (nombres exactos con espacios)
             "L Thigh": {
                 'head': (0.1, 0.0, 0.0),
                 'tail': (0.1, 0.0, -0.4),
@@ -234,8 +365,13 @@ class UNIVERSALGTA_OT_create_gta_armature_template(Operator):
                 'tail': (0.1, 0.2, -0.8),
                 'parent': "L Calf"
             },
+            "L Toe0": {
+                'head': (0.1, 0.2, -0.8),
+                'tail': (0.1, 0.25, -0.8),
+                'parent': "L Foot"
+            },
             
-            # Pierna derecha (CON ESPACIOS)
+            # Pierna derecha (nombres exactos con espacios)
             "R Thigh": {
                 'head': (-0.1, 0.0, 0.0),
                 'tail': (-0.1, 0.0, -0.4),
@@ -251,8 +387,13 @@ class UNIVERSALGTA_OT_create_gta_armature_template(Operator):
                 'tail': (-0.1, 0.2, -0.8),
                 'parent': "R Calf"
             },
+            "R Toe0": {
+                'head': (-0.1, 0.2, -0.8),
+                'tail': (-0.1, 0.25, -0.8),
+                'parent': "R Foot"
+            },
             
-            # Facial (CON ESPACIOS)
+            # Facial (nombres exactos con espacios)
             "L Brow": {
                 'head': (0.05, 0.08, 0.95),
                 'tail': (0.05, 0.1, 0.95),
@@ -269,7 +410,7 @@ class UNIVERSALGTA_OT_create_gta_armature_template(Operator):
                 'parent': "Head"
             },
             
-            # Especiales (SIN ESPACIOS - nombres exactos)
+            # Cuerpo especial (nombres exactos - sin espacios)
             "L breast": {
                 'head': (0.08, 0.05, 0.45),
                 'tail': (0.08, 0.1, 0.45),
@@ -280,7 +421,37 @@ class UNIVERSALGTA_OT_create_gta_armature_template(Operator):
                 'tail': (-0.08, 0.1, 0.45),
                 'parent': "Spine1"
             },
-            "belly": {
+            "Belly": {
+                'head': (0.0, 0.05, 0.2),
+                'tail': (0.0, 0.1, 0.2),
+                'parent': "Spine"
+            }
+        }                'tail': (0.05, 0.1, 0.95),
+                'parent': "Head"
+            },
+            "R Brow": {
+                'head': (-0.05, 0.08, 0.95),
+                'tail': (-0.05, 0.1, 0.95),
+                'parent': "Head"
+            },
+            "Jaw": {
+                'head': (0.0, 0.05, 0.85),
+                'tail': (0.0, 0.08, 0.85),
+                'parent': "Head"
+            },
+            
+            # Cuerpo especial (nombres exactos - sin espacios)
+            "L breast": {
+                'head': (0.08, 0.05, 0.45),
+                'tail': (0.08, 0.1, 0.45),
+                'parent': "Spine1"
+            },
+            "R breast": {
+                'head': (-0.08, 0.05, 0.45),
+                'tail': (-0.08, 0.1, 0.45),
+                'parent': "Spine1"
+            },
+            "Belly": {
                 'head': (0.0, 0.05, 0.2),
                 'tail': (0.0, 0.1, 0.2),
                 'parent': "Spine"
