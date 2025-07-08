@@ -1,15 +1,4 @@
-# Lista de clases principales para registrar
-classes = [
-    UNIVERSALGTA_OT_add_target_bones,
-    UNIVERSALGTA_OT_auto_detect_mappings,
-    UNIVERSALGTA_OT_add_custom_entry,
-    UNIVERSALGTA_OT_remove_mapping_entry,
-    UNIVERSALGTA_OT_move_mapping_up,
-    UNIVERSALGTA_OT_move_mapping_down,
-    UNIVERSALGTA_OT_clear_mappings,
-    UNIVERSALGTA_OT_validate_mappings,
-    UNIVERSALGTA_OT_enable_all_mappings,
-    UNIVERSALGTA_OT_"""
+"""
 Operadores de mapeo corregidos - Solo excluye Root, mantiene Pelvis
 """
 
@@ -442,7 +431,6 @@ class UNIVERSALGTA_OT_enable_high_confidence(Operator):
         return {'FINISHED'}
 
 
-# Resto de operadores sin cambios (add_custom_entry, remove_mapping_entry, etc.)
 class UNIVERSALGTA_OT_add_custom_entry(Operator):
     """Agregar entrada personalizada de mapeo de huesos"""
     bl_idname = "universalgta.add_custom_entry"
@@ -555,7 +543,94 @@ class UNIVERSALGTA_OT_disable_all_mappings(Operator):
         return {'FINISHED'}
 
 
-# Lista de clases principales para registrar
+class UNIVERSALGTA_OT_load_mapping(Operator):
+    """Cargar configuración de mapeo desde archivo"""
+    bl_idname = "universalgta.load_mapping"
+    bl_label = "Load Mapping"
+    bl_description = "Load bone mapping configuration from file"
+    bl_options = {'REGISTER'}
+    
+    def execute(self, context):
+        # Placeholder para futuras funciones de carga
+        self.report({'INFO'}, "Función de carga no implementada aún")
+        return {'FINISHED'}
+
+
+class UNIVERSALGTA_OT_save_mapping(Operator):
+    """Guardar configuración de mapeo a archivo"""
+    bl_idname = "universalgta.save_mapping"
+    bl_label = "Save Mapping"
+    bl_description = "Save bone mapping configuration to file"
+    bl_options = {'REGISTER'}
+    
+    def execute(self, context):
+        # Placeholder para futuras funciones de guardado
+        self.report({'INFO'}, "Función de guardado no implementada aún")
+        return {'FINISHED'}
+
+
+class UNIVERSALGTA_OT_duplicate_mapping(Operator):
+    """Duplicar mapeo seleccionado"""
+    bl_idname = "universalgta.duplicate_mapping"
+    bl_label = "Duplicate Mapping"
+    bl_description = "Duplicate selected bone mapping"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        settings = context.scene.universal_gta_settings
+        index = settings.bone_mappings_index
+        
+        if 0 <= index < len(settings.bone_mappings):
+            original = settings.bone_mappings[index]
+            
+            # Crear nuevo item
+            item = settings.bone_mappings.add()
+            item.source_bone = original.source_bone
+            item.target_bone = original.target_bone + "_copy"
+            item.enabled = original.enabled
+            item.detection_method = "Manual"  # Los duplicados son manuales
+            item.confidence = 0.0
+            
+            # Mover al final de la lista
+            settings.bone_mappings_index = len(settings.bone_mappings) - 1
+            self.report({'INFO'}, "Mapeo duplicado.")
+        else:
+            self.report({'WARNING'}, "No hay mapeo seleccionado para duplicar.")
+        
+        return {'FINISHED'}
+
+
+class UNIVERSALGTA_OT_invert_mapping(Operator):
+    """Invertir mapeo seleccionado (intercambiar source y target)"""
+    bl_idname = "universalgta.invert_mapping"
+    bl_label = "Invert Mapping"
+    bl_description = "Invert selected bone mapping (swap source and target)"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        settings = context.scene.universal_gta_settings
+        index = settings.bone_mappings_index
+        
+        if 0 <= index < len(settings.bone_mappings):
+            item = settings.bone_mappings[index]
+            
+            # Intercambiar source y target
+            temp = item.source_bone
+            item.source_bone = item.target_bone
+            item.target_bone = temp
+            
+            # Marcar como manual ya que se modificó
+            item.detection_method = "Manual"
+            item.confidence = 0.0
+            
+            self.report({'INFO'}, "Mapeo invertido.")
+        else:
+            self.report({'WARNING'}, "No hay mapeo seleccionado para invertir.")
+        
+        return {'FINISHED'}
+
+
+# Lista de clases para registrar
 classes = [
     UNIVERSALGTA_OT_add_target_bones,
     UNIVERSALGTA_OT_auto_detect_mappings,
@@ -568,6 +643,10 @@ classes = [
     UNIVERSALGTA_OT_enable_all_mappings,
     UNIVERSALGTA_OT_disable_all_mappings,
     UNIVERSALGTA_OT_enable_high_confidence,
+    UNIVERSALGTA_OT_load_mapping,
+    UNIVERSALGTA_OT_save_mapping,
+    UNIVERSALGTA_OT_duplicate_mapping,
+    UNIVERSALGTA_OT_invert_mapping,
 ]
 
 
