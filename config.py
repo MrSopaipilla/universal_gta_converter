@@ -62,7 +62,7 @@ class UniversalGTASettings(PropertyGroup):
         default=True
     )
     
-    # NUEVAS PROPIEDADES PARA CORRECCIÓN DE NORMALES
+    # PROPIEDADES PARA CORRECCIÓN DE NORMALES
     auto_fix_normals: BoolProperty(
         name="Auto Fix Normals",
         description="Recalcula automáticamente las normales hacia afuera después de la conversión",
@@ -75,7 +75,7 @@ class UniversalGTASettings(PropertyGroup):
         default=False
     )
     
-    # NUEVAS PROPIEDADES PARA NOMBRES PERSONALIZADOS CON VALIDACIÓN
+    # PROPIEDADES PARA NOMBRES PERSONALIZADOS CON VALIDACIÓN
     skin_name: StringProperty(
         name="Skin Name",
         description="Nombre del skin (solo caracteres alfanuméricos, guiones y guiones bajos)",
@@ -92,7 +92,7 @@ class UniversalGTASettings(PropertyGroup):
         update=validate_name_input
     )
     
-    # NUEVAS PROPIEDADES PARA ANIMACIONES PREDEFINIDAS
+    # PROPIEDADES PARA ANIMACIONES PREDEFINIDAS
     predefined_animation: EnumProperty(
         name="Predefined Animation",
         description="Selecciona una animación predefinida para cargar",
@@ -108,7 +108,7 @@ class UniversalGTASettings(PropertyGroup):
         default='NONE'
     )
     
-    # NUEVAS PROPIEDADES PARA EXPRESIVIDAD FACIAL
+    # PROPIEDADES PARA EXPRESIVIDAD FACIAL
     facial_expressiveness: FloatProperty(
         name="Facial Expressiveness",
         description="Ajusta la expresividad facial modificando el roll de huesos faciales",
@@ -139,6 +139,52 @@ class UniversalGTASettings(PropertyGroup):
         description="Mensaje de validación de nombres",
         default=""
     )
+    
+    # PROPIEDADES PARA SHAPE KEYS (CORREGIDO - DENTRO DE LA CLASE)
+    auto_apply_shape_keys: BoolProperty(
+        name="Auto Apply Shape Keys",
+        description="Aplica automáticamente todas las shape keys durante la conversión",
+        default=True
+    )
+
+    preserve_basis_shape_key: BoolProperty(
+        name="Preserve Basis Shape Key",
+        description="Mantiene la shape key 'Basis' sin aplicar durante el proceso",
+        default=True
+    )
+
+    create_shape_keys_backup: BoolProperty(
+        name="Create Shape Keys Backup",
+        description="Crea automáticamente un backup de todos los meshes con shape keys antes de aplicarlas",
+        default=True
+    )
+
+    apply_shape_keys_with_modifier: BoolProperty(
+        name="Apply Shape Keys with Armature Modifier",
+        description="Aplica las shape keys junto con los modificadores armature para mejor resultado",
+        default=False
+    )
+
+    apply_final_shape_keys: BoolProperty(
+        name="Apply Final Shape Keys",
+        description="Aplica shape keys finales en el objeto unificado después de la conversión",
+        default=False
+    )
+
+    shape_key_threshold: FloatProperty(
+        name="Shape Key Threshold",
+        description="Valor mínimo para aplicar una shape key (shape keys con valor menor se eliminan)",
+        default=0.01,
+        min=0.0,
+        max=1.0
+    )
+
+    # Mensaje de estado para shape keys
+    shape_keys_status_message: StringProperty(
+        name="Shape Keys Status",
+        description="Mensaje de estado del procesamiento de shape keys",
+        default=""
+    )
 
 def register_validation():
     """
@@ -147,48 +193,3 @@ def register_validation():
     """
     print("[CONFIG] Validadores de nombres registrados")
     pass
-
-auto_apply_shape_keys: BoolProperty(
-    name="Auto Apply Shape Keys",
-    description="Aplica automáticamente todas las shape keys durante la conversión",
-    default=True
-)
-
-preserve_basis_shape_key: BoolProperty(
-    name="Preserve Basis Shape Key",
-    description="Mantiene la shape key 'Basis' sin aplicar durante el proceso",
-    default=True
-)
-
-create_shape_keys_backup: BoolProperty(
-    name="Create Shape Keys Backup",
-    description="Crea automáticamente un backup de todos los meshes con shape keys antes de aplicarlas",
-    default=True
-)
-
-apply_shape_keys_with_modifier: BoolProperty(
-    name="Apply Shape Keys with Armature Modifier",
-    description="Aplica las shape keys junto con los modificadores armature para mejor resultado",
-    default=False
-)
-
-apply_final_shape_keys: BoolProperty(
-    name="Apply Final Shape Keys",
-    description="Aplica shape keys finales en el objeto unificado después de la conversión",
-    default=False
-)
-
-shape_key_threshold: FloatProperty(
-    name="Shape Key Threshold",
-    description="Valor mínimo para aplicar una shape key (shape keys con valor menor se eliminan)",
-    default=0.01,
-    min=0.0,
-    max=1.0
-)
-
-# Mensaje de estado para shape keys
-shape_keys_status_message: StringProperty(
-    name="Shape Keys Status",
-    description="Mensaje de estado del procesamiento de shape keys",
-    default=""
-)

@@ -1,6 +1,6 @@
 """
 Panel principal con soporte para Shape Keys
-INTERFAZ AMIGABLE Y ORGANIZADA CON SHAPE KEYS
+INTERFAZ AMIGABLE Y ORGANIZADA - SIN DUPLICACIÓN DE PANELES
 """
 
 import bpy
@@ -47,7 +47,7 @@ class UNIVERSALGTA_PT_MainPanel(Panel):
 
 
 class UNIVERSALGTA_PT_ShapeKeysPanel(Panel):
-    """Panel dedicado para Shape Keys"""
+    """Panel dedicado para Shape Keys - VERSIÓN ÚNICA"""
     bl_label = "Shape Keys Manager"
     bl_idname = "UNIVERSALGTA_PT_shape_keys_panel"
     bl_space_type = 'VIEW_3D'
@@ -56,9 +56,30 @@ class UNIVERSALGTA_PT_ShapeKeysPanel(Panel):
     bl_parent_id = "UNIVERSALGTA_PT_main_panel"
     bl_options = {'DEFAULT_CLOSED'}
 
+    @classmethod
+    def poll(cls, context):
+        # Solo mostrar si los operadores de Shape Keys están disponibles
+        try:
+            from ..operators.shape_keys import UNIVERSALGTA_OT_apply_all_shape_keys
+            return True
+        except ImportError:
+            return False
+
     def draw(self, context):
         layout = self.layout
         settings = context.scene.universal_gta_settings
+        
+        # Verificar si el módulo de shape keys está disponible
+        try:
+            from ..operators.shape_keys import UNIVERSALGTA_OT_apply_all_shape_keys
+            shape_keys_available = True
+        except ImportError:
+            shape_keys_available = False
+        
+        if not shape_keys_available:
+            layout.label(text="Shape Keys no disponibles", icon='ERROR')
+            layout.label(text="Verificar operators/shape_keys.py")
+            return
         
         # Información sobre Shape Keys
         info_box = layout.box()
@@ -102,12 +123,9 @@ class UNIVERSALGTA_PT_ShapeKeysPanel(Panel):
         config_box.label(text="Application Settings", icon='PREFERENCES')
         
         col = config_box.column()
-        
-        # Agregar propiedades para shape keys en settings si no existen
-        if not hasattr(settings, 'preserve_basis_shape_key'):
-            # Estas propiedades se pueden agregar al config.py más tarde
-            col.label(text="Preserve Basis: ON")
-            col.label(text="Apply with Modifier: OFF")
+        col.prop(settings, "preserve_basis_shape_key", text="Preserve Basis")
+        col.prop(settings, "apply_shape_keys_with_modifier", text="Apply with Modifier")
+        col.prop(settings, "create_shape_keys_backup", text="Auto Backup")
         
         # Tercera fila - restauración
         if shape_keys_info['backup_exists']:
@@ -296,11 +314,9 @@ class UNIVERSALGTA_PT_AdvancedPanel(Panel):
         shape_keys_box.label(text="Shape Keys Settings", icon='SHAPEKEY_DATA')
         
         sk_col = shape_keys_box.column()
-        
-        # Estas propiedades se pueden agregar al config.py si es necesario
-        sk_col.label(text="✓ Auto process Shape Keys during conversion")
-        sk_col.label(text="✓ Create automatic backups")
-        sk_col.label(text="✓ Preserve Basis shape key")
+        sk_col.prop(settings, "auto_apply_shape_keys", text="Auto Apply Shape Keys")
+        sk_col.prop(settings, "create_shape_keys_backup", text="Auto Create Backup")
+        sk_col.prop(settings, "preserve_basis_shape_key", text="Preserve Basis")
         
         # Botón para configuración manual
         sk_row = sk_col.row()
@@ -460,7 +476,7 @@ class UNIVERSALGTA_PT_StatusPanel(Panel):
         else:
             col.label(text="✗ No Active Mappings", icon='ERROR')
         
-        # NUEVO: Verificar Shape Keys
+        # Verificar Shape Keys
         shape_keys_info = self._get_shape_keys_status(settings.source_armature)
         if shape_keys_info['has_shape_keys']:
             col.label(text=f"✓ {shape_keys_info['meshes_count']} Meshes with Shape Keys", icon='SHAPEKEY_DATA')
@@ -515,10 +531,10 @@ class UNIVERSALGTA_PT_StatusPanel(Panel):
         return status
 
 
-# Lista de clases para registro
+# Lista de clases para registro (SIN DUPLICACIÓN DEL PANEL SHAPE KEYS)
 classes = [
     UNIVERSALGTA_PT_MainPanel,
-    UNIVERSALGTA_PT_ShapeKeysPanel,
+    UNIVERSALGTA_PT_ShapeKeysPanel,  # SOLO UNA VERSIÓN
     UNIVERSALGTA_PT_BoneMappingPanel,
     UNIVERSALGTA_PT_AdvancedPanel,
     UNIVERSALGTA_PT_UtilitiesPanel,
