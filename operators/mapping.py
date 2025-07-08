@@ -125,57 +125,52 @@ class UNIVERSALGTA_OT_auto_detect_mappings(Operator):
         mappings = []
         threshold = settings.detection_threshold if hasattr(settings, 'detection_threshold') else 0.5
         
-        # Patrones de mapeo inteligentes para GTA SA (nomenclatura correcta con espacios)
+        # Patrones de mapeo inteligentes para GTA SA (nomenclatura EXACTA con espacios)
         gta_patterns = {
-            # Columna vertebral (sin espacios para estos)
-            'Pelvis': ['pelvis', 'hip', 'hips', 'root', 'base'],  # Sin espacio
-            'Spine': ['spine', 'back', 'torso', 'spine1'],
-            'Spine1': ['spine1', 'chest', 'upper_torso', 'spine2'],
-            'Spine2': ['spine2', 'upper_chest', 'spine3'],
-            'Neck': ['neck', 'cervical'],
-            'Head': ['head', 'skull'],
+            # Columna vertebral (algunos con espacio al inicio, otros sin)
+            'Pelvis': ['pelvis', 'hip', 'hips', 'root', 'base'],
+            ' Spine': ['spine', 'back', 'torso', 'spine1'],     # CON espacio al inicio
+            ' Spine1': ['spine1', 'chest', 'upper_torso', 'spine2'],  # CON espacio al inicio
+            ' Neck': ['neck', 'cervical'],                     # CON espacio al inicio
+            ' Head': ['head', 'skull'],                        # CON espacio al inicio
             
-            # Brazos izquierdos (CON ESPACIOS - nomenclatura SA)
-            'L Clavicle': ['l_clavicle', 'left_clavicle', 'l_shoulder', 'left_shoulder', 'clavicle_l', 'clavicle.l'],
-            'L UpperArm': ['l_upperarm', 'left_upperarm', 'l_arm', 'left_arm', 'l_humerus', 'upperarm_l', 'arm.l'],
-            'L Forearm': ['l_forearm', 'left_forearm', 'l_lower_arm', 'left_lower_arm', 'forearm_l', 'forearm.l'],
-            'L Hand': ['l_hand', 'left_hand', 'hand_l', 'hand.l'],
-            'L Finger': ['l_finger', 'left_finger', 'finger_l', 'finger.l'],
-            'L Finger1': ['l_finger1', 'left_finger1', 'finger1_l', 'finger1.l'],
-            'L Finger01': ['l_finger01', 'left_finger01', 'finger01_l', 'finger01.l'],
+            # Brazos izquierdos (nomenclatura exacta GTA SA)
+            'Bip01 L Clavicle': ['l_clavicle', 'left_clavicle', 'l_shoulder', 'left_shoulder', 'clavicle_l', 'clavicle.l', 'bip01_l_clavicle'],
+            ' L UpperArm': ['l_upperarm', 'left_upperarm', 'l_arm', 'left_arm', 'l_humerus', 'upperarm_l', 'arm.l'],  # CON espacio al inicio
+            ' L ForeArm': ['l_forearm', 'left_forearm', 'l_lower_arm', 'left_lower_arm', 'forearm_l', 'forearm.l'],   # CON espacio al inicio, ForeArm
+            ' L Hand': ['l_hand', 'left_hand', 'hand_l', 'hand.l'],        # CON espacio al inicio
+            ' L Finger': ['l_finger', 'left_finger', 'finger_l', 'finger.l'],  # CON espacio al inicio
+            'L Finger01': ['l_finger01', 'left_finger01', 'finger01_l', 'finger01.l', 'l_finger_01'],  # SIN espacio al inicio
             
-            # Brazos derechos (CON ESPACIOS - nomenclatura SA)
-            'R Clavicle': ['r_clavicle', 'right_clavicle', 'r_shoulder', 'right_shoulder', 'clavicle_r', 'clavicle.r'],
-            'R UpperArm': ['r_upperarm', 'right_upperarm', 'r_arm', 'right_arm', 'r_humerus', 'upperarm_r', 'arm.r'],
-            'R Forearm': ['r_forearm', 'right_forearm', 'r_lower_arm', 'right_lower_arm', 'forearm_r', 'forearm.r'],
-            'R Hand': ['r_hand', 'right_hand', 'hand_r', 'hand.r'],
-            'R Finger': ['r_finger', 'right_finger', 'finger_r', 'finger.r'],
-            'R Finger1': ['r_finger1', 'right_finger1', 'finger1_r', 'finger1.r'],
-            'R Finger01': ['r_finger01', 'right_finger01', 'finger01_r', 'finger01.r'],
+            # Brazos derechos (nomenclatura exacta GTA SA)
+            'Bip01 R Clavicle': ['r_clavicle', 'right_clavicle', 'r_shoulder', 'right_shoulder', 'clavicle_r', 'clavicle.r', 'bip01_r_clavicle'],
+            ' R UpperArm': ['r_upperarm', 'right_upperarm', 'r_arm', 'right_arm', 'r_humerus', 'upperarm_r', 'arm.r'],  # CON espacio al inicio
+            ' R ForeArm': ['r_forearm', 'right_forearm', 'r_lower_arm', 'right_lower_arm', 'forearm_r', 'forearm.r'],   # CON espacio al inicio, ForeArm
+            ' R Hand': ['r_hand', 'right_hand', 'hand_r', 'hand.r'],        # CON espacio al inicio
+            ' R Finger': ['r_finger', 'right_finger', 'finger_r', 'finger.r'],  # CON espacio al inicio
+            'R Finger01': ['r_finger01', 'right_finger01', 'finger01_r', 'finger01.r', 'r_finger_01'],  # SIN espacio al inicio
             
-            # Piernas izquierdas (CON ESPACIOS - nomenclatura SA)
-            'L Thigh': ['l_thigh', 'left_thigh', 'l_leg', 'left_leg', 'l_femur', 'thigh_l', 'thigh.l', 'leg.l'],
-            'L Calf': ['l_calf', 'left_calf', 'l_shin', 'left_shin', 'l_lower_leg', 'calf_l', 'calf.l', 'shin.l'],
-            'L Foot': ['l_foot', 'left_foot', 'foot_l', 'foot.l'],
-            'L Toe0': ['l_toe', 'left_toe', 'toe_l', 'toe.l', 'l_toe0'],
+            # Piernas izquierdas (CON espacios al inicio - nomenclatura SA)
+            ' L Thigh': ['l_thigh', 'left_thigh', 'l_leg', 'left_leg', 'l_femur', 'thigh_l', 'thigh.l', 'leg.l'],  # CON espacio al inicio
+            ' L Calf': ['l_calf', 'left_calf', 'l_shin', 'left_shin', 'l_lower_leg', 'calf_l', 'calf.l', 'shin.l'],  # CON espacio al inicio
+            ' L Foot': ['l_foot', 'left_foot', 'foot_l', 'foot.l'],         # CON espacio al inicio
+            ' L Toe0': ['l_toe', 'left_toe', 'toe_l', 'toe.l', 'l_toe0', 'l_toe_0'],  # CON espacio al inicio
             
-            # Piernas derechas (CON ESPACIOS - nomenclatura SA)
-            'R Thigh': ['r_thigh', 'right_thigh', 'r_leg', 'right_leg', 'r_femur', 'thigh_r', 'thigh.r', 'leg.r'],
-            'R Calf': ['r_calf', 'right_calf', 'r_shin', 'right_shin', 'r_lower_leg', 'calf_r', 'calf.r', 'shin.r'],
-            'R Foot': ['r_foot', 'right_foot', 'foot_r', 'foot.r'],
-            'R Toe0': ['r_toe', 'right_toe', 'toe_r', 'toe.r', 'r_toe0'],
+            # Piernas derechas (CON espacios al inicio - nomenclatura SA)
+            ' R Thigh': ['r_thigh', 'right_thigh', 'r_leg', 'right_leg', 'r_femur', 'thigh_r', 'thigh.r', 'leg.r'],  # CON espacio al inicio
+            ' R Calf': ['r_calf', 'right_calf', 'r_shin', 'right_shin', 'r_lower_leg', 'calf_r', 'calf.r', 'shin.r'],  # CON espacio al inicio
+            ' R Foot': ['r_foot', 'right_foot', 'foot_r', 'foot.r'],         # CON espacio al inicio
+            ' R Toe0': ['r_toe', 'right_toe', 'toe_r', 'toe.r', 'r_toe0', 'r_toe_0'],  # CON espacio al inicio
             
-            # Huesos faciales (CON ESPACIOS - nomenclatura SA)
-            'L Brow': ['l_brow', 'left_brow', 'l_eyebrow', 'left_eyebrow', 'brow_l', 'brow.l'],
-            'R Brow': ['r_brow', 'right_brow', 'r_eyebrow', 'right_eyebrow', 'brow_r', 'brow.r'],
-            'Jaw': ['jaw', 'chin', 'mandible'],
+            # Huesos faciales (SIN espacios al inicio - nomenclatura SA)
+            'Jaw': ['jaw', 'chin', 'mandible'],                # SIN espacio al inicio
+            'L Brow': ['l_brow', 'left_brow', 'l_eyebrow', 'left_eyebrow', 'brow_l', 'brow.l'],  # SIN espacio al inicio
+            'R Brow': ['r_brow', 'right_brow', 'r_eyebrow', 'right_eyebrow', 'brow_r', 'brow.r'],  # SIN espacio al inicio
             
-            # Pechos (SIN ESPACIOS - nomenclatura SA especial)
-            'L breast': ['l_breast', 'left_breast', 'breast_l', 'breast.l'],
-            'R breast': ['r_breast', 'right_breast', 'breast_r', 'breast.r'],
-            
-            # Belly (SIN ESPACIOS)
-            'belly': ['belly', 'abdomen', 'stomach', 'gut'],
+            # Cuerpo especial (SIN espacios al inicio - nomenclatura exacta SA)
+            'L breast': ['l_breast', 'left_breast', 'breast_l', 'breast.l'],  # SIN espacio al inicio
+            'R breast': ['r_breast', 'right_breast', 'breast_r', 'breast.r'],  # SIN espacio al inicio
+            'Belly': ['belly', 'abdomen', 'stomach', 'gut'],   # SIN espacio al inicio
         }
         
         # Algoritmo 1: Mapeo por patrones específicos de GTA SA
