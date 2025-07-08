@@ -150,7 +150,7 @@ class UniversalGTASettings(PropertyGroup):
     preserve_basis_shape_key: BoolProperty(
         name="Preserve Basis Shape Key",
         description="Mantiene la shape key 'Basis' sin aplicar durante el proceso",
-        default=True
+        default=False  # CAMBIADO: No preservar Basis por defecto
     )
 
     create_shape_keys_backup: BoolProperty(
@@ -168,13 +168,13 @@ class UniversalGTASettings(PropertyGroup):
     apply_final_shape_keys: BoolProperty(
         name="Apply Final Shape Keys",
         description="Aplica shape keys finales en el objeto unificado después de la conversión",
-        default=False
+        default=True  # CAMBIADO: Aplicar shape keys finales por defecto
     )
 
     shape_key_threshold: FloatProperty(
         name="Shape Key Threshold",
         description="Valor mínimo para aplicar una shape key (shape keys con valor menor se eliminan)",
-        default=0.01,
+        default=0.001,  # CAMBIADO: Umbral más bajo
         min=0.0,
         max=1.0
     )
@@ -184,6 +184,13 @@ class UniversalGTASettings(PropertyGroup):
         name="Shape Keys Status",
         description="Mensaje de estado del procesamiento de shape keys",
         default=""
+    )
+    
+    # NUEVA PROPIEDAD: Debug para pose detection
+    debug_pose_detection: BoolProperty(
+        name="Debug Pose Detection",
+        description="Activa debug detallado para detección de poses",
+        default=False
     )
 
 def register_validation():
