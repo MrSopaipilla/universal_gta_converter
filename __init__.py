@@ -99,7 +99,7 @@ from .operators.gta_reference import (
     UNIVERSALGTA_OT_create_gta_armature_template
 )
 
-# Importar paneles principales - CORREGIDO para coincidir con main_panel.py
+# Importar paneles individuales para evitar importaciones circulares
 from .panels.main_panel import (
     UNIVERSALGTA_PT_MainPanel,
     UNIVERSALGTA_PT_BoneMappingPanel,
@@ -109,7 +109,7 @@ from .panels.main_panel import (
     UNIVERSALGTA_PT_StatusPanel
 )
 
-# Importar paneles adicionales
+# Importar paneles de créditos
 from .panels.credits import (
     UNIVERSALGTA_OT_open_yoshi_channel,
     UNIVERSALGTA_PT_CreditsPanel,
@@ -303,7 +303,7 @@ classes = [
     UNIVERSALGTA_OT_show_gta_bone_reference,
     UNIVERSALGTA_OT_create_gta_armature_template,
     
-    # Paneles principales - NOMBRES CORREGIDOS
+    # Paneles principales
     UNIVERSALGTA_PT_MainPanel,
     UNIVERSALGTA_PT_BoneMappingPanel,
     UNIVERSALGTA_PT_AdvancedPanel,
@@ -325,7 +325,10 @@ converter_instance = None
 def register():
     """Registra todas las clases del addon"""
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            print(f"[ERROR] No se pudo registrar la clase {cls.__name__}: {e}")
     
     # Registrar la propiedad principal en la escena
     bpy.types.Scene.universal_gta_settings = PointerProperty(type=UniversalGTASettings)
@@ -350,7 +353,10 @@ def register():
 def unregister():
     """Desregistra todas las clases del addon"""
     for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as e:
+            print(f"[ERROR] No se pudo desregistrar la clase {cls.__name__}: {e}")
     
     # Eliminar la propiedad de la escena
     if hasattr(bpy.types.Scene, 'universal_gta_settings'):
