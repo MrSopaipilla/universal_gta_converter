@@ -93,18 +93,20 @@ from .operators.animations import (
 from .operators.export import UNIVERSALGTA_OT_export_textures
 from .operators.spacing import UNIVERSALGTA_OT_apply_spacing
 
-# Importar operadores de referencia GTA SA (NUEVO)
+# Importar operadores de referencia GTA SA
 from .operators.gta_reference import (
     UNIVERSALGTA_OT_show_gta_bone_reference,
     UNIVERSALGTA_OT_create_gta_armature_template
 )
 
-# Importar paneles principales
+# Importar paneles principales - CORREGIDO para coincidir con main_panel.py
 from .panels.main_panel import (
     UNIVERSALGTA_PT_MainPanel,
     UNIVERSALGTA_PT_BoneMappingPanel,
-    UNIVERSALGTA_PT_ConversionPanel,
-    UNIVERSALGTA_PT_UtilitiesPanel
+    UNIVERSALGTA_PT_AdvancedPanel,
+    UNIVERSALGTA_PT_UtilitiesPanel,
+    UNIVERSALGTA_PT_AnimationsPanel,
+    UNIVERSALGTA_PT_StatusPanel
 )
 
 # Importar paneles adicionales
@@ -297,15 +299,17 @@ classes = [
     UNIVERSALGTA_OT_export_textures,
     UNIVERSALGTA_OT_apply_spacing,
     
-    # Operadores de referencia GTA SA (NUEVO)
+    # Operadores de referencia GTA SA
     UNIVERSALGTA_OT_show_gta_bone_reference,
     UNIVERSALGTA_OT_create_gta_armature_template,
     
-    # Paneles principales
+    # Paneles principales - NOMBRES CORREGIDOS
     UNIVERSALGTA_PT_MainPanel,
     UNIVERSALGTA_PT_BoneMappingPanel,
-    UNIVERSALGTA_PT_ConversionPanel,
+    UNIVERSALGTA_PT_AdvancedPanel,
     UNIVERSALGTA_PT_UtilitiesPanel,
+    UNIVERSALGTA_PT_AnimationsPanel,
+    UNIVERSALGTA_PT_StatusPanel,
     
     # Paneles adicionales y créditos
     UNIVERSALGTA_OT_open_yoshi_channel,
