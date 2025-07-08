@@ -4,7 +4,9 @@ Operadores para animaciones predefinidas cargadas desde archivos .blend
 
 import bpy
 import os
+import math
 from bpy.types import Operator
+from mathutils import Euler, Vector
 
 
 class UNIVERSALGTA_OT_load_animation(Operator):
@@ -29,7 +31,7 @@ class UNIVERSALGTA_OT_load_animation(Operator):
             # Limpiar animaciones existentes primero
             self.clear_animations(settings.target_armature)
             
-            # Cargar la animación desde archivo .blend
+            # Cargar la animación desde archivo .blend o crear fallback
             success = self.load_animation_from_blend(
                 settings.target_armature, 
                 settings.predefined_animation
@@ -143,7 +145,8 @@ class UNIVERSALGTA_OT_load_animation(Operator):
             
         except Exception as e:
             print(f"[ANIMATION] Error cargando desde .blend: {e}")
-            return False
+            # Fallback a animación por defecto
+            return self.create_fallback_animation(target_armature, animation_name)
     
     def create_fallback_animation(self, armature, animation_type):
         """Crea una animación básica si no existe el archivo .blend"""
@@ -171,7 +174,14 @@ class UNIVERSALGTA_OT_load_animation(Operator):
                 self.create_basic_idle(armature)
             elif animation_type == 'WALK':
                 self.create_basic_walk(armature)
-            # Agregar más tipos según sea necesario
+            elif animation_type == 'RUNNING':
+                self.create_basic_running(armature)
+            elif animation_type == 'JUMP':
+                self.create_basic_jump(armature)
+            elif animation_type == 'CHAT':
+                self.create_basic_chat(armature)
+            elif animation_type == 'FACIAL':
+                self.create_basic_facial(armature)
             
             bpy.ops.object.mode_set(mode='OBJECT')
             return True
@@ -215,6 +225,132 @@ class UNIVERSALGTA_OT_load_animation(Operator):
                     else:
                         bone.rotation_euler.x = -0.2
                     bone.keyframe_insert(data_path="rotation_euler")
+    
+    def create_basic_running(self, armature):
+        """Crea animación básica de correr"""
+        # Similar a caminar pero más rápido y con más amplitud
+        leg_bones = ['L Thigh', 'R Thigh']
+        arm_bones = ['L UpperArm', 'R UpperArm']
+        
+        # Configurar frame range más corto para correr
+        bpy.context.scene.frame_end = 30
+        
+        for i, bone_name in enumerate(leg_bones):
+            if bone_name in armature.pose.bones:
+                bone = armature.pose.bones[bone_name]
+                
+                # Movimiento más rápido y amplio
+                for frame in [1, 8, 15, 22, 30]:
+                    bpy.context.scene.frame_set(frame)
+                    if (frame // 8 + i) % 2 == 0:
+                        bone.rotation_euler.x = 0.4
+                    else:
+                        bone.rotation_euler.x = -0.4
+                    bone.keyframe_insert(data_path="rotation_euler")
+        
+        # Movimiento de brazos opuesto a las piernas
+        for i, bone_name in enumerate(arm_bones):
+            if bone_name in armature.pose.bones:
+                bone = armature.pose.bones[bone_name]
+                
+                for frame in [1, 8, 15, 22, 30]:
+                    bpy.context.scene.frame_set(frame)
+                    if (frame // 8 + i + 1) % 2 == 0:  # +1 para hacer opuesto
+                        bone.rotation_euler.x = 0.3
+                    else:
+                        bone.rotation_euler.x = -0.3
+                    bone.keyframe_insert(data_path="rotation_euler")
+    
+    def create_basic_jump(self, armature):
+        """Crea animación básica de salto"""
+        if 'Root' in armature.pose.bones:
+            root = armature.pose.bones['Root']
+            
+            # Preparación
+            bpy.context.scene.frame_set(1)
+            root.location.z = 0
+            root.keyframe_insert(data_path="location")
+            
+            # Salto
+            bpy.context.scene.frame_set(15)
+            root.location.z = 1.0
+            root.keyframe_insert(data_path="location")
+            
+            # Aterrizaje
+            bpy.context.scene.frame_set(30)
+            root.location.z = 0
+            root.keyframe_insert(data_path="location")
+        
+        # Flexión de piernas durante el salto
+        leg_bones = ['L Thigh', 'R Thigh', 'L Calf', 'R Calf']
+        for bone_name in leg_bones:
+            if bone_name in armature.pose.bones:
+                bone = armature.pose.bones[bone_name]
+                
+                bpy.context.scene.frame_set(1)
+                bone.rotation_euler.x = -0.3  # Flexión preparatoria
+                bone.keyframe_insert(data_path="rotation_euler")
+                
+                bpy.context.scene.frame_set(15)
+                bone.rotation_euler.x = 0.2   # Extensión en el aire
+                bone.keyframe_insert(data_path="rotation_euler")
+                
+                bpy.context.scene.frame_set(30)
+                bone.rotation_euler.x = -0.1  # Flexión de aterrizaje
+                bone.keyframe_insert(data_path="rotation_euler")
+    
+    def create_basic_chat(self, armature):
+        """Crea animación básica de chat/hablar"""
+        # Movimiento sutil de cabeza
+        if 'Head' in armature.pose.bones:
+            head = armature.pose.bones['Head']
+            
+            frames = [1, 10, 20, 30, 40, 50, 60]
+            rotations = [0, 0.1, -0.05, 0.08, -0.03, 0.06, 0]
+            
+            for frame, rot in zip(frames, rotations):
+                bpy.context.scene.frame_set(frame)
+                head.rotation_euler.z = rot
+                head.keyframe_insert(data_path="rotation_euler")
+        
+        # Movimiento sutil de jaw si existe
+        if 'Jaw' in armature.pose.bones:
+            jaw = armature.pose.bones['Jaw']
+            
+            for frame in range(1, 61, 5):
+                bpy.context.scene.frame_set(frame)
+                # Abrir y cerrar jaw aleatoriamente
+                if frame % 10 == 0:
+                    jaw.rotation_euler.x = 0.1
+                else:
+                    jaw.rotation_euler.x = 0
+                jaw.keyframe_insert(data_path="rotation_euler")
+    
+    def create_basic_facial(self, armature):
+        """Crea animación básica de expresión facial"""
+        facial_bones = ['L Brow', 'R Brow', 'Jaw']
+        
+        for bone_name in facial_bones:
+            if bone_name in armature.pose.bones:
+                bone = armature.pose.bones[bone_name]
+                
+                # Expresión neutral
+                bpy.context.scene.frame_set(1)
+                bone.rotation_euler = (0, 0, 0)
+                bone.keyframe_insert(data_path="rotation_euler")
+                
+                # Expresión intermedia
+                bpy.context.scene.frame_set(30)
+                if 'Brow' in bone_name:
+                    bone.rotation_euler.x = 0.2  # Levantar cejas
+                elif 'Jaw' in bone_name:
+                    bone.rotation_euler.x = 0.15  # Abrir jaw
+                bone.keyframe_insert(data_path="rotation_euler")
+                
+                # Volver a neutral
+                bpy.context.scene.frame_set(60)
+                bone.rotation_euler = (0, 0, 0)
+                bone.keyframe_insert(data_path="rotation_euler")
     
     def clear_animations(self, armature):
         """Limpia todas las animaciones del armature"""
@@ -408,86 +544,3 @@ def register():
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-        
-"""
-Operadores para animaciones predefinidas
-"""
-
-import bpy
-import math
-from bpy.types import Operator
-from mathutils import Euler, Vector
-
-
-class UNIVERSALGTA_OT_load_animation(Operator):
-    """Cargar animación predefinida"""
-    bl_idname = "universalgta.load_animation"
-    bl_label = "Load Animation"
-    bl_description = "Carga una animación predefinida en el armature target"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def execute(self, context):
-        settings = context.scene.universal_gta_settings
-        
-        if not settings.target_armature:
-            self.report({'ERROR'}, "No hay armature target definido")
-            return {'CANCELLED'}
-        
-        if settings.predefined_animation == 'NONE':
-            self.report({'WARNING'}, "Selecciona una animación primero")
-            return {'CANCELLED'}
-        
-        try:
-            # Limpiar animaciones existentes primero
-            self.clear_animations(settings.target_armature)
-            
-            # Cargar la animación seleccionada
-            success = self.load_predefined_animation(
-                settings.target_armature, 
-                settings.predefined_animation
-            )
-            
-            if success:
-                self.report({'INFO'}, f"Animación '{settings.predefined_animation}' cargada exitosamente")
-            else:
-                self.report({'ERROR'}, f"Error cargando animación '{settings.predefined_animation}'")
-                return {'CANCELLED'}
-            
-        except Exception as e:
-            self.report({'ERROR'}, f"Error: {str(e)}")
-            return {'CANCELLED'}
-        
-        return {'FINISHED'}
-    
-    def clear_animations(self, armature):
-        """Limpia todas las animaciones del armature"""
-        if armature.animation_data:
-            armature.animation_data.action = None
-        
-        # Limpiar todas las actions del armature
-        for action in bpy.data.actions:
-            if action.name.startswith(armature.name):
-                bpy.data.actions.remove(action)
-    
-def load_predefined_animation(self, armature, animation_type):
-    """Carga una animación predefinida específica"""
-    try:
-        # Crear nueva action
-        action_name = f"{armature.name}_{animation_type}"
-        action = bpy.data.actions.new(name=action_name)
-
-        # Asignar action al armature
-        if not armature.animation_data:
-            armature.animation_data_create()
-        armature.animation_data.action = action
-
-        # Configurar frame range
-        bpy.context.scene.frame_start = 1
-        bpy.context.scene.frame_end = 60
-
-        # Aquí deberías insertar keyframes si corresponde
-
-        return True
-    except Exception as e:
-        print(f"Error cargando animación: {e}")
-        return False
