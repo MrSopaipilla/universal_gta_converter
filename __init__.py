@@ -1,10 +1,10 @@
 bl_info = {
     "name": "Universal to GTA SA Converter",
     "author": "YoshiMaincra + GPT + Claude",
-    "version": (3, 2, 2),
+    "version": (3, 2, 3),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Universal GTA",
-    "description": "Convierte armatures personalizados a GTA SA con detección inteligente de huesos, corrección de normales, animaciones predefinidas y herramientas avanzadas.",
+    "description": "Convierte armatures personalizados a GTA SA con detección inteligente de huesos, corrección de normales, animaciones predefinidas y herramientas avanzadas. In-Dev",
     "category": "Rigging",
 }
 
@@ -92,6 +92,12 @@ from .operators.animations import (
 # Importar operadores de exportación y espaciado
 from .operators.export import UNIVERSALGTA_OT_export_textures
 from .operators.spacing import UNIVERSALGTA_OT_apply_spacing
+
+# Importar operadores de referencia GTA SA (NUEVO)
+from .operators.gta_reference import (
+    UNIVERSALGTA_OT_show_gta_bone_reference,
+    UNIVERSALGTA_OT_create_gta_armature_template
+)
 
 # Importar paneles principales
 from .panels.main_panel import (
@@ -291,6 +297,10 @@ classes = [
     UNIVERSALGTA_OT_export_textures,
     UNIVERSALGTA_OT_apply_spacing,
     
+    # Operadores de referencia GTA SA (NUEVO)
+    UNIVERSALGTA_OT_show_gta_bone_reference,
+    UNIVERSALGTA_OT_create_gta_armature_template,
+    
     # Paneles principales
     UNIVERSALGTA_PT_MainPanel,
     UNIVERSALGTA_PT_BoneMappingPanel,
@@ -319,8 +329,12 @@ def register():
     # Registrar validadores de nombres
     register_validation()
     
-    print("[ADDON] Universal GTA Converter v3.2.2 registrado exitosamente")
+    print("[ADDON] Universal GTA Converter v3.2.3 In-Dev registrado exitosamente")
     print("[ADDON] Nuevas características:")
+    print("[ADDON] • Nomenclatura exacta de GTA SA (con espacios)")
+    print("[ADDON] • Pelvis incluido correctamente")
+    print("[ADDON] • Herramientas de referencia GTA SA")
+    print("[ADDON] • Template creator con nombres exactos")
     print("[ADDON] • Corrección automática de normales")
     print("[ADDON] • Sistema de nombres personalizados")
     print("[ADDON] • Animaciones predefinidas desde .blend")
@@ -338,7 +352,7 @@ def unregister():
     if hasattr(bpy.types.Scene, 'universal_gta_settings'):
         del bpy.types.Scene.universal_gta_settings
     
-    print("[ADDON] Universal GTA Converter desregistrado exitosamente")
+    print("[ADDON] Universal GTA Converter v3.2.3 In-Dev desregistrado exitosamente")
 
 
 if __name__ == "__main__":
