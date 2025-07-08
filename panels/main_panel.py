@@ -1,181 +1,4 @@
-for mapping in settings.bone_mappings:
-                    if (mapping.enabled and mapping.source_bone and mapping.target_bone and
-                        mapping.source_bone in source_bones and mapping.target_bone in target_bones):
-                        valid_mappings += 1
-            
-            # Mostrar estadísticas
-            left_stats = stats_row.column()
-            left_stats.label(text=f"Total: {total_mappings}")
-            left_stats.label(text=f"Enabled: {enabled_mappings}")
-            
-            right_stats = stats_row.column()
-            right_stats.label(text=f"Auto: {auto_mappings}")
-            right_stats.label(text=f"Valid: {valid_mappings}")
-
-
-class UNIVERSALGTA_PT_ConversionPanel(Panel):
-    """Panel para ejecutar la conversión"""
-    bl_label = "Conversion"
-    bl_idname = "UNIVERSALGTA_PT_conversion_panel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Universal GTA"
-    bl_parent_id = "UNIVERSALGTA_PT_main_panel"
-
-    def draw(self, context):
-        layout = self.layout
-        
-        # Herramientas de limpieza
-        box = layout.box()
-        box.label(text="Cleanup Tools", icon='BRUSH_DATA')
-        
-        col = box.column()
-        col.operator("universalgta.clean_model", text="Clean Model", icon='OUTLINER_OB_MESH')
-        col.operator("universalgta.clean_armatures", text="Clean Armatures", icon='OUTLINER_OB_ARMATURE')
-        col.operator("universalgta.clean_empty_vertex_groups", text="Clean Vertex Groups", icon='GROUP_VERTEX')
-        col.operator("universalgta.fix_modifiers", text="Fix Modifiers", icon='MODIFIER')
-        
-        # Segunda columna de limpieza
-        col.separator()
-        col.operator("universalgta.purge_unused_data", text="Purge Unused Data", icon='TRASH')
-        col.operator("universalgta.purge_scene", text="Purge Scene", icon='SCENE_DATA')
-        col.operator("universalgta.remove_duplicates", text="Remove Duplicates", icon='DUPLICATE')
-        col.operator("universalgta.optimize_mesh", text="Optimize Mesh", icon='MOD_REMESH')
-        
-        # Herramientas de exportación
-        layout.separator()
-        box = layout.box()
-        box.label(text="Export Tools", icon='EXPORT')
-        
-        col = box.column()
-        col.operator("universalgta.export_textures", text="Export Textures", icon='TEXTURE')
-        
-        # Información y ayuda
-        layout.separator()
-        box = layout.box()
-        box.label(text="Information", icon='HELP')
-        
-        col = box.column()
-        col.label(text="Universal GTA Converter v3.2.2", icon='ARMATURE_DATA')
-        col.label(text="Converts custom rigs to GTA SA format")
-        col.label(text="with intelligent bone detection")
-        
-        col.separator()
-        col.label(text="Usage:")
-        col.label(text="1. Set source and target armatures")
-        col.label(text="2. Configure bone mappings")
-        col.label(text="3. Execute conversion")
-        col.label(text="4. Clean up if needed")
-        
-        col.separator()
-        col.label(text="Features:")
-        col.label(text="• Drag & drop bone mapping")
-        col.label(text="• Intelligent auto-detection")
-        col.label(text="• Real-time validation")
-        col.label(text="• Custom pose application")
-        col.label(text="• Advanced cleanup tools")
-
-
-# Lista de clases para registro
-classes = [
-    UNIVERSALGTA_PT_MainPanel,
-    UNIVERSALGTA_PT_BoneMappingPanel,
-    UNIVERSALGTA_PT_ConversionPanel,
-    UNIVERSALGTA_PT_UtilitiesPanel,
-]
-
-
-def register():
-    """Registra todos los paneles"""
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister():
-    """Desregistra todos los paneles"""
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
-
-
-if __name__ == "__main__":
-    register() context):
-        layout = self.layout
-        settings = context.scene.universal_gta_settings
-        
-        # Verificar si la configuración es válida
-        has_source = settings.source_armature and settings.source_armature.type == 'ARMATURE'
-        has_target = settings.target_armature and settings.target_armature.type == 'ARMATURE'
-        has_mappings = len(settings.bone_mappings) > 0
-        has_enabled_mappings = any(m.enabled for m in settings.bone_mappings)
-        
-        is_valid = has_source and has_target and has_mappings and has_enabled_mappings
-        
-        # Estado de la conversión
-        box = layout.box()
-        if is_valid:
-            box.label(text="Ready for Conversion", icon='CHECKMARK')
-        else:
-            box.label(text="Configuration Incomplete", icon='ERROR')
-            
-            col = box.column()
-            if not has_source:
-                col.label(text="• Missing source armature", icon='DOT')
-            if not has_target:
-                col.label(text="• Missing target armature", icon='DOT')
-            if not has_mappings:
-                col.label(text="• No bone mappings configured", icon='DOT')
-            elif not has_enabled_mappings:
-                col.label(text="• No enabled bone mappings", icon='DOT')
-        
-        # Herramientas de preview y testing
-        layout.separator()
-        box = layout.box()
-        box.label(text="Preview & Testing", icon='VIEW3D')
-        
-        row = box.row()
-        row.operator("universalgta.preview_conversion", text="Preview", icon='VIEWZOOM')
-        row.operator("universalgta.test_bone_mappings", text="Test", icon='PLAY')
-        
-        row = box.row()
-        row.operator("universalgta.clear_test_constraints", text="Clear Test", icon='X')
-        
-        # Botón principal de conversión
-        layout.separator()
-        box = layout.box()
-        box.label(text="Execute Conversion", icon='PLAY')
-        
-        col = box.column()
-        col.scale_y = 1.5
-        
-        if is_valid:
-            col.operator("universalgta.execute_conversion", 
-                        text="Convert to GTA SA", 
-                        icon='ARMATURE_DATA')
-        else:
-            col.enabled = False
-            col.operator("universalgta.execute_conversion", 
-                        text="Convert to GTA SA (Incomplete)", 
-                        icon='ERROR')
-        
-        # Información adicional
-        info_col = box.column()
-        if settings.auto_apply_custom_pose:
-            info_col.label(text="• Custom pose will be applied automatically", icon='INFO')
-        if settings.debug_mode:
-            info_col.label(text="• Debug mode enabled", icon='CONSOLE')
-
-
-class UNIVERSALGTA_PT_UtilitiesPanel(Panel):
-    """Panel para herramientas de limpieza y utilidades"""
-    bl_label = "Utilities"
-    bl_idname = "UNIVERSALGTA_PT_utilities_panel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "Universal GTA"
-    bl_parent_id = "UNIVERSALGTA_PT_main_panel"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self,"""
+"""
 Panel principal para el addon Universal GTA Converter
 VERSIÓN COMPLETA CORREGIDA PARA BLENDER 5.0 - Iconos y drag & drop funcionales
 """
@@ -433,4 +256,180 @@ class UNIVERSALGTA_PT_BoneMappingPanel(Panel):
                 target_bones = {bone.name for bone in settings.target_armature.pose.bones}
                 
                 for mapping in settings.bone_mappings:
-                    if (mapping.enabled and mapping.source_bone an
+                    if (mapping.enabled and mapping.source_bone and mapping.target_bone and
+                        mapping.source_bone in source_bones and mapping.target_bone in target_bones):
+                        valid_mappings += 1
+            
+            # Mostrar estadísticas
+            left_stats = stats_row.column()
+            left_stats.label(text=f"Total: {total_mappings}")
+            left_stats.label(text=f"Enabled: {enabled_mappings}")
+            
+            right_stats = stats_row.column()
+            right_stats.label(text=f"Auto: {auto_mappings}")
+            right_stats.label(text=f"Valid: {valid_mappings}")
+
+
+class UNIVERSALGTA_PT_ConversionPanel(Panel):
+    """Panel para ejecutar la conversión"""
+    bl_label = "Conversion"
+    bl_idname = "UNIVERSALGTA_PT_conversion_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Universal GTA"
+    bl_parent_id = "UNIVERSALGTA_PT_main_panel"
+
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.universal_gta_settings
+        
+        # Verificar si la configuración es válida
+        has_source = settings.source_armature and settings.source_armature.type == 'ARMATURE'
+        has_target = settings.target_armature and settings.target_armature.type == 'ARMATURE'
+        has_mappings = len(settings.bone_mappings) > 0
+        has_enabled_mappings = any(m.enabled for m in settings.bone_mappings)
+        
+        is_valid = has_source and has_target and has_mappings and has_enabled_mappings
+        
+        # Estado de la conversión
+        box = layout.box()
+        if is_valid:
+            box.label(text="Ready for Conversion", icon='CHECKMARK')
+        else:
+            box.label(text="Configuration Incomplete", icon='ERROR')
+            
+            col = box.column()
+            if not has_source:
+                col.label(text="• Missing source armature", icon='DOT')
+            if not has_target:
+                col.label(text="• Missing target armature", icon='DOT')
+            if not has_mappings:
+                col.label(text="• No bone mappings configured", icon='DOT')
+            elif not has_enabled_mappings:
+                col.label(text="• No enabled bone mappings", icon='DOT')
+        
+        # Herramientas de preview y testing
+        layout.separator()
+        box = layout.box()
+        box.label(text="Preview & Testing", icon='VIEW3D')
+        
+        row = box.row()
+        row.operator("universalgta.preview_conversion", text="Preview", icon='VIEWZOOM')
+        row.operator("universalgta.test_bone_mappings", text="Test", icon='PLAY')
+        
+        row = box.row()
+        row.operator("universalgta.clear_test_constraints", text="Clear Test", icon='X')
+        
+        # Botón principal de conversión
+        layout.separator()
+        box = layout.box()
+        box.label(text="Execute Conversion", icon='PLAY')
+        
+        col = box.column()
+        col.scale_y = 1.5
+        
+        if is_valid:
+            col.operator("universalgta.execute_conversion", 
+                        text="Convert to GTA SA", 
+                        icon='ARMATURE_DATA')
+        else:
+            col.enabled = False
+            col.operator("universalgta.execute_conversion", 
+                        text="Convert to GTA SA (Incomplete)", 
+                        icon='ERROR')
+        
+        # Información adicional
+        info_col = box.column()
+        if settings.auto_apply_custom_pose:
+            info_col.label(text="• Custom pose will be applied automatically", icon='INFO')
+        if settings.debug_mode:
+            info_col.label(text="• Debug mode enabled", icon='CONSOLE')
+
+
+class UNIVERSALGTA_PT_UtilitiesPanel(Panel):
+    """Panel para herramientas de limpieza y utilidades"""
+    bl_label = "Utilities"
+    bl_idname = "UNIVERSALGTA_PT_utilities_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Universal GTA"
+    bl_parent_id = "UNIVERSALGTA_PT_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        
+        # Herramientas de limpieza
+        box = layout.box()
+        box.label(text="Cleanup Tools", icon='BRUSH_DATA')
+        
+        col = box.column()
+        col.operator("universalgta.clean_model", text="Clean Model", icon='OUTLINER_OB_MESH')
+        col.operator("universalgta.clean_armatures", text="Clean Armatures", icon='OUTLINER_OB_ARMATURE')
+        col.operator("universalgta.clean_empty_vertex_groups", text="Clean Vertex Groups", icon='GROUP_VERTEX')
+        col.operator("universalgta.fix_modifiers", text="Fix Modifiers", icon='MODIFIER')
+        
+        # Segunda columna de limpieza
+        col.separator()
+        col.operator("universalgta.purge_unused_data", text="Purge Unused Data", icon='TRASH')
+        col.operator("universalgta.purge_scene", text="Purge Scene", icon='SCENE_DATA')
+        col.operator("universalgta.remove_duplicates", text="Remove Duplicates", icon='DUPLICATE')
+        col.operator("universalgta.optimize_mesh", text="Optimize Mesh", icon='MOD_REMESH')
+        
+        # Herramientas de exportación
+        layout.separator()
+        box = layout.box()
+        box.label(text="Export Tools", icon='EXPORT')
+        
+        col = box.column()
+        col.operator("universalgta.export_textures", text="Export Textures", icon='TEXTURE')
+        
+        # Información y ayuda
+        layout.separator()
+        box = layout.box()
+        box.label(text="Information", icon='HELP')
+        
+        col = box.column()
+        col.label(text="Universal GTA Converter v3.2.2", icon='ARMATURE_DATA')
+        col.label(text="Converts custom rigs to GTA SA format")
+        col.label(text="with intelligent bone detection")
+        
+        col.separator()
+        col.label(text="Usage:")
+        col.label(text="1. Set source and target armatures")
+        col.label(text="2. Configure bone mappings")
+        col.label(text="3. Execute conversion")
+        col.label(text="4. Clean up if needed")
+        
+        col.separator()
+        col.label(text="Features:")
+        col.label(text="• Drag & drop bone mapping")
+        col.label(text="• Intelligent auto-detection")
+        col.label(text="• Real-time validation")
+        col.label(text="• Custom pose application")
+        col.label(text="• Advanced cleanup tools")
+
+
+# Lista de clases para registro
+classes = [
+    UNIVERSALGTA_PT_MainPanel,
+    UNIVERSALGTA_PT_BoneMappingPanel,
+    UNIVERSALGTA_PT_ConversionPanel,
+    UNIVERSALGTA_PT_UtilitiesPanel,
+]
+
+
+def register():
+    """Registra todos los paneles"""
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
+
+def unregister():
+    """Desregistra todos los paneles"""
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
+
+
+if __name__ == "__main__":
+    register()
