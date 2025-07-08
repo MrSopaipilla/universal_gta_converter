@@ -1,6 +1,6 @@
 """
 Operadores de conversión para Universal GTA SA Converter
-VERSIÓN COMPLETA CON TODOS LOS OPERADORES FALTANTES
+VERSIÓN CON MANEJO MEJORADO DE ERRORES DE POSE
 """
 
 import bpy
@@ -10,7 +10,7 @@ from .. import external_pose_caller
 
 
 class UNIVERSALGTA_OT_execute_conversion(Operator):
-    """Ejecutar conversión a GTA SA"""
+    """Ejecutar conversión a GTA SA con manejo mejorado de pose personalizada"""
     bl_idname = "universalgta.execute_conversion"
     bl_label = "Convert to GTA SA"
     bl_description = "Execute the conversion from custom armature to GTA SA format"
@@ -34,32 +34,32 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             # Ejecutar conversión
             success = converter.convert()
             
-            if success:
-                self.report({'INFO'}, "Conversión completada con éxito")
-                
-                # Auto-aplicar pose personalizada si está habilitado
-                if settings.auto_apply_custom_pose:
-                    try:
-                        print("[CONVERSION] Auto-aplicando pose personalizada...")
-                        applier = external_pose_caller.ExternalPoseApplier()
-                        pose_success = applier.execute_full_pose_application(
-                            source_armature=None,  # Se detectará automáticamente
-                            target_armature=settings.target_armature
-                        )
-                        
-                        if pose_success:
-                            self.report({'INFO'}, "Conversión y pose personalizada aplicadas con éxito")
-                        else:
-                            self.report({'WARNING'}, "Conversión exitosa, pero falló la aplicación de pose personalizada")
-                            
-                    except Exception as e:
-                        print(f"[CONVERSION] Error al aplicar pose personalizada: {e}")
-                        self.report({'WARNING'}, f"Conversión exitosa, pero error en pose personalizada: {str(e)}")
-                
-                return {'FINISHED'}
-            else:
+            if not success:
                 self.report({'ERROR'}, "Falló la conversión")
                 return {'CANCELLED'}
+            
+            # Conversión exitosa
+            conversion_message = "Conversión completada con éxito"
+            
+            # Auto-aplicar pose personalizada si está habilitado
+            if settings.auto_apply_custom_pose:
+                pose_result = self._apply_custom_pose_safe(settings)
+                
+                if pose_result['success']:
+                    conversion_message += " con pose personalizada aplicada"
+                    self.report({'INFO'}, conversion_message)
+                elif pose_result['attempted']:
+                    # La pose falló pero la conversión fue exitosa
+                    conversion_message += f" (advertencia en pose: {pose_result['message']})"
+                    self.report({'WARNING'}, conversion_message)
+                else:
+                    # No se intentó aplicar pose
+                    conversion_message += " (pose personalizada omitida)"
+                    self.report({'INFO'}, conversion_message)
+            else:
+                self.report({'INFO'}, conversion_message)
+            
+            return {'FINISHED'}
                 
         except Exception as e:
             self.report({'ERROR'}, f"Error durante la conversión: {str(e)}")
@@ -67,6 +67,119 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             import traceback
             traceback.print_exc()
             return {'CANCELLED'}
+    
+    def _apply_custom_pose_safe(self, settings):
+        """
+        Aplica pose personalizada de forma segura sin fallar la conversión
+        
+        Returns:
+            dict: {'success': bool, 'attempted': bool, 'message': str}
+        """
+        result = {
+            'success': False,
+            'attempted': False,
+            'message': ''
+        }
+        
+        try:
+            print("[CONVERSION] === INICIANDO APLICACIÓN DE POSE PERSONALIZADA ===")
+            result['attempted'] = True
+            
+            # Verificar setup post-conversión
+            external_pose_caller.verify_post_conversion_setup()
+            
+            # Buscar el armature resultante de la conversión
+            target_armature = self._find_conversion_result_armature(settings)
+            
+            if not target_armature:
+                result['message'] = "No se encontró armature resultante"
+                print("[CONVERSION] ✗ No se encontró armature para aplicar pose")
+                return result
+            
+            print(f"[CONVERSION] ✓ Armature encontrado: {target_armature.name}")
+            
+            # Verificar que haya meshes con modificadores armature
+            meshes_with_modifiers = self._count_meshes_with_armature_modifiers(target_armature)
+            
+            if meshes_with_modifiers == 0:
+                result['message'] = "No hay meshes con modificadores armature para procesar"
+                print("[CONVERSION] ⚠ No hay meshes con modificadores para aplicar pose")
+                result['success'] = True  # No es un error crítico
+                return result
+            
+            print(f"[CONVERSION] ✓ {meshes_with_modifiers} meshes con modificadores encontrados")
+            
+            # Crear aplicador de poses
+            applier = external_pose_caller.ExternalPoseApplier()
+            
+            # Intentar aplicar pose
+            pose_success = applier.execute_full_pose_application(
+                source_armature=None,  # Ya no existe después de conversión
+                target_armature=target_armature
+            )
+            
+            if pose_success:
+                result['success'] = True
+                result['message'] = "Pose aplicada exitosamente"
+                print("[CONVERSION] ✓ Pose personalizada aplicada correctamente")
+            else:
+                result['message'] = "No se pudo aplicar la pose completamente"
+                print("[CONVERSION] ✗ Pose personalizada falló")
+            
+        except Exception as e:
+            result['message'] = f"Error aplicando pose: {str(e)}"
+            print(f"[CONVERSION] ✗ Error aplicando pose personalizada: {e}")
+            import traceback
+            traceback.print_exc()
+            # No re-lanzar la excepción para no fallar la conversión
+        
+        print("[CONVERSION] === APLICACIÓN DE POSE PERSONALIZADA COMPLETADA ===")
+        return result
+    
+    def _find_conversion_result_armature(self, settings):
+        """Encuentra el armature resultante de la conversión"""
+        # Buscar armature 'Root' o similar (resultado típico de conversión GTA SA)
+        root_candidates = []
+        for obj in bpy.data.objects:
+            if obj.type == 'ARMATURE':
+                if obj.name.lower() in ['root', 'gta_root', 'gta_sa_root']:
+                    root_candidates.append(obj)
+        
+        if root_candidates:
+            # Preferir el que tenga más meshes asociados
+            best_candidate = max(root_candidates, 
+                               key=lambda x: self._count_meshes_with_armature_modifiers(x))
+            print(f"[CONVERSION] ✓ Armature Root encontrado: {best_candidate.name}")
+            return best_candidate
+        
+        # Si no hay Root, buscar el que tenga más meshes asociados
+        all_armatures = [obj for obj in bpy.data.objects if obj.type == 'ARMATURE']
+        if all_armatures:
+            best_armature = max(all_armatures, 
+                              key=lambda x: self._count_meshes_with_armature_modifiers(x))
+            
+            if self._count_meshes_with_armature_modifiers(best_armature) > 0:
+                print(f"[CONVERSION] ✓ Armature principal encontrado: {best_armature.name}")
+                return best_armature
+        
+        # Como última opción, usar target_armature si todavía existe
+        if settings.target_armature and settings.target_armature.name in bpy.data.objects:
+            print(f"[CONVERSION] ✓ Usando target armature: {settings.target_armature.name}")
+            return settings.target_armature
+        
+        print("[CONVERSION] ✗ No se pudo encontrar armature resultante")
+        return None
+    
+    def _count_meshes_with_armature_modifiers(self, armature):
+        """Cuenta meshes que tienen modificador armature apuntando al armature dado"""
+        count = 0
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH':
+                for modifier in obj.modifiers:
+                    if modifier.type == 'ARMATURE' and modifier.object == armature:
+                        count += 1
+                        break
+        return count
     
     def validate_conversion_setup(self, settings):
         """
@@ -132,6 +245,12 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             elif len(mesh_children) > 10:
                 warnings.append(f"El armature fuente tiene muchos objetos mesh ({len(mesh_children)}), esto podría ser lento")
         
+        # Verificar Shape Keys si está disponible el sistema
+        if settings.source_armature:
+            shape_keys_info = self._check_shape_keys_status(settings.source_armature)
+            if shape_keys_info['has_shape_keys'] and not shape_keys_info['backup_recommended']:
+                warnings.append(f"Se detectaron {shape_keys_info['count']} meshes con shape keys. Se recomienda hacer backup.")
+        
         # Compilar resultado
         result = {
             'valid': len(issues) == 0,
@@ -140,6 +259,33 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         }
         
         return result
+    
+    def _check_shape_keys_status(self, source_armature):
+        """Verifica el estado de las shape keys"""
+        info = {
+            'has_shape_keys': False,
+            'count': 0,
+            'backup_recommended': False
+        }
+        
+        if not source_armature:
+            return info
+        
+        for obj in bpy.data.objects:
+            if (obj.type == 'MESH' and 
+                obj.parent == source_armature and 
+                obj.data.shape_keys and 
+                len(obj.data.shape_keys.key_blocks) > 1):
+                info['count'] += 1
+        
+        info['has_shape_keys'] = info['count'] > 0
+        
+        # Verificar si existen backups
+        backup_objects = [obj for obj in bpy.data.objects 
+                         if obj.name.endswith("_BACKUP_ShapeKeys")]
+        info['backup_recommended'] = info['has_shape_keys'] and len(backup_objects) == 0
+        
+        return info
 
 
 class UNIVERSALGTA_OT_preview_conversion(Operator):
@@ -212,7 +358,12 @@ class UNIVERSALGTA_OT_preview_conversion(Operator):
         for mesh in mesh_children:
             vertex_count = len(mesh.data.vertices)
             modifier_count = len([m for m in mesh.modifiers if m.type == 'ARMATURE'])
-            lines.append(f"  {mesh.name}: {vertex_count} vértices, {modifier_count} modificadores armature")
+            shape_keys_count = len(mesh.data.shape_keys.key_blocks) if mesh.data.shape_keys else 0
+            
+            mesh_info = f"  {mesh.name}: {vertex_count} vértices, {modifier_count} modificadores armature"
+            if shape_keys_count > 1:
+                mesh_info += f", {shape_keys_count} shape keys"
+            lines.append(mesh_info)
         
         lines.append("")
         
@@ -220,6 +371,7 @@ class UNIVERSALGTA_OT_preview_conversion(Operator):
         lines.append("CONFIGURACIONES:")
         lines.append(f"  Auto aplicar pose personalizada: {'Sí' if settings.auto_apply_custom_pose else 'No'}")
         lines.append(f"  Mantener vertex colors: {'Sí' if settings.keep_vertex_colors else 'No'}")
+        lines.append(f"  Auto fix normales: {'Sí' if settings.auto_fix_normals else 'No'}")
         lines.append(f"  Modo debug: {'Sí' if settings.debug_mode else 'No'}")
         lines.append(f"  Espaciado brazos: {settings.arm_spacing}")
         lines.append(f"  Espaciado piernas: {settings.leg_spacing}")
@@ -228,16 +380,17 @@ class UNIVERSALGTA_OT_preview_conversion(Operator):
         
         # Proceso que se ejecutará
         lines.append("PROCESO DE CONVERSIÓN:")
-        lines.append("1. Aplicar transformaciones a objetos fuente")
-        lines.append("2. Configurar constraints de posición entre huesos")
-        lines.append("3. Aplicar pose al armature destino")
-        lines.append("4. Fusionar vertex groups según mapeos")
-        lines.append("5. Unificar objetos mesh")
-        lines.append("6. Aplicar modificador armature al resultado")
-        lines.append("7. Limpiar armatures y datos no utilizados")
-        lines.append("8. Aplicar espaciado de huesos")
+        lines.append("1. Detectar y procesar Shape Keys (si existen)")
+        lines.append("2. Aplicar transformaciones a objetos fuente")
+        lines.append("3. Configurar constraints de posición entre huesos")
+        lines.append("4. Aplicar pose al armature destino")
+        lines.append("5. Fusionar vertex groups según mapeos")
+        lines.append("6. Unificar objetos mesh preservando Shape Keys")
+        lines.append("7. Aplicar modificador armature al resultado")
+        lines.append("8. Limpiar armatures y datos no utilizados")
+        lines.append("9. Aplicar espaciado de huesos")
         if settings.auto_apply_custom_pose:
-            lines.append("9. Aplicar pose personalizada")
+            lines.append("10. Aplicar pose personalizada (puede fallar sin afectar conversión)")
         
         return "\n".join(lines)
 

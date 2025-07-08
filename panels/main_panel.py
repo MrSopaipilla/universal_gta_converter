@@ -1,6 +1,6 @@
 """
-Panel principal simplificado para el addon Universal GTA Converter
-INTERFAZ AMIGABLE Y ORGANIZADA
+Panel principal con soporte para Shape Keys
+INTERFAZ AMIGABLE Y ORGANIZADA CON SHAPE KEYS
 """
 
 import bpy
@@ -23,7 +23,7 @@ class UNIVERSALGTA_PT_MainPanel(Panel):
         header_box = layout.box()
         header_row = header_box.row()
         header_row.label(text="Universal to GTA SA Converter", icon='ARMATURE_DATA')
-        header_row.label(text="v3.2.2")
+        header_row.label(text="v3.2.3")
         
         # Configuración principal - más compacta
         layout.separator()
@@ -44,6 +44,123 @@ class UNIVERSALGTA_PT_MainPanel(Panel):
         btn_row.scale_y = 1.3
         btn_row.operator("universalgta.auto_detect_mappings", text="Auto Setup", icon='AUTO')
         btn_row.operator("universalgta.execute_conversion", text="Convert", icon='ARMATURE_DATA')
+
+
+class UNIVERSALGTA_PT_ShapeKeysPanel(Panel):
+    """Panel dedicado para Shape Keys"""
+    bl_label = "Shape Keys Manager"
+    bl_idname = "UNIVERSALGTA_PT_shape_keys_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Universal GTA"
+    bl_parent_id = "UNIVERSALGTA_PT_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.universal_gta_settings
+        
+        # Información sobre Shape Keys
+        info_box = layout.box()
+        info_box.label(text="Shape Keys Detection", icon='SHAPEKEY_DATA')
+        
+        # Verificar si hay shape keys en los meshes
+        shape_keys_info = self._get_shape_keys_info(settings.source_armature)
+        
+        if shape_keys_info['total_meshes_with_keys'] > 0:
+            info_col = info_box.column()
+            info_col.label(text=f"✓ {shape_keys_info['total_meshes_with_keys']} meshes con shape keys")
+            info_col.label(text=f"✓ {shape_keys_info['total_shape_keys']} shape keys totales")
+            
+            # Lista de meshes con shape keys
+            for mesh_name, keys in shape_keys_info['meshes_details'].items():
+                key_col = info_box.column()
+                key_col.scale_y = 0.8
+                key_col.label(text=f"• {mesh_name}: {len(keys)} keys")
+        else:
+            info_box.label(text="No se detectaron shape keys", icon='INFO')
+        
+        layout.separator()
+        
+        # Herramientas principales de Shape Keys
+        tools_box = layout.box()
+        tools_box.label(text="Shape Keys Tools", icon='TOOL_SETTINGS')
+        
+        # Primera fila - herramientas de información
+        row1 = tools_box.row()
+        row1.operator("universalgta.list_shape_keys", text="List Keys", icon='OUTLINER_DATA_MESH')
+        row1.operator("universalgta.backup_shape_keys", text="Backup", icon='FILE_BACKUP')
+        
+        # Segunda fila - aplicación de shape keys
+        row2 = tools_box.row()
+        row2.scale_y = 1.2
+        row2.operator("universalgta.apply_all_shape_keys", text="Apply All Shape Keys", icon='SHAPEKEY_DATA')
+        
+        # Configuración de aplicación
+        layout.separator()
+        config_box = layout.box()
+        config_box.label(text="Application Settings", icon='PREFERENCES')
+        
+        col = config_box.column()
+        
+        # Agregar propiedades para shape keys en settings si no existen
+        if not hasattr(settings, 'preserve_basis_shape_key'):
+            # Estas propiedades se pueden agregar al config.py más tarde
+            col.label(text="Preserve Basis: ON")
+            col.label(text="Apply with Modifier: OFF")
+        
+        # Tercera fila - restauración
+        if shape_keys_info['backup_exists']:
+            layout.separator()
+            restore_box = layout.box()
+            restore_box.label(text="Backup Management", icon='RECOVER_LAST')
+            
+            restore_row = restore_box.row()
+            restore_row.operator("universalgta.restore_shape_keys_backup", text="Restore from Backup", icon='LOOP_BACK')
+        
+        # Advertencias importantes
+        layout.separator()
+        warning_box = layout.box()
+        warning_box.alert = True
+        warning_box.label(text="⚠️ IMPORTANTE:", icon='ERROR')
+        
+        warning_col = warning_box.column()
+        warning_col.scale_y = 0.8
+        warning_col.label(text="• Las shape keys se aplican automáticamente")
+        warning_col.label(text="  durante la conversión a GTA SA")
+        warning_col.label(text="• Usa 'Backup' antes de convertir")
+        warning_col.label(text="• No se pueden deshacer después")
+    
+    def _get_shape_keys_info(self, source_armature):
+        """Obtiene información sobre las shape keys disponibles"""
+        info = {
+            'total_meshes_with_keys': 0,
+            'total_shape_keys': 0,
+            'meshes_details': {},
+            'backup_exists': False
+        }
+        
+        if not source_armature:
+            return info
+        
+        # Buscar meshes con shape keys
+        for obj in bpy.data.objects:
+            if (obj.type == 'MESH' and 
+                obj.parent == source_armature and 
+                obj.data.shape_keys and 
+                len(obj.data.shape_keys.key_blocks) > 1):
+                
+                shape_keys = [key.name for key in obj.data.shape_keys.key_blocks]
+                info['meshes_details'][obj.name] = shape_keys
+                info['total_meshes_with_keys'] += 1
+                info['total_shape_keys'] += len(shape_keys)
+        
+        # Verificar si existen backups
+        backup_objects = [obj for obj in bpy.data.objects 
+                         if obj.name.endswith("_BACKUP_ShapeKeys")]
+        info['backup_exists'] = len(backup_objects) > 0
+        
+        return info
 
 
 class UNIVERSALGTA_PT_BoneMappingPanel(Panel):
@@ -151,7 +268,7 @@ class UNIVERSALGTA_PT_BoneMappingPanel(Panel):
 
 
 class UNIVERSALGTA_PT_AdvancedPanel(Panel):
-    """Panel avanzado con opciones adicionales"""
+    """Panel avanzado con opciones adicionales incluyendo Shape Keys"""
     bl_label = "Advanced Options"
     bl_idname = "UNIVERSALGTA_PT_advanced_panel"
     bl_space_type = 'VIEW_3D'
@@ -172,6 +289,22 @@ class UNIVERSALGTA_PT_AdvancedPanel(Panel):
         col.prop(settings, "auto_apply_custom_pose", text="Auto Apply Pose")
         col.prop(settings, "auto_fix_normals", text="Auto Fix Normals")
         col.prop(settings, "keep_vertex_colors", text="Keep Vertex Colors")
+        
+        # Configuración de Shape Keys
+        layout.separator()
+        shape_keys_box = layout.box()
+        shape_keys_box.label(text="Shape Keys Settings", icon='SHAPEKEY_DATA')
+        
+        sk_col = shape_keys_box.column()
+        
+        # Estas propiedades se pueden agregar al config.py si es necesario
+        sk_col.label(text="✓ Auto process Shape Keys during conversion")
+        sk_col.label(text="✓ Create automatic backups")
+        sk_col.label(text="✓ Preserve Basis shape key")
+        
+        # Botón para configuración manual
+        sk_row = sk_col.row()
+        sk_row.operator("universalgta.apply_all_shape_keys", text="Manual Apply", icon='SHAPEKEY_DATA')
         
         # Espaciado
         layout.separator()
@@ -267,7 +400,7 @@ class UNIVERSALGTA_PT_AnimationsPanel(Panel):
 
 
 class UNIVERSALGTA_PT_StatusPanel(Panel):
-    """Panel de estado del sistema"""
+    """Panel de estado del sistema con información de Shape Keys"""
     bl_label = "Status & Reference"
     bl_idname = "UNIVERSALGTA_PT_status_panel"
     bl_space_type = 'VIEW_3D'
@@ -291,7 +424,7 @@ class UNIVERSALGTA_PT_StatusPanel(Panel):
         info_col = ref_box.column()
         info_col.scale_y = 0.8
         info_col.label(text="Nombres exactos de huesos SA:")
-        info_col.label(text="• Con espacios: 'L Hand', 'R Thigh'")
+        info_col.label(text="• Con espacios: ' L Hand', ' R Thigh'")
         info_col.label(text="• Sin espacios: 'Pelvis', 'belly'")
         info_col.label(text="• Siempre excluido: 'Root'")
         
@@ -327,21 +460,65 @@ class UNIVERSALGTA_PT_StatusPanel(Panel):
         else:
             col.label(text="✗ No Active Mappings", icon='ERROR')
         
+        # NUEVO: Verificar Shape Keys
+        shape_keys_info = self._get_shape_keys_status(settings.source_armature)
+        if shape_keys_info['has_shape_keys']:
+            col.label(text=f"✓ {shape_keys_info['meshes_count']} Meshes with Shape Keys", icon='SHAPEKEY_DATA')
+            if shape_keys_info['backup_exists']:
+                col.label(text="✓ Shape Keys Backup Available", icon='FILE_BACKUP')
+            else:
+                col.label(text="⚠ No Shape Keys Backup", icon='ERROR')
+        else:
+            col.label(text="○ No Shape Keys Detected", icon='DOT')
+        
         # Estado general
         layout.separator()
         is_ready = (settings.source_armature and settings.target_armature and enabled_mappings > 0)
         
         if is_ready:
             ready_box = layout.box()
-            ready_box.label(text="Ready for Conversion!", icon='CHECKMARK')
+            if shape_keys_info['has_shape_keys'] and not shape_keys_info['backup_exists']:
+                ready_box.alert = True
+                ready_box.label(text="Ready! (Recommend Shape Keys Backup)", icon='ERROR')
+            else:
+                ready_box.label(text="Ready for Conversion!", icon='CHECKMARK')
         else:
             warning_box = layout.box()
             warning_box.label(text="Setup Required", icon='ERROR')
+    
+    def _get_shape_keys_status(self, source_armature):
+        """Obtiene el estado de las shape keys"""
+        status = {
+            'has_shape_keys': False,
+            'meshes_count': 0,
+            'backup_exists': False
+        }
+        
+        if not source_armature:
+            return status
+        
+        # Contar meshes con shape keys
+        for obj in bpy.data.objects:
+            if (obj.type == 'MESH' and 
+                obj.parent == source_armature and 
+                obj.data.shape_keys and 
+                len(obj.data.shape_keys.key_blocks) > 1):
+                status['meshes_count'] += 1
+        
+        status['has_shape_keys'] = status['meshes_count'] > 0
+        
+        # Verificar backups
+        backup_objects = [obj for obj in bpy.data.objects 
+                         if obj.name.endswith("_BACKUP_ShapeKeys")]
+        status['backup_exists'] = len(backup_objects) > 0
+        
+        return status
 
 
 # Lista de clases para registro
 classes = [
     UNIVERSALGTA_PT_MainPanel,
+    UNIVERSALGTA_PT_ShapeKeysPanel,
     UNIVERSALGTA_PT_BoneMappingPanel,
     UNIVERSALGTA_PT_AdvancedPanel,
     UNIVERSALGTA_PT_UtilitiesPanel,

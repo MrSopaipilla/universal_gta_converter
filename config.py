@@ -147,3 +147,48 @@ def register_validation():
     """
     print("[CONFIG] Validadores de nombres registrados")
     pass
+
+auto_apply_shape_keys: BoolProperty(
+    name="Auto Apply Shape Keys",
+    description="Aplica automáticamente todas las shape keys durante la conversión",
+    default=True
+)
+
+preserve_basis_shape_key: BoolProperty(
+    name="Preserve Basis Shape Key",
+    description="Mantiene la shape key 'Basis' sin aplicar durante el proceso",
+    default=True
+)
+
+create_shape_keys_backup: BoolProperty(
+    name="Create Shape Keys Backup",
+    description="Crea automáticamente un backup de todos los meshes con shape keys antes de aplicarlas",
+    default=True
+)
+
+apply_shape_keys_with_modifier: BoolProperty(
+    name="Apply Shape Keys with Armature Modifier",
+    description="Aplica las shape keys junto con los modificadores armature para mejor resultado",
+    default=False
+)
+
+apply_final_shape_keys: BoolProperty(
+    name="Apply Final Shape Keys",
+    description="Aplica shape keys finales en el objeto unificado después de la conversión",
+    default=False
+)
+
+shape_key_threshold: FloatProperty(
+    name="Shape Key Threshold",
+    description="Valor mínimo para aplicar una shape key (shape keys con valor menor se eliminan)",
+    default=0.01,
+    min=0.0,
+    max=1.0
+)
+
+# Mensaje de estado para shape keys
+shape_keys_status_message: StringProperty(
+    name="Shape Keys Status",
+    description="Mensaje de estado del procesamiento de shape keys",
+    default=""
+)

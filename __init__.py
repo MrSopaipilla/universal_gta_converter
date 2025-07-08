@@ -4,7 +4,7 @@ bl_info = {
     "version": (3, 2, 3),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Universal GTA",
-    "description": "Convierte armatures personalizados a GTA SA con detección inteligente de huesos, corrección de normales, animaciones predefinidas y herramientas avanzadas. In-Dev",
+    "description": "Convierte armatures personalizados a GTA SA con detección inteligente de huesos, corrección de normales, animaciones predefinidas, soporte para Shape Keys y herramientas avanzadas. In-Dev",
     "category": "Rigging",
 }
 
@@ -30,8 +30,19 @@ from .operators.conversion import (
     UNIVERSALGTA_OT_validate_conversion
 )
 
-# Importar operadores de pose
-from .operators.pose import UNIVERSALGTA_OT_apply_custom_pose
+# Importar operadores de pose (incluyendo los nuevos)
+try:
+    from .operators.pose import (
+        UNIVERSALGTA_OT_apply_custom_pose,
+        UNIVERSALGTA_OT_test_pose_application,
+        UNIVERSALGTA_OT_verify_pose_setup
+    )
+    POSE_OPERATORS_AVAILABLE = True
+    print("[ADDON] ✓ Operadores de pose cargados exitosamente")
+except ImportError as e:
+    from .operators.pose import UNIVERSALGTA_OT_apply_custom_pose
+    POSE_OPERATORS_AVAILABLE = False
+    print(f"[ADDON] ⚠ Operadores de pose básicos cargados (faltan operadores de prueba): {e}")
 
 # Importar operadores de mapeo
 from .operators.mapping import (
@@ -99,7 +110,7 @@ from .operators.gta_reference import (
     UNIVERSALGTA_OT_create_gta_armature_template
 )
 
-# Importar paneles individuales para evitar importaciones circulares
+# Importar paneles principales (solo los que existen)
 from .panels.main_panel import (
     UNIVERSALGTA_PT_MainPanel,
     UNIVERSALGTA_PT_BoneMappingPanel,
@@ -116,6 +127,131 @@ from .panels.credits import (
     UNIVERSALGTA_PT_TestingPanel,
     UNIVERSALGTA_PT_NamingPanel
 )
+
+# Importar operadores de Shape Keys (con manejo de errores)
+try:
+    from .operators.shape_keys import (
+        UNIVERSALGTA_OT_apply_all_shape_keys,
+        UNIVERSALGTA_OT_backup_shape_keys,
+        UNIVERSALGTA_OT_restore_shape_keys_backup,
+        UNIVERSALGTA_OT_list_shape_keys
+    )
+    SHAPE_KEYS_AVAILABLE = True
+    print("[ADDON] ✓ Operadores de Shape Keys cargados exitosamente")
+except ImportError as e:
+    print(f"[ADDON] ⚠ Advertencia: No se pudieron cargar operadores de Shape Keys: {e}")
+    SHAPE_KEYS_AVAILABLE = False
+
+
+# Panel de Shape Keys (definido aquí para evitar problemas de importación)
+class UNIVERSALGTA_PT_ShapeKeysPanel(bpy.types.Panel):
+    """Panel dedicado para Shape Keys"""
+    bl_label = "Shape Keys Manager"
+    bl_idname = "UNIVERSALGTA_PT_shape_keys_panel"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Universal GTA"
+    bl_parent_id = "UNIVERSALGTA_PT_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        # Solo mostrar si los operadores de Shape Keys están disponibles
+        return SHAPE_KEYS_AVAILABLE
+
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.universal_gta_settings
+        
+        if not SHAPE_KEYS_AVAILABLE:
+            layout.label(text="Shape Keys no disponibles", icon='ERROR')
+            return
+        
+        # Información sobre Shape Keys
+        info_box = layout.box()
+        info_box.label(text="Shape Keys Detection", icon='SHAPEKEY_DATA')
+        
+        # Verificar si hay shape keys en los meshes
+        shape_keys_info = self._get_shape_keys_info(settings.source_armature)
+        
+        if shape_keys_info['total_meshes_with_keys'] > 0:
+            info_col = info_box.column()
+            info_col.label(text=f"✓ {shape_keys_info['total_meshes_with_keys']} meshes con shape keys")
+            info_col.label(text=f"✓ {shape_keys_info['total_shape_keys']} shape keys totales")
+            
+            # Lista de meshes con shape keys
+            for mesh_name, keys in shape_keys_info['meshes_details'].items():
+                key_col = info_box.column()
+                key_col.scale_y = 0.8
+                key_col.label(text=f"• {mesh_name}: {len(keys)} keys")
+        else:
+            info_box.label(text="No se detectaron shape keys", icon='INFO')
+        
+        layout.separator()
+        
+        # Herramientas principales de Shape Keys
+        tools_box = layout.box()
+        tools_box.label(text="Shape Keys Tools", icon='TOOL_SETTINGS')
+        
+        # Primera fila - herramientas de información
+        row1 = tools_box.row()
+        row1.operator("universalgta.list_shape_keys", text="List Keys", icon='OUTLINER_DATA_MESH')
+        if SHAPE_KEYS_AVAILABLE:
+            row1.operator("universalgta.backup_shape_keys", text="Backup", icon='FILE_BACKUP')
+        
+        # Segunda fila - aplicación de shape keys
+        row2 = tools_box.row()
+        row2.scale_y = 1.2
+        if SHAPE_KEYS_AVAILABLE:
+            row2.operator("universalgta.apply_all_shape_keys", text="Apply All Shape Keys", icon='SHAPEKEY_DATA')
+        
+        # Configuración de aplicación
+        layout.separator()
+        config_box = layout.box()
+        config_box.label(text="Application Settings", icon='PREFERENCES')
+        
+        col = config_box.column()
+        col.label(text="✓ Apply ALL Shape Keys (including Basis)")
+        col.label(text="✓ Auto Apply during Conversion: ON")
+        col.label(text="✓ Remove Shape Keys after apply: ON")
+        
+        # Advertencias importantes
+        layout.separator()
+        warning_box = layout.box()
+        warning_box.alert = True
+        warning_box.label(text="⚠️ IMPORTANTE:", icon='ERROR')
+        
+        warning_col = warning_box.column()
+        warning_col.scale_y = 0.8
+        warning_col.label(text="• Las shape keys se aplican automáticamente")
+        warning_col.label(text="  durante la conversión a GTA SA")
+        warning_col.label(text="• TODAS las shape keys se eliminan")
+        warning_col.label(text="• No se pueden deshacer después")
+    
+    def _get_shape_keys_info(self, source_armature):
+        """Obtiene información sobre las shape keys disponibles"""
+        info = {
+            'total_meshes_with_keys': 0,
+            'total_shape_keys': 0,
+            'meshes_details': {}
+        }
+        
+        if not source_armature:
+            return info
+        
+        # Buscar meshes con shape keys
+        for obj in bpy.data.objects:
+            if (obj.type == 'MESH' and 
+                obj.parent == source_armature and 
+                obj.data.shape_keys and 
+                len(obj.data.shape_keys.key_blocks) > 0):
+                
+                shape_keys = [key.name for key in obj.data.shape_keys.key_blocks]
+                info['meshes_details'][obj.name] = shape_keys
+                info['total_meshes_with_keys'] += 1
+                info['total_shape_keys'] += len(shape_keys)
+        
+        return info
 
 
 class UNIVERSALGTA_UL_BoneMappingList(bpy.types.UIList):
@@ -246,7 +382,7 @@ classes = [
     UNIVERSALGTA_OT_auto_detect_bones,
     UNIVERSALGTA_OT_validate_conversion,
     
-    # Operadores de pose
+    # Operadores de pose básicos
     UNIVERSALGTA_OT_apply_custom_pose,
     
     # Operadores de mapeo
@@ -305,6 +441,7 @@ classes = [
     
     # Paneles principales
     UNIVERSALGTA_PT_MainPanel,
+    UNIVERSALGTA_PT_ShapeKeysPanel,  # Definido en este archivo
     UNIVERSALGTA_PT_BoneMappingPanel,
     UNIVERSALGTA_PT_AdvancedPanel,
     UNIVERSALGTA_PT_UtilitiesPanel,
@@ -317,6 +454,22 @@ classes = [
     UNIVERSALGTA_PT_TestingPanel,
     UNIVERSALGTA_PT_NamingPanel,
 ]
+
+# Agregar operadores de Shape Keys si están disponibles
+if SHAPE_KEYS_AVAILABLE:
+    classes.extend([
+        UNIVERSALGTA_OT_apply_all_shape_keys,
+        UNIVERSALGTA_OT_backup_shape_keys,
+        UNIVERSALGTA_OT_restore_shape_keys_backup,
+        UNIVERSALGTA_OT_list_shape_keys,
+    ])
+
+# Agregar operadores de pose adicionales si están disponibles
+if POSE_OPERATORS_AVAILABLE:
+    classes.extend([
+        UNIVERSALGTA_OT_test_pose_application,
+        UNIVERSALGTA_OT_verify_pose_setup,
+    ])
 
 # Variable global para el converter
 converter_instance = None
@@ -346,6 +499,18 @@ def register():
     print("[ADDON] • Sistema de nombres personalizados")
     print("[ADDON] • Animaciones predefinidas desde .blend")
     print("[ADDON] • Expresividad facial avanzada")
+    if SHAPE_KEYS_AVAILABLE:
+        print("[ADDON] • ✓ Soporte completo para Shape Keys")
+        print("[ADDON] • ✓ Eliminación automática de todas las Shape Keys")
+        print("[ADDON] • ✓ Aplicación automática durante conversión")
+    else:
+        print("[ADDON] • ⚠ Shape Keys no disponibles (falta operators/shape_keys.py)")
+    
+    if POSE_OPERATORS_AVAILABLE:
+        print("[ADDON] • ✓ Operadores de pose avanzados disponibles")
+    else:
+        print("[ADDON] • ⚠ Solo operadores de pose básicos disponibles")
+    
     print("[ADDON] • Panel de testing completo")
     print("[ADDON] • Panel de créditos con enlaces")
 

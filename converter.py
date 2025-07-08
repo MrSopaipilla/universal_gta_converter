@@ -1,27 +1,30 @@
-# converter.py - Versión mejorada
+# converter.py - Versión con soporte para Shape Keys
 import bpy
 from mathutils import Vector
 from .utils.cleanup import CleanupUtils
 
 
 class UniversalGTAConverter:
-    """Conversor principal para armatures universales a GTA SA"""
+    """Conversor principal para armatures universales a GTA SA con soporte para Shape Keys"""
     
     def __init__(self, settings):
         self.settings = settings
 
     def convert(self) -> bool:
-        """Función principal de conversión"""
+        """Función principal de conversión con soporte para Shape Keys"""
         from . import external_pose_caller
         
         # Validar configuración inicial
         if not self._validate_conversion_setup():
             return False
         
-        print("[DEBUG] Iniciando conversión a GTA SA...")
+        print("[DEBUG] Iniciando conversión a GTA SA con soporte para Shape Keys...")
         
         # Preparar armatures
         self._prepare_armatures()
+        
+        # NUEVO: Procesar Shape Keys antes de aplicar transformaciones
+        self._process_shape_keys_pre_conversion()
         
         # Aplicar transformaciones
         self._apply_transformations()
@@ -50,6 +53,9 @@ class UniversalGTAConverter:
         # Unificar objetos
         joined_obj = self._unify_mesh_objects()
         
+        # NUEVO: Aplicar Shape Keys después de unificar
+        self._process_shape_keys_post_conversion(joined_obj)
+        
         # Configurar resultado final
         self._finalize_conversion(joined_obj)
         
@@ -59,6 +65,177 @@ class UniversalGTAConverter:
         
         print("[DEBUG] Conversión finalizada con éxito.")
         return True
+
+    def _process_shape_keys_pre_conversion(self):
+        """Procesa Shape Keys antes de la conversión principal"""
+        try:
+            print("[DEBUG] === PROCESANDO SHAPE KEYS PRE-CONVERSIÓN ===")
+            
+            # Verificar si hay algún mesh con shape keys
+            meshes_with_shape_keys = self._find_meshes_with_shape_keys()
+            
+            if not meshes_with_shape_keys:
+                print("[DEBUG] No se encontraron meshes con shape keys")
+                return
+            
+            print(f"[DEBUG] Encontrados {len(meshes_with_shape_keys)} meshes con shape keys")
+            
+            # Crear backup automático
+            self._create_shape_keys_backup(meshes_with_shape_keys)
+            
+            # Aplicar shape keys si está configurado
+            if getattr(self.settings, 'auto_apply_shape_keys', True):
+                self._apply_all_shape_keys_safe(meshes_with_shape_keys)
+            
+        except Exception as e:
+            print(f"[DEBUG] Error en procesamiento de shape keys pre-conversión: {e}")
+            # No fallar la conversión por problemas con shape keys
+    
+    def _process_shape_keys_post_conversion(self, joined_obj):
+        """Procesa Shape Keys después de la conversión principal"""
+        try:
+            print("[DEBUG] === PROCESANDO SHAPE KEYS POST-CONVERSIÓN ===")
+            
+            if not joined_obj:
+                print("[DEBUG] No hay objeto unificado para procesar shape keys")
+                return
+            
+            # Verificar si el objeto unificado tiene shape keys
+            if joined_obj.data.shape_keys and len(joined_obj.data.shape_keys.key_blocks) > 1:
+                print(f"[DEBUG] Objeto unificado tiene {len(joined_obj.data.shape_keys.key_blocks)} shape keys")
+                
+                # Opcional: aplicar shape keys finales si está configurado
+                if getattr(self.settings, 'apply_final_shape_keys', False):
+                    self._apply_final_shape_keys(joined_obj)
+            else:
+                print("[DEBUG] Objeto unificado no tiene shape keys")
+                
+        except Exception as e:
+            print(f"[DEBUG] Error en procesamiento de shape keys post-conversión: {e}")
+    
+    def _find_meshes_with_shape_keys(self):
+        """Encuentra meshes hijos del source armature que tienen shape keys"""
+        src = self.settings.source_armature
+        meshes_with_shape_keys = []
+        
+        for obj in bpy.data.objects:
+            if (obj.type == 'MESH' and 
+                obj.parent == src and 
+                obj.data.shape_keys and 
+                len(obj.data.shape_keys.key_blocks) > 1):
+                
+                meshes_with_shape_keys.append(obj)
+                print(f"[DEBUG] Mesh con shape keys: {obj.name} ({len(obj.data.shape_keys.key_blocks)} keys)")
+        
+        return meshes_with_shape_keys
+    
+    def _create_shape_keys_backup(self, meshes_with_shape_keys):
+        """Crea backup automático de meshes con shape keys"""
+        try:
+            print("[DEBUG] Creando backup de shape keys...")
+            
+            for mesh_obj in meshes_with_shape_keys:
+                # Crear backup
+                bpy.context.view_layer.objects.active = mesh_obj
+                bpy.ops.object.select_all(action='DESELECT')
+                mesh_obj.select_set(True)
+                bpy.ops.object.duplicate()
+                
+                backup_obj = bpy.context.active_object
+                backup_obj.name = f"{mesh_obj.name}_BACKUP_ShapeKeys"
+                
+                # Esconder backup
+                backup_obj.hide_set(True)
+                backup_obj.hide_viewport = True
+                
+                print(f"[DEBUG] Backup creado: {backup_obj.name}")
+                
+        except Exception as e:
+            print(f"[DEBUG] Error creando backup de shape keys: {e}")
+    
+    def _apply_all_shape_keys_safe(self, meshes_with_shape_keys):
+        """Aplica todas las shape keys de forma segura"""
+        try:
+            print("[DEBUG] Aplicando shape keys antes de conversión...")
+            
+            for mesh_obj in meshes_with_shape_keys:
+                print(f"[DEBUG] Procesando shape keys de: {mesh_obj.name}")
+                
+                # Activar el mesh
+                bpy.context.view_layer.objects.active = mesh_obj
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # Obtener shape keys
+                if not mesh_obj.data.shape_keys:
+                    continue
+                
+                key_blocks = mesh_obj.data.shape_keys.key_blocks
+                applied_count = 0
+                
+                # Aplicar shape keys de arriba hacia abajo (excluyendo Basis)
+                for i in range(len(key_blocks) - 1, 0, -1):
+                    key_block = key_blocks[i]
+                    
+                    if key_block.name == "Basis":
+                        continue
+                    
+                    try:
+                        # Establecer como activa y aplicar
+                        mesh_obj.active_shape_key_index = i
+                        
+                        # Solo aplicar si tiene valor > 0
+                        if key_block.value > 0.0:
+                            # Aplicar como mix
+                            bpy.ops.object.shape_key_remove(all=False)
+                            applied_count += 1
+                            print(f"[DEBUG] Aplicada shape key: {key_block.name} (valor: {key_block.value})")
+                        else:
+                            # Eliminar shape key sin valor
+                            bpy.ops.object.shape_key_remove(all=False)
+                            print(f"[DEBUG] Eliminada shape key inactiva: {key_block.name}")
+                            
+                    except Exception as e:
+                        print(f"[DEBUG] Error aplicando shape key {key_block.name}: {e}")
+                
+                print(f"[DEBUG] {mesh_obj.name}: Procesadas {applied_count} shape keys")
+                
+        except Exception as e:
+            print(f"[DEBUG] Error aplicando shape keys: {e}")
+    
+    def _apply_final_shape_keys(self, joined_obj):
+        """Aplica shape keys finales al objeto unificado"""
+        try:
+            print("[DEBUG] Aplicando shape keys finales...")
+            
+            bpy.context.view_layer.objects.active = joined_obj
+            bpy.ops.object.mode_set(mode='OBJECT')
+            
+            if not joined_obj.data.shape_keys:
+                return
+            
+            key_blocks = joined_obj.data.shape_keys.key_blocks
+            
+            # Aplicar todas las shape keys excepto Basis
+            for i in range(len(key_blocks) - 1, 0, -1):
+                key_block = key_blocks[i]
+                
+                if key_block.name == "Basis":
+                    continue
+                
+                try:
+                    joined_obj.active_shape_key_index = i
+                    
+                    if key_block.value > 0.0:
+                        bpy.ops.object.shape_key_remove(all=False)
+                        print(f"[DEBUG] Aplicada shape key final: {key_block.name}")
+                    else:
+                        bpy.ops.object.shape_key_remove(all=False)
+                        
+                except Exception as e:
+                    print(f"[DEBUG] Error aplicando shape key final {key_block.name}: {e}")
+                    
+        except Exception as e:
+            print(f"[DEBUG] Error en aplicación de shape keys finales: {e}")
 
     def _validate_conversion_setup(self):
         """Valida la configuración antes de la conversión"""
@@ -267,7 +444,7 @@ class UniversalGTAConverter:
                 print(f"[DEBUG] Eliminado vertex group no mapeado: {vg_name}")
 
     def _unify_mesh_objects(self):
-        """Unifica todos los objetos mesh"""
+        """Unifica todos los objetos mesh preservando shape keys cuando sea posible"""
         src = self.settings.source_armature
         
         mesh_objs = [
@@ -278,19 +455,50 @@ class UniversalGTAConverter:
         if not mesh_objs:
             return None
         
+        print(f"[DEBUG] Unificando {len(mesh_objs)} objetos mesh...")
+        
+        # Verificar shape keys antes de unificar
+        shape_keys_info = []
+        for obj in mesh_objs:
+            if obj.data.shape_keys and len(obj.data.shape_keys.key_blocks) > 1:
+                shape_keys_info.append({
+                    'object': obj.name,
+                    'shape_keys': [key.name for key in obj.data.shape_keys.key_blocks]
+                })
+        
+        if shape_keys_info:
+            print("[DEBUG] Meshes con shape keys detectados antes de unificar:")
+            for info in shape_keys_info:
+                print(f"  {info['object']}: {info['shape_keys']}")
+        
         # Seleccionar y unir
         bpy.ops.object.select_all(action='DESELECT')
         for obj in mesh_objs:
             obj.select_set(True)
         
         bpy.context.view_layer.objects.active = mesh_objs[0]
-        bpy.ops.object.join()
         
-        joined_obj = bpy.context.active_object
-        joined_obj.name = "Mesh"
-        joined_obj.parent = None
-        
-        return joined_obj
+        try:
+            # Unir objetos
+            bpy.ops.object.join()
+            
+            joined_obj = bpy.context.active_object
+            joined_obj.name = "Mesh"
+            joined_obj.parent = None
+            
+            # Verificar shape keys después de unificar
+            if joined_obj.data.shape_keys:
+                final_shape_keys = [key.name for key in joined_obj.data.shape_keys.key_blocks]
+                print(f"[DEBUG] Shape keys en objeto unificado: {final_shape_keys}")
+            else:
+                print("[DEBUG] Objeto unificado no tiene shape keys")
+            
+            return joined_obj
+            
+        except Exception as e:
+            print(f"[DEBUG] Error durante unificación: {e}")
+            # En caso de error, devolver el primer objeto
+            return mesh_objs[0] if mesh_objs else None
 
     def _finalize_conversion(self, joined_obj):
         """Finaliza la conversión"""

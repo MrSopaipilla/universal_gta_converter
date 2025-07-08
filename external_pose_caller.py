@@ -1,7 +1,7 @@
-# external_pose_caller.py - Versión mejorada
+# external_pose_caller.py - Solución final eliminando TODAS las Shape Keys
 """
 external_pose_caller.py - Funciones para aplicar poses personalizadas
-VERSIÓN MEJORADA Y OPTIMIZADA
+VERSIÓN FINAL: APLICA TODAS LAS SHAPE KEYS Y LAS ELIMINA ANTES DEL MODIFICADOR
 """
 
 import bpy
@@ -10,48 +10,53 @@ from bpy import context, ops
 
 def apply_manual_pose_to_children_and_reassign(armature=None):
     """
-    Aplica la pose actual del armature activo a sus mallas hijas,
-    horneando la deformación y luego reasigna un nuevo modificador apuntando al armature padre.
+    Aplica la pose actual del armature a las mallas conectadas,
+    aplicando y eliminando TODAS las shape keys primero, luego horneando la deformación.
+    
+    PROCESO CORRECTO:
+    1. Encuentra el armature principal (Root)
+    2. Encuentra meshes con modificador armature apuntando a ese armature
+    3. APLICA Y ELIMINA TODAS LAS SHAPE KEYS (incluyendo Basis)
+    4. Aplica el modificador armature (hornea la deformación)
+    5. Crea nuevo modificador armature apuntando al mismo armature
     
     Args:
-        armature: El armature al cual aplicar la pose. Si es None, usa el objeto activo.
+        armature: El armature target (Root). Si es None, se detecta automáticamente.
     
     Returns:
         bool: True si la operación fue exitosa, False en caso contrario.
     """
     
+    # Detectar armature principal si no se proporciona
     if not armature:
-        armature = context.active_object
-        if not armature or armature.type != 'ARMATURE':
-            print("[POSE_UTIL] No hay armature válido activo.")
-            return False
-
-    print(f"[POSE_UTIL] Procesando armature: {armature.name}")
-
-    # Encontrar todas las mallas hijas del armature
-    children_meshes = [
-        obj for obj in bpy.data.objects
-        if obj.type == 'MESH' and obj.parent == armature
-    ]
-
-    if not children_meshes:
-        print("[POSE_UTIL] No se encontraron mallas hijas del armature.")
+        armature = _find_main_armature_post_conversion()
+        
+    if not armature or armature.type != 'ARMATURE':
+        print("[POSE_UTIL] No se encontró armature válido para aplicar pose.")
         return False
 
-    print(f"[POSE_UTIL] Encontradas {len(children_meshes)} mallas hijas")
+    print(f"[POSE_UTIL] Procesando armature post-conversión: {armature.name}")
+
+    # Encontrar meshes con modificador armature apuntando a este armature
+    target_meshes = _find_meshes_with_armature_modifier(armature)
+
+    if not target_meshes:
+        print("[POSE_UTIL] No se encontraron meshes con modificador armature.")
+        return False
+
+    print(f"[POSE_UTIL] Encontrados {len(target_meshes)} meshes con modificador armature")
 
     try:
-        # Aplicar pose al armature
-        if not _apply_armature_pose(armature):
-            return False
-
-        # Aplicar modificadores en hijos y crear nuevos
+        # Asegurar que estamos en modo objeto
+        _safe_mode_set('OBJECT')
+        
+        # Procesar cada mesh: aplicar shape keys, aplicar deformación y recrear modificador
         success_count = 0
-        for mesh_obj in children_meshes:
-            if _process_mesh_object(mesh_obj, armature):
+        for mesh_obj in target_meshes:
+            if _process_mesh_complete(mesh_obj, armature):
                 success_count += 1
 
-        print(f"[POSE_UTIL] Proceso completado. {success_count}/{len(children_meshes)} mallas procesadas exitosamente.")
+        print(f"[POSE_UTIL] Proceso completado. {success_count}/{len(target_meshes)} meshes procesados exitosamente.")
         return success_count > 0
 
     except Exception as e:
@@ -64,309 +69,280 @@ def apply_manual_pose_to_children_and_reassign(armature=None):
         return False
 
 
-def _apply_armature_pose(armature):
-    """Aplica la pose al armature"""
-    try:
-        context.view_layer.objects.active = armature
-        ops.object.mode_set(mode='POSE')
-        ops.pose.armature_apply()
-        ops.object.mode_set(mode='OBJECT')
-        print(f"[POSE_UTIL] Pose aplicada al armature: {armature.name}")
-        return True
-    except Exception as e:
-        print(f"[POSE_UTIL] ERROR aplicando pose al armature: {e}")
-        return False
-
-
-def _process_mesh_object(mesh_obj, armature):
-    """Procesa un objeto mesh individual"""
-    print(f"[POSE_UTIL] Procesando mesh: {mesh_obj.name}")
+def _find_main_armature_post_conversion():
+    """
+    Encuentra el armature principal después de la conversión GTA SA.
+    Debería ser el armature llamado 'Root' o similar.
+    """
+    armatures = [obj for obj in bpy.data.objects if obj.type == 'ARMATURE']
     
-    # Buscar modificador de armature
-    arm_mod = _find_armature_modifier(mesh_obj, armature)
+    if not armatures:
+        print("[POSE_UTIL] No se encontraron armatures en la escena")
+        return None
     
-    if not arm_mod:
-        print(f"[POSE_UTIL] {mesh_obj.name} no tiene modificador válido, se salta.")
-        return False
-
-    # Aplicar el modificador (hornear pose)
-    if not _apply_modifier(mesh_obj, arm_mod):
-        return False
-
-    # Buscar y asignar nuevo armature padre
-    parent_arm = _find_parent_armature(armature)
-    if parent_arm:
-        _create_new_modifier(mesh_obj, parent_arm)
-    else:
-        print(f"[POSE_UTIL] No se encontró armature padre para {armature.name}.")
+    # Buscar armature con nombre 'Root' o similar
+    for armature in armatures:
+        if armature.name.lower() in ['root', 'gta_root', 'gta_sa_root']:
+            print(f"[POSE_UTIL] Armature principal encontrado: {armature.name}")
+            return armature
     
-    return True
-
-
-def _find_armature_modifier(mesh_obj, armature):
-    """Encuentra el modificador de armature en el mesh"""
-    for mod in mesh_obj.modifiers:
-        if mod.type == 'ARMATURE' and mod.object == armature:
-            return mod
+    # Si no se encuentra Root, buscar el que tenga más meshes asociados
+    best_armature = None
+    max_meshes = 0
+    
+    for armature in armatures:
+        mesh_count = len(_find_meshes_with_armature_modifier(armature))
+        if mesh_count > max_meshes:
+            max_meshes = mesh_count
+            best_armature = armature
+    
+    if best_armature:
+        print(f"[POSE_UTIL] Armature principal detectado por asociaciones: {best_armature.name}")
+        return best_armature
+    
+    # Como última opción, tomar el primero disponible
+    if armatures:
+        print(f"[POSE_UTIL] Usando primer armature disponible: {armatures[0].name}")
+        return armatures[0]
+    
     return None
 
 
-def _apply_modifier(mesh_obj, modifier):
-    """Aplica un modificador al mesh"""
+def _find_meshes_with_armature_modifier(armature):
+    """Encuentra meshes que tienen modificador armature apuntando al armature dado"""
+    target_meshes = []
+    
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            for modifier in obj.modifiers:
+                if modifier.type == 'ARMATURE' and modifier.object == armature:
+                    target_meshes.append(obj)
+                    print(f"[POSE_UTIL] Mesh encontrado: {obj.name} -> {armature.name}")
+                    break
+    
+    return target_meshes
+
+
+def _process_mesh_complete(mesh_obj, armature):
+    """
+    Proceso completo: aplicar shape keys, aplicar modificador armature y recrear modificador
+    """
+    print(f"[POSE_UTIL] === Procesando {mesh_obj.name} ===")
+    
     try:
-        context.view_layer.objects.active = mesh_obj
-        ops.object.modifier_apply(modifier=modifier.name)
-        print(f"[POSE_UTIL] Pose aplicada y horneada en: {mesh_obj.name}")
+        # Paso 1: Activar el mesh
+        bpy.context.view_layer.objects.active = mesh_obj
+        _safe_mode_set('OBJECT')
+        
+        # Deseleccionar todo y seleccionar solo este mesh
+        bpy.ops.object.select_all(action='DESELECT')
+        mesh_obj.select_set(True)
+        
+        # Paso 2: Aplicar y eliminar TODAS las shape keys
+        if _apply_and_remove_all_shape_keys(mesh_obj):
+            print(f"[POSE_UTIL] ✓ Shape keys procesadas en {mesh_obj.name}")
+        else:
+            print(f"[POSE_UTIL] ℹ No había shape keys en {mesh_obj.name}")
+        
+        # Paso 3: Buscar el modificador armature
+        armature_modifier = None
+        for modifier in mesh_obj.modifiers:
+            if modifier.type == 'ARMATURE' and modifier.object == armature:
+                armature_modifier = modifier
+                break
+        
+        if not armature_modifier:
+            print(f"[POSE_UTIL] ✗ No se encontró modificador armature en {mesh_obj.name}")
+            return False
+        
+        # Paso 4: Verificar que el modificador esté habilitado
+        if not armature_modifier.show_viewport:
+            print(f"[POSE_UTIL] Habilitando modificador armature en {mesh_obj.name}")
+            armature_modifier.show_viewport = True
+        
+        # Paso 5: Aplicar el modificador armature (hornear la deformación)
+        try:
+            modifier_name = armature_modifier.name
+            print(f"[POSE_UTIL] Aplicando modificador '{modifier_name}' en {mesh_obj.name}")
+            
+            # Aplicar modificador - esto hornea la pose en la geometría
+            bpy.ops.object.modifier_apply(modifier=modifier_name)
+            
+            print(f"[POSE_UTIL] ✓ Modificador aplicado exitosamente en {mesh_obj.name}")
+            
+        except Exception as e:
+            print(f"[POSE_UTIL] ✗ Error aplicando modificador en {mesh_obj.name}: {e}")
+            return False
+        
+        # Paso 6: Crear nuevo modificador armature apuntando al mismo armature
+        try:
+            new_modifier = mesh_obj.modifiers.new(name="Armature", type='ARMATURE')
+            new_modifier.object = armature
+            
+            print(f"[POSE_UTIL] ✓ Nuevo modificador armature creado en {mesh_obj.name}")
+            
+        except Exception as e:
+            print(f"[POSE_UTIL] ✗ Error creando nuevo modificador en {mesh_obj.name}: {e}")
+            return False
+        
+        print(f"[POSE_UTIL] ✓ {mesh_obj.name} procesado completamente")
         return True
+        
     except Exception as e:
-        print(f"[POSE_UTIL] ERROR aplicando modificador en {mesh_obj.name}: {e}")
+        print(f"[POSE_UTIL] ✗ Error procesando mesh {mesh_obj.name}: {e}")
         return False
 
 
-def _find_parent_armature(armature):
-    """Encuentra el armature padre si existe"""
-    if armature.parent and armature.parent.type == 'ARMATURE':
-        return armature.parent
-    return None
-
-
-def _create_new_modifier(mesh_obj, parent_armature):
-    """Crea un nuevo modificador de armature"""
-    new_mod = mesh_obj.modifiers.new(name="Armature", type='ARMATURE')
-    new_mod.object = parent_armature
-    print(f"[POSE_UTIL] Nuevo modificador asignado a {mesh_obj.name} -> {parent_armature.name}")
+def _apply_and_remove_all_shape_keys(mesh_obj):
+    """
+    Aplica y elimina TODAS las shape keys del mesh (incluyendo Basis)
+    
+    Returns:
+        bool: True si había shape keys y se procesaron, False si no había shape keys
+    """
+    # Verificar si el mesh tiene shape keys
+    if not mesh_obj.data.shape_keys or not mesh_obj.data.shape_keys.key_blocks:
+        return False
+    
+    key_blocks = mesh_obj.data.shape_keys.key_blocks
+    initial_count = len(key_blocks)
+    
+    print(f"[SHAPE_KEYS] {mesh_obj.name} tiene {initial_count} shape keys")
+    
+    try:
+        # Listar todas las shape keys
+        shape_key_names = [key.name for key in key_blocks]
+        print(f"[SHAPE_KEYS] Shape keys: {shape_key_names}")
+        
+        # Aplicar todas las shape keys de arriba hacia abajo (desde la última hasta la primera)
+        # Esto es importante porque los índices cambian cuando eliminas shape keys
+        for i in range(len(key_blocks) - 1, -1, -1):
+            try:
+                # Establecer como activa
+                mesh_obj.active_shape_key_index = i
+                key_name = key_blocks[i].name
+                
+                print(f"[SHAPE_KEYS] Aplicando shape key: {key_name} (índice {i})")
+                
+                # Aplicar como mix (esto aplica la deformación y elimina la shape key)
+                bpy.ops.object.shape_key_remove(all=False)
+                
+                print(f"[SHAPE_KEYS] ✓ Shape key '{key_name}' aplicada y eliminada")
+                
+            except Exception as e:
+                print(f"[SHAPE_KEYS] ✗ Error procesando shape key índice {i}: {e}")
+        
+        # Verificar que se eliminaron todas
+        remaining_keys = len(mesh_obj.data.shape_keys.key_blocks) if mesh_obj.data.shape_keys else 0
+        print(f"[SHAPE_KEYS] ✓ Procesamiento completo: {initial_count} -> {remaining_keys} shape keys")
+        
+        return True
+        
+    except Exception as e:
+        print(f"[SHAPE_KEYS] ✗ Error general procesando shape keys en {mesh_obj.name}: {e}")
+        return False
 
 
 def _safe_mode_set(mode):
     """Cambia de modo de forma segura"""
     try:
-        ops.object.mode_set(mode=mode)
-    except Exception:
-        pass
+        current_mode = bpy.context.mode
+        if current_mode != mode.upper():
+            bpy.ops.object.mode_set(mode=mode)
+            print(f"[POSE_UTIL] Modo cambiado: {current_mode} -> {mode}")
+    except Exception as e:
+        print(f"[POSE_UTIL] No se pudo cambiar a modo {mode}: {e}")
 
 
 class ExternalPoseApplier:
-    """Clase para aplicar poses personalizadas usando scripts externos"""
+    """Clase para aplicar poses personalizadas POST-CONVERSIÓN"""
     
     def __init__(self):
         self.debug = True
     
     def execute_full_pose_application(self, source_armature=None, target_armature=None):
         """
-        Ejecuta la aplicación completa de pose personalizada
+        Ejecuta la aplicación completa de pose personalizada POST-CONVERSIÓN
         
         Args:
-            source_armature: Armature fuente (puede ser None para autodetección)
-            target_armature: Armature destino
+            source_armature: IGNORADO - ya no existe después de conversión
+            target_armature: Armature destino (Root)
         
         Returns:
-            bool: True si fue exitoso, False en caso contrario
+            bool: True si fue exitoso
         """
         try:
-            print("[EXTERNAL_POSE] Iniciando aplicación de pose personalizada...")
+            print("[EXTERNAL_POSE] === INICIANDO APLICACIÓN DE POSE POST-CONVERSIÓN ===")
             
-            # Autodetectar source_armature si no se proporciona
-            if not source_armature:
-                source_armature = self._auto_detect_source_armature(target_armature)
-            
-            if not source_armature:
-                print("[EXTERNAL_POSE] No se pudo detectar armature fuente")
-                return False
+            # El source_armature ya no existe después de la conversión GTA SA
+            # Solo necesitamos el target_armature (Root)
+            if not target_armature:
+                target_armature = _find_main_armature_post_conversion()
             
             if not target_armature:
-                print("[EXTERNAL_POSE] No se proporcionó armature destino")
+                print("[EXTERNAL_POSE] ✗ No se encontró armature válido")
                 return False
             
-            print(f"[EXTERNAL_POSE] Aplicando pose de {source_armature.name} a {target_armature.name}")
+            print(f"[EXTERNAL_POSE] ✓ Usando armature: {target_armature.name}")
             
-            # Aplicar la pose usando la función principal
+            # Verificar que el armature tenga una pose para aplicar
+            if not self._armature_has_pose_transforms(target_armature):
+                print("[EXTERNAL_POSE] ℹ No hay transformaciones de pose para aplicar")
+                return True  # No es un error, simplemente no hay pose que aplicar
+            
+            # Aplicar pose usando la función principal
             success = apply_manual_pose_to_children_and_reassign(target_armature)
             
             if success:
-                print("[EXTERNAL_POSE] Pose personalizada aplicada exitosamente")
+                print("[EXTERNAL_POSE] ✓ Pose personalizada aplicada exitosamente")
             else:
-                print("[EXTERNAL_POSE] Error al aplicar pose personalizada")
+                print("[EXTERNAL_POSE] ✗ Falló la aplicación de pose personalizada")
             
+            print("[EXTERNAL_POSE] === APLICACIÓN DE POSE COMPLETADA ===")
             return success
             
         except Exception as e:
-            print(f"[EXTERNAL_POSE] Error durante la aplicación de pose: {e}")
+            print(f"[EXTERNAL_POSE] ✗ Error durante la aplicación de pose: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
-    def _auto_detect_source_armature(self, target_armature):
-        """
-        Autodetecta el armature fuente basándose en criterios heurísticos
-        
-        Args:
-            target_armature: Armature destino para referencia
-        
-        Returns:
-            Object: Armature fuente detectado o None si no se encuentra
-        """
-        armatures = [obj for obj in bpy.data.objects if obj.type == 'ARMATURE']
-        
-        # Filtrar el target_armature
-        if target_armature in armatures:
-            armatures.remove(target_armature)
-        
-        if not armatures:
-            print("[EXTERNAL_POSE] No hay otros armatures para detectar como fuente")
-            return None
-        
-        # Criterios de detección con pesos
-        candidates = []
-        
-        for armature in armatures:
-            score = 0
-            
-            # Puntos por número de huesos
-            bone_count = len(armature.data.bones)
-            score += bone_count
-            
-            # Penalizar si tiene "root" en el nombre
-            if 'root' in armature.name.lower():
-                score -= 50
-            
-            # Puntos por tener objetos mesh como hijos
-            mesh_children = sum(1 for obj in bpy.data.objects 
-                              if obj.type == 'MESH' and obj.parent == armature)
-            score += mesh_children * 10
-            
-            # Puntos por ser más reciente (índice más alto en el nombre)
-            if '.' in armature.name:
-                try:
-                    index = int(armature.name.split('.')[-1])
-                    score += index
-                except ValueError:
-                    pass
-            
-            candidates.append((armature, score))
-            
-            if self.debug:
-                print(f"[EXTERNAL_POSE] Candidato {armature.name}: score {score}")
-        
-        # Ordenar por score y devolver el mejor
-        candidates.sort(key=lambda x: x[1], reverse=True)
-        
-        if candidates and candidates[0][1] > 0:
-            best_candidate = candidates[0][0]
-            print(f"[EXTERNAL_POSE] Armature fuente detectado: {best_candidate.name}")
-            return best_candidate
-        
-        return None
-    
-    def copy_pose_between_armatures(self, source_armature, target_armature, bone_mappings=None):
-        """
-        Copia pose entre armatures usando mapeos específicos
-        
-        Args:
-            source_armature: Armature fuente
-            target_armature: Armature destino  
-            bone_mappings: Lista de tuplas (source_bone, target_bone)
-        
-        Returns:
-            bool: True si fue exitoso
-        """
+    def _armature_has_pose_transforms(self, armature):
+        """Verifica si el armature tiene transformaciones de pose"""
         try:
-            print(f"[EXTERNAL_POSE] Copiando pose de {source_armature.name} a {target_armature.name}")
-            
-            if not bone_mappings:
-                bone_mappings = self._get_bone_mappings_from_settings()
-            
-            if not bone_mappings:
-                print("[EXTERNAL_POSE] No hay mapeos de huesos disponibles")
-                return False
-            
-            # Activar target armature y entrar en modo pose
-            bpy.context.view_layer.objects.active = target_armature
-            bpy.ops.object.mode_set(mode='POSE')
-            
-            copied_bones = 0
-            
-            for source_bone_name, target_bone_name in bone_mappings:
-                if self._copy_bone_transforms(source_armature, target_armature, 
-                                            source_bone_name, target_bone_name):
-                    copied_bones += 1
-                    if self.debug:
-                        print(f"[EXTERNAL_POSE] Copiado: {source_bone_name} -> {target_bone_name}")
-            
-            bpy.ops.object.mode_set(mode='OBJECT')
-            print(f"[EXTERNAL_POSE] Pose copiada exitosamente. {copied_bones} huesos procesados.")
-            
-            return copied_bones > 0
-            
-        except Exception as e:
-            print(f"[EXTERNAL_POSE] Error copiando pose: {e}")
-            _safe_mode_set('OBJECT')
-            return False
-    
-    def _get_bone_mappings_from_settings(self):
-        """Obtiene los mapeos de huesos desde la configuración"""
-        try:
-            settings = bpy.context.scene.universal_gta_settings
-            return [
-                (m.source_bone, m.target_bone)
-                for m in settings.bone_mappings
-                if m.enabled and m.source_bone and m.target_bone
-            ]
-        except:
-            return None
-    
-    def _copy_bone_transforms(self, source_armature, target_armature, 
-                             source_bone_name, target_bone_name):
-        """Copia las transformaciones de un hueso a otro"""
-        try:
-            if (source_bone_name not in source_armature.pose.bones or 
-                target_bone_name not in target_armature.pose.bones):
-                return False
-            
-            source_bone = source_armature.pose.bones[source_bone_name]
-            target_bone = target_armature.pose.bones[target_bone_name]
-            
-            # Copiar transformaciones
-            target_bone.location = source_bone.location.copy()
-            target_bone.rotation_euler = source_bone.rotation_euler.copy()
-            target_bone.rotation_quaternion = source_bone.rotation_quaternion.copy()
-            target_bone.scale = source_bone.scale.copy()
-            
-            return True
-            
-        except Exception as e:
-            print(f"[EXTERNAL_POSE] Error copiando transformaciones: {e}")
-            return False
-    
-    def reset_armature_pose(self, armature):
-        """
-        Resetea la pose de un armature a su estado rest
-        
-        Args:
-            armature: Armature a resetear
-        
-        Returns:
-            bool: True si fue exitoso
-        """
-        try:
-            print(f"[EXTERNAL_POSE] Reseteando pose de {armature.name}")
-            
+            # Cambiar a modo pose para verificar
             bpy.context.view_layer.objects.active = armature
+            _safe_mode_set('OBJECT')
             bpy.ops.object.mode_set(mode='POSE')
             
-            # Seleccionar todos los huesos y limpiar transformaciones
-            bpy.ops.pose.select_all(action='SELECT')
-            bpy.ops.pose.transforms_clear()
+            has_transforms = False
+            transformed_bones = []
             
+            for pose_bone in armature.pose.bones:
+                # Verificar location, rotation y scale
+                if (pose_bone.location.length > 0.001 or 
+                    any(abs(rot) > 0.001 for rot in pose_bone.rotation_euler) or
+                    any(abs(s - 1.0) > 0.001 for s in pose_bone.scale)):
+                    has_transforms = True
+                    transformed_bones.append(pose_bone.name)
+            
+            # Volver a modo objeto
             bpy.ops.object.mode_set(mode='OBJECT')
-            print(f"[EXTERNAL_POSE] Pose de {armature.name} reseteada exitosamente")
             
-            return True
+            if has_transforms:
+                print(f"[EXTERNAL_POSE] Pose detectada en {len(transformed_bones)} huesos: {transformed_bones[:5]}{'...' if len(transformed_bones) > 5 else ''}")
+            else:
+                print("[EXTERNAL_POSE] No se detectaron transformaciones de pose")
+            
+            return has_transforms
             
         except Exception as e:
-            print(f"[EXTERNAL_POSE] Error reseteando pose: {e}")
+            print(f"[EXTERNAL_POSE] Error verificando pose: {e}")
             _safe_mode_set('OBJECT')
             return False
 
 
-# Funciones de conveniencia para compatibilidad con código anterior
+# Funciones de conveniencia para compatibilidad
 def apply_pose_to_armature(armature):
     """Función de conveniencia para aplicar pose a un armature"""
     return apply_manual_pose_to_children_and_reassign(armature)
@@ -376,3 +352,49 @@ def execute_external_pose_application(source_armature=None, target_armature=None
     """Función de conveniencia para ejecutar aplicación de pose externa"""
     applier = ExternalPoseApplier()
     return applier.execute_full_pose_application(source_armature, target_armature)
+
+
+# Función adicional para verificar el estado post-conversión
+def verify_post_conversion_setup():
+    """Verifica que el setup post-conversión sea correcto"""
+    print("\n[VERIFICATION] === Verificando setup post-conversión ===")
+    
+    # Verificar armatures
+    armatures = [obj for obj in bpy.data.objects if obj.type == 'ARMATURE']
+    print(f"[VERIFICATION] Armatures encontrados: {[arm.name for arm in armatures]}")
+    
+    # Verificar meshes con modificadores
+    meshes_with_modifiers = []
+    meshes_with_shape_keys = []
+    
+    for obj in bpy.data.objects:
+        if obj.type == 'MESH':
+            # Verificar modificadores armature
+            armature_mods = [mod for mod in obj.modifiers if mod.type == 'ARMATURE']
+            if armature_mods:
+                for mod in armature_mods:
+                    target_name = mod.object.name if mod.object else "None"
+                    meshes_with_modifiers.append(f"{obj.name}->{target_name}")
+            
+            # Verificar shape keys
+            if obj.data.shape_keys and len(obj.data.shape_keys.key_blocks) > 0:
+                shape_count = len(obj.data.shape_keys.key_blocks)
+                shape_names = [key.name for key in obj.data.shape_keys.key_blocks]
+                meshes_with_shape_keys.append(f"{obj.name}({shape_count}): {shape_names}")
+    
+    print(f"[VERIFICATION] Meshes con modificadores: {meshes_with_modifiers}")
+    print(f"[VERIFICATION] Meshes con shape keys: {meshes_with_shape_keys}")
+    
+    # Buscar armature principal
+    main_armature = _find_main_armature_post_conversion()
+    if main_armature:
+        print(f"[VERIFICATION] ✓ Armature principal: {main_armature.name}")
+        
+        # Verificar pose
+        applier = ExternalPoseApplier()
+        has_pose = applier._armature_has_pose_transforms(main_armature)
+        print(f"[VERIFICATION] Tiene pose para aplicar: {has_pose}")
+    else:
+        print("[VERIFICATION] ✗ No se encontró armature principal")
+    
+    print("[VERIFICATION] === Verificación completada ===\n")
