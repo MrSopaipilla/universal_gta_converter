@@ -22,8 +22,9 @@ class UNIVERSALGTA_OT_add_target_bones(Operator):
             self.report({'WARNING'}, "No hay target armature asignado.")
             return {'CANCELLED'}
         
-        # Limpiar mapeos existentes
-        settings.bone_mappings.clear()
+        # Limpiar mapeos existentes (no se puede usar .clear())
+        while len(settings.bone_mappings) > 0:
+            settings.bone_mappings.remove(0)
         
         # SOLO excluir huesos Root (mantener Pelvis)
         excluded_bones = {'Root', 'root', 'ROOT'}
@@ -75,8 +76,9 @@ class UNIVERSALGTA_OT_auto_detect_mappings(Operator):
         
         detected_mappings = self.detect_bone_mappings(source_armature, target_armature, settings)
         
-        # Limpiar mapeos existentes
-        settings.bone_mappings.clear()
+        # Limpiar mapeos existentes (no se puede usar .clear())
+        while len(settings.bone_mappings) > 0:
+            settings.bone_mappings.remove(0)
         
         # Agregar mapeos detectados
         for source_bone, target_bone, confidence in detected_mappings:
@@ -517,7 +519,9 @@ class UNIVERSALGTA_OT_clear_mappings(Operator):
     
     def execute(self, context):
         settings = context.scene.universal_gta_settings
-        settings.bone_mappings.clear()
+        # No se puede usar .clear() en una CollectionProperty
+        while len(settings.bone_mappings) > 0:
+            settings.bone_mappings.remove(0)
         settings.bone_mappings_index = 0
         self.report({'INFO'}, "Todos los mapeos eliminados.")
         return {'FINISHED'}

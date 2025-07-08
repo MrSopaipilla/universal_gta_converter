@@ -400,7 +400,9 @@ class UNIVERSALGTA_OT_auto_detect_bones(Operator):
         }
         
         # Limpiar mapeos existentes
-        settings.bone_mappings.clear()
+        # No se puede usar .clear() en una CollectionProperty, se debe iterar
+        while len(settings.bone_mappings) > 0:
+            settings.bone_mappings.remove(0)
         
         detected_count = 0
         
