@@ -35,7 +35,7 @@ class BoneMappingItem(PropertyGroup):
     confidence: FloatProperty(name="Confidence", default=0.0)
 
 class UniversalGTASettings(PropertyGroup):
-    """Configuración principal del addon"""
+    """Configuración principal del addon - VERSIÓN COMPLETA CORREGIDA"""
     
     # Espaciado
     arm_spacing: FloatProperty(name="Arm Spacing", default=0.0, min=-1.0, max=1.0)
@@ -45,7 +45,7 @@ class UniversalGTASettings(PropertyGroup):
     source_armature: PointerProperty(type=bpy.types.Object)
     target_armature: PointerProperty(type=bpy.types.Object)
     
-    # Opciones de conversión
+    # Opciones de conversión básicas
     keep_vertex_colors: BoolProperty(name="Mantener Vertex Colors", default=False)
     debug_mode: BoolProperty(name="Debug Mode", default=False)
     auto_detect_mode: BoolProperty(name="Auto Detect", default=True)
@@ -62,7 +62,7 @@ class UniversalGTASettings(PropertyGroup):
         default=True
     )
     
-    # PROPIEDADES PARA CORRECCIÓN DE NORMALES
+    # CORRECCIÓN DE NORMALES
     auto_fix_normals: BoolProperty(
         name="Auto Fix Normals",
         description="Recalcula automáticamente las normales hacia afuera después de la conversión",
@@ -75,7 +75,7 @@ class UniversalGTASettings(PropertyGroup):
         default=False
     )
     
-    # PROPIEDADES PARA NOMBRES PERSONALIZADOS CON VALIDACIÓN
+    # NOMBRES PERSONALIZADOS CON VALIDACIÓN
     skin_name: StringProperty(
         name="Skin Name",
         description="Nombre del skin (solo caracteres alfanuméricos, guiones y guiones bajos)",
@@ -92,7 +92,7 @@ class UniversalGTASettings(PropertyGroup):
         update=validate_name_input
     )
     
-    # PROPIEDADES PARA ANIMACIONES PREDEFINIDAS
+    # ANIMACIONES PREDEFINIDAS
     predefined_animation: EnumProperty(
         name="Predefined Animation",
         description="Selecciona una animación predefinida para cargar",
@@ -108,7 +108,7 @@ class UniversalGTASettings(PropertyGroup):
         default='NONE'
     )
     
-    # PROPIEDADES PARA EXPRESIVIDAD FACIAL
+    # EXPRESIVIDAD FACIAL
     facial_expressiveness: FloatProperty(
         name="Facial Expressiveness",
         description="Ajusta la expresividad facial modificando el roll de huesos faciales",
@@ -133,14 +133,14 @@ class UniversalGTASettings(PropertyGroup):
         max=0.3
     )
     
-    # PROPIEDADES PARA VALIDACIÓN DE NOMBRES
+    # VALIDACIÓN DE NOMBRES
     name_validation_message: StringProperty(
         name="Name Validation",
         description="Mensaje de validación de nombres",
         default=""
     )
     
-    # PROPIEDADES PARA SHAPE KEYS (CORREGIDO - DENTRO DE LA CLASE)
+    # SHAPE KEYS - TODAS LAS PROPIEDADES DENTRO DE LA CLASE
     auto_apply_shape_keys: BoolProperty(
         name="Auto Apply Shape Keys",
         description="Aplica automáticamente todas las shape keys durante la conversión",
@@ -150,7 +150,7 @@ class UniversalGTASettings(PropertyGroup):
     preserve_basis_shape_key: BoolProperty(
         name="Preserve Basis Shape Key",
         description="Mantiene la shape key 'Basis' sin aplicar durante el proceso",
-        default=False  # CAMBIADO: No preservar Basis por defecto
+        default=False  # CAMBIADO: No preservar Basis por defecto para GTA SA
     )
 
     create_shape_keys_backup: BoolProperty(
@@ -174,7 +174,7 @@ class UniversalGTASettings(PropertyGroup):
     shape_key_threshold: FloatProperty(
         name="Shape Key Threshold",
         description="Valor mínimo para aplicar una shape key (shape keys con valor menor se eliminan)",
-        default=0.001,  # CAMBIADO: Umbral más bajo
+        default=0.001,  # CAMBIADO: Umbral más bajo para detectar shape keys sutiles
         min=0.0,
         max=1.0
     )
@@ -186,17 +186,61 @@ class UniversalGTASettings(PropertyGroup):
         default=""
     )
     
-    # NUEVA PROPIEDAD: Debug para pose detection
+    # DEBUG PARA POSE DETECTION
     debug_pose_detection: BoolProperty(
         name="Debug Pose Detection",
         description="Activa debug detallado para detección de poses",
         default=False
     )
+    
+    # CONFIGURACIONES AVANZADAS DE CONVERSIÓN
+    cleanup_materials: BoolProperty(
+        name="Cleanup Materials",
+        description="Limpia automáticamente materiales (metallic=0, specular=0)",
+        default=True
+    )
+    
+    unify_duplicate_materials: BoolProperty(
+        name="Unify Duplicate Materials", 
+        description="Unifica materiales que comparten la misma textura",
+        default=True
+    )
+    
+    remove_texture_suffixes: BoolProperty(
+        name="Remove Texture Suffixes",
+        description="Elimina sufijos .001, .002 de nombres de texturas",
+        default=True
+    )
+    
+    final_modifier_name: StringProperty(
+        name="Final Modifier Name",
+        description="Nombre del modificador armature final",
+        default="GTA_SKIN"
+    )
+    
+    final_armature_name: StringProperty(
+        name="Final Armature Name", 
+        description="Nombre final del armature después de conversión",
+        default="Root"
+    )
+    
+    # CONFIGURACIONES DE LIMPIEZA
+    purge_orphan_data: BoolProperty(
+        name="Purge Orphan Data",
+        description="Elimina automáticamente datos huérfanos después de conversión",
+        default=True
+    )
+    
+    show_armature_in_front: BoolProperty(
+        name="Show Armature In Front",
+        description="Configura el armature final para mostrarse al frente",
+        default=True
+    )
+
 
 def register_validation():
     """
     Función para registrar validadores adicionales si es necesario.
-    Por ahora solo es un placeholder para compatibilidad.
     """
     print("[CONFIG] Validadores de nombres registrados")
     pass

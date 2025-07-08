@@ -1,240 +1,75 @@
-# converter.py - Versión CORREGIDA con soporte para Shape Keys
+# converter.py - FLUJO COMPLETO CORREGIDO según especificaciones
 import bpy
+import bmesh
 from mathutils import Vector
 from .utils.cleanup import CleanupUtils
 
 
 class UniversalGTAConverter:
-    """Conversor principal para armatures universales a GTA SA con soporte CORREGIDO para Shape Keys"""
+    """Conversor principal siguiendo el flujo EXACTO especificado para GTA SA"""
     
     def __init__(self, settings):
         self.settings = settings
+        self.source_armature = None
+        self.target_armature = None
+        self.unified_mesh = None
 
     def convert(self) -> bool:
-        """Función principal de conversión con soporte CORREGIDO para Shape Keys"""
-        from . import external_pose_caller
+        """Función principal de conversión siguiendo el flujo EXACTO"""
         
         # Validar configuración inicial
         if not self._validate_conversion_setup():
             return False
         
-        print("[DEBUG] Iniciando conversión a GTA SA con soporte CORREGIDO para Shape Keys...")
+        print("[CONVERTER] === INICIANDO CONVERSIÓN GTA SA - FLUJO COMPLETO ===")
         
-        # Preparar armatures
-        self._prepare_armatures()
+        self.source_armature = self.settings.source_armature
+        self.target_armature = self.settings.target_armature
         
-        # CORREGIDO: Procesar Shape Keys ANTES de cualquier transformación
-        if self.settings.auto_apply_shape_keys:
-            self._process_shape_keys_pre_conversion()
-        
-        # Aplicar transformaciones
-        self._apply_transformations()
-        
-        # Aplicar pose manual antes del COPY_LOCATION
-        self._apply_manual_pose()
-        
-        # Configurar mapeos de huesos
-        mappings = self._get_enabled_mappings()
-        if not mappings:
-            print("[ERROR] No hay mapeos de huesos habilitados.")
+        try:
+            # FASE 1: Preparación - Source (Armature)
+            print("[CONVERTER] FASE 1: Preparación Source")
+            self._phase_1_prepare_source()
+            
+            # FASE 2: Limpieza de la Malla
+            print("[CONVERTER] FASE 2: Limpieza de Malla")
+            self._phase_2_cleanup_mesh()
+            
+            # FASE 3: Optimización de materiales
+            print("[CONVERTER] FASE 3: Optimización de Materiales")
+            self._phase_3_optimize_materials()
+            
+            # FASE 4: Procesar Shape Keys
+            print("[CONVERTER] FASE 4: Procesar Shape Keys")
+            self._phase_4_process_shape_keys()
+            
+            # FASE 5: Aplicar y borrar modificador Armature
+            print("[CONVERTER] FASE 5: Aplicar Modificador Armature")
+            self._phase_5_apply_armature_modifier()
+            
+            # FASE 6: Reasignación al Target (Root)
+            print("[CONVERTER] FASE 6: Reasignación a Target")
+            self._phase_6_reassign_to_target()
+            
+            # FASE 7: Limpieza de objetos antiguos
+            print("[CONVERTER] FASE 7: Limpieza Final")
+            self._phase_7_cleanup_old_objects()
+            
+            # FASE 8: Reconfiguración final
+            print("[CONVERTER] FASE 8: Configuración Final")
+            self._phase_8_final_setup()
+            
+            print("[CONVERTER] === CONVERSIÓN COMPLETADA EXITOSAMENTE ===")
+            return True
+            
+        except Exception as e:
+            print(f"[CONVERTER] ERROR durante la conversión: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-        
-        # Procesar mapeos
-        target_to_sources = self._organize_mappings(mappings)
-        
-        # Aplicar constraints y pose
-        self._apply_constraints_and_pose(target_to_sources)
-        
-        # Fusionar pesos (VERTEX GROUPS, no Shape Keys)
-        self._merge_weights(target_to_sources)
-        
-        # Limpiar vertex groups no mapeados
-        self._cleanup_unmapped_vertex_groups()
-        
-        # Unificar objetos
-        joined_obj = self._unify_mesh_objects()
-        
-        # CORREGIDO: NO aplicar Shape Keys después de unificar si ya se aplicaron antes
-        if not self.settings.auto_apply_shape_keys and self.settings.apply_final_shape_keys:
-            self._process_shape_keys_post_conversion(joined_obj)
-        
-        # Configurar resultado final
-        self._finalize_conversion(joined_obj)
-        
-        # Aplicar espaciado
-        print("[DEBUG] === LLAMANDO A APPLY_BONE_SPACING ===")
-        CleanupUtils.apply_bone_spacing(self.settings.target_armature, self.settings.target_armature)
-        
-        print("[DEBUG] Conversión finalizada con éxito.")
-        return True
-
-    def _process_shape_keys_pre_conversion(self):
-        """Procesa Shape Keys ANTES de la conversión principal - CORREGIDO"""
-        try:
-            print("[DEBUG] === PROCESANDO SHAPE KEYS PRE-CONVERSIÓN (CORREGIDO) ===")
-            
-            # Verificar si hay algún mesh con shape keys
-            meshes_with_shape_keys = self._find_meshes_with_shape_keys()
-            
-            if not meshes_with_shape_keys:
-                print("[DEBUG] No se encontraron meshes con shape keys")
-                return
-            
-            print(f"[DEBUG] Encontrados {len(meshes_with_shape_keys)} meshes con shape keys")
-            
-            # Crear backup automático si está habilitado
-            if self.settings.create_shape_keys_backup:
-                self._create_shape_keys_backup(meshes_with_shape_keys)
-            
-            # Aplicar shape keys CORRECTAMENTE
-            self._apply_all_shape_keys_corrected(meshes_with_shape_keys)
-            
-        except Exception as e:
-            print(f"[DEBUG] Error en procesamiento de shape keys pre-conversión: {e}")
-            # No fallar la conversión por problemas con shape keys
-    
-    def _apply_all_shape_keys_corrected(self, meshes_with_shape_keys):
-        """Aplica todas las shape keys de forma CORREGIDA"""
-        try:
-            print("[DEBUG] Aplicando shape keys ANTES de conversión (MÉTODO CORREGIDO)...")
-            
-            for mesh_obj in meshes_with_shape_keys:
-                print(f"[DEBUG] Procesando shape keys de: {mesh_obj.name}")
-                
-                # Activar el mesh
-                bpy.context.view_layer.objects.active = mesh_obj
-                bpy.ops.object.mode_set(mode='OBJECT')
-                
-                # Obtener shape keys
-                if not mesh_obj.data.shape_keys:
-                    continue
-                
-                key_blocks = mesh_obj.data.shape_keys.key_blocks
-                applied_count = 0
-                
-                # CORREGIDO: Lista todas las shape keys primero
-                shape_key_names = [key.name for key in key_blocks]
-                print(f"[DEBUG] Shape keys encontradas en {mesh_obj.name}: {shape_key_names}")
-                
-                # CORREGIDO: Aplicar shape keys desde la última hacia la primera
-                # para evitar problemas con índices cambiantes
-                for i in range(len(key_blocks) - 1, -1, -1):
-                    try:
-                        # Verificar que el índice sigue siendo válido
-                        if not mesh_obj.data.shape_keys or i >= len(mesh_obj.data.shape_keys.key_blocks):
-                            continue
-                        
-                        current_key = mesh_obj.data.shape_keys.key_blocks[i]
-                        key_name = current_key.name
-                        
-                        # Preservar Basis si está configurado (pero normalmente no)
-                        if self.settings.preserve_basis_shape_key and key_name == 'Basis':
-                            print(f"[DEBUG] Preservando shape key Basis en {mesh_obj.name}")
-                            continue
-                        
-                        # Verificar umbral de aplicación
-                        if hasattr(current_key, 'value') and current_key.value < self.settings.shape_key_threshold:
-                            print(f"[DEBUG] Saltando shape key '{key_name}' (valor {current_key.value} < umbral {self.settings.shape_key_threshold})")
-                            # Eliminar shape key sin aplicar
-                            mesh_obj.active_shape_key_index = i
-                            bpy.ops.object.shape_key_remove(all=False)
-                            continue
-                        
-                        print(f"[DEBUG] Aplicando shape key: '{key_name}' en {mesh_obj.name}")
-                        
-                        # Activar la shape key
-                        mesh_obj.active_shape_key_index = i
-                        
-                        # CORREGIDO: Aplicar shape key como mix
-                        bpy.ops.object.shape_key_remove(all=False)
-                        applied_count += 1
-                        
-                        print(f"[DEBUG] ✓ Shape key '{key_name}' aplicada y eliminada")
-                        
-                    except Exception as e:
-                        print(f"[DEBUG] Error aplicando shape key índice {i} en {mesh_obj.name}: {e}")
-                
-                print(f"[DEBUG] ✓ {applied_count} shape keys aplicadas en {mesh_obj.name}")
-                
-                # Verificar que se eliminaron todas las shape keys
-                remaining_keys = len(mesh_obj.data.shape_keys.key_blocks) if mesh_obj.data.shape_keys else 0
-                if remaining_keys > 0:
-                    print(f"[DEBUG] ⚠ {remaining_keys} shape keys restantes en {mesh_obj.name}")
-                else:
-                    print(f"[DEBUG] ✓ Todas las shape keys eliminadas de {mesh_obj.name}")
-            
-            print("[DEBUG] === SHAPE KEYS PRE-CONVERSIÓN COMPLETADAS ===")
-            
-        except Exception as e:
-            print(f"[DEBUG] Error aplicando shape keys: {e}")
-    
-    def _find_meshes_with_shape_keys(self):
-        """Encuentra meshes con shape keys asociados al source armature"""
-        meshes_with_shape_keys = []
-        
-        if not self.settings.source_armature:
-            return meshes_with_shape_keys
-        
-        for obj in bpy.data.objects:
-            if (obj.type == 'MESH' and 
-                obj.parent == self.settings.source_armature and
-                obj.data.shape_keys and 
-                len(obj.data.shape_keys.key_blocks) > 0):
-                
-                meshes_with_shape_keys.append(obj)
-                print(f"[DEBUG] Mesh con shape keys encontrado: {obj.name} ({len(obj.data.shape_keys.key_blocks)} keys)")
-        
-        return meshes_with_shape_keys
-    
-    def _create_shape_keys_backup(self, meshes_with_shape_keys):
-        """Crea backup de meshes con shape keys"""
-        try:
-            print("[DEBUG] Creando backup de shape keys...")
-            
-            for mesh_obj in meshes_with_shape_keys:
-                # Duplicar el mesh
-                bpy.context.view_layer.objects.active = mesh_obj
-                bpy.ops.object.mode_set(mode='OBJECT')
-                bpy.ops.object.select_all(action='DESELECT')
-                mesh_obj.select_set(True)
-                bpy.ops.object.duplicate()
-                
-                # Renombrar el duplicado
-                backup_obj = bpy.context.active_object
-                backup_obj.name = f"{mesh_obj.name}_BACKUP_ShapeKeys"
-                
-                # Mover a una capa o colección de backup
-                try:
-                    # Intentar crear/usar colección de backup
-                    backup_collection_name = "Shape_Keys_Backups"
-                    if backup_collection_name not in bpy.data.collections:
-                        backup_collection = bpy.data.collections.new(backup_collection_name)
-                        bpy.context.scene.collection.children.link(backup_collection)
-                    else:
-                        backup_collection = bpy.data.collections[backup_collection_name]
-                    
-                    # Mover a la colección de backup
-                    if backup_obj.name not in backup_collection.objects:
-                        backup_collection.objects.link(backup_obj)
-                        # Remover de la colección actual
-                        for coll in backup_obj.users_collection:
-                            if coll != backup_collection:
-                                coll.objects.unlink(backup_obj)
-                    
-                    # Ocultar el backup
-                    backup_obj.hide_viewport = True
-                    backup_obj.hide_render = True
-                    
-                except Exception as e:
-                    print(f"[DEBUG] No se pudo organizar backup en colección: {e}")
-                
-                print(f"[DEBUG] ✓ Backup creado: {backup_obj.name}")
-            
-        except Exception as e:
-            print(f"[DEBUG] Error creando backup de shape keys: {e}")
 
     def _validate_conversion_setup(self) -> bool:
-        """Valida que la configuración sea correcta para la conversión"""
+        """Valida que la configuración sea correcta"""
         if not self.settings.source_armature:
             print("[ERROR] No se ha seleccionado un armature fuente.")
             return False
@@ -251,235 +86,401 @@ class UniversalGTAConverter:
             print("[ERROR] El objeto objetivo no es un armature.")
             return False
         
+        # Verificar mapeos
+        enabled_mappings = [m for m in self.settings.bone_mappings if m.enabled]
+        if len(enabled_mappings) == 0:
+            print("[ERROR] No hay mapeos de huesos habilitados.")
+            return False
+        
         return True
 
-    def _prepare_armatures(self):
-        """Prepara los armatures para la conversión"""
-        # Asegurar que estamos en modo objeto
+    def _phase_1_prepare_source(self):
+        """FASE 1: Aplicar transformaciones al Source y sus hijos"""
+        print("[PHASE 1] Aplicando transformaciones al Source Armature y sus hijos...")
+        
+        # Asegurar modo objeto
         bpy.ops.object.mode_set(mode='OBJECT')
         
-        # Activar el armature objetivo para trabajar con él
-        bpy.context.view_layer.objects.active = self.settings.target_armature
-
-    def _apply_transformations(self):
-        """Aplica las transformaciones necesarias"""
-        # Aplicar transformaciones al armature fuente si es necesario
-        bpy.context.view_layer.objects.active = self.settings.source_armature
-        bpy.ops.object.mode_set(mode='OBJECT')
+        # 1. Aplicar transformaciones al Source Armature
+        bpy.context.view_layer.objects.active = self.source_armature
+        bpy.ops.object.select_all(action='DESELECT')
+        self.source_armature.select_set(True)
         
-        # Aquí puedes agregar lógica para aplicar transformaciones específicas
-        print("[DEBUG] Transformaciones aplicadas.")
-
-    def _apply_manual_pose(self):
-        """Aplica pose manual antes de configurar constraints"""
-        try:
-            bpy.context.view_layer.objects.active = self.settings.source_armature
-            bpy.ops.object.mode_set(mode='POSE')
-            
-            # Aquí puedes aplicar poses específicas si es necesario
-            # Por ahora solo cambiamos de vuelta a modo objeto
-            bpy.ops.object.mode_set(mode='OBJECT')
-            
-            print("[DEBUG] Pose manual aplicada.")
-        except Exception as e:
-            print(f"[DEBUG] Error aplicando pose manual: {e}")
-
-    def _get_enabled_mappings(self):
-        """Obtiene los mapeos de huesos habilitados"""
-        return [mapping for mapping in self.settings.bone_mappings if mapping.enabled and mapping.source_bone and mapping.target_bone]
-
-    def _organize_mappings(self, mappings):
-        """Organiza los mapeos por hueso objetivo"""
-        target_to_sources = {}
-        for mapping in mappings:
-            if mapping.target_bone not in target_to_sources:
-                target_to_sources[mapping.target_bone] = []
-            target_to_sources[mapping.target_bone].append(mapping.source_bone)
-        return target_to_sources
-
-    def _apply_constraints_and_pose(self, target_to_sources):
-        """Aplica constraints de COPY_LOCATION entre huesos mapeados"""
-        target_armature = self.settings.target_armature
-        source_armature = self.settings.source_armature
+        print(f"[PHASE 1] Aplicando transformaciones a {self.source_armature.name}")
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         
-        # Cambiar al armature objetivo en modo pose
-        bpy.context.view_layer.objects.active = target_armature
-        bpy.ops.object.mode_set(mode='POSE')
+        # 2. Aplicar transformaciones a todos los hijos del Source
+        source_children = [obj for obj in bpy.data.objects if obj.parent == self.source_armature]
         
-        for target_bone_name, source_bone_names in target_to_sources.items():
-            if target_bone_name in target_armature.pose.bones:
-                target_bone = target_armature.pose.bones[target_bone_name]
-                
-                # Usar el primer hueso fuente como principal
-                primary_source = source_bone_names[0]
-                
-                if primary_source in source_armature.pose.bones:
-                    # Crear constraint COPY_LOCATION
-                    constraint = target_bone.constraints.new(type='COPY_LOCATION')
-                    constraint.target = source_armature
-                    constraint.subtarget = primary_source
-                    constraint.name = f"GTA_COPY_{primary_source}"
-                    
-                    print(f"[DEBUG] Constraint creado: {target_bone_name} <- {primary_source}")
+        for child in source_children:
+            print(f"[PHASE 1] Aplicando transformaciones a hijo: {child.name}")
+            bpy.ops.object.select_all(action='DESELECT')
+            child.select_set(True)
+            bpy.context.view_layer.objects.active = child
+            bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         
-        # Volver a modo objeto
-        bpy.ops.object.mode_set(mode='OBJECT')
+        print(f"[PHASE 1] ✓ Transformaciones aplicadas a {len(source_children)} objetos hijos")
 
-    def _merge_weights(self, target_to_sources):
-        """Fusiona los pesos de vertex groups (NO shape keys)"""
-        source_armature = self.settings.source_armature
+    def _phase_2_cleanup_mesh(self):
+        """FASE 2: Configurar materiales y unir mallas"""
+        print("[PHASE 2] Limpiando materiales y uniendo mallas...")
         
-        # Encontrar meshes hijos del armature fuente
+        # 1. Configurar materiales (metallic = 0, specular = 0)
+        material_count = 0
+        for material in bpy.data.materials:
+            if material.use_nodes:
+                # Buscar nodo Principled BSDF
+                for node in material.node_tree.nodes:
+                    if node.type == 'BSDF_PRINCIPLED':
+                        # Establecer metallic y specular a 0
+                        if 'Metallic' in node.inputs:
+                            node.inputs['Metallic'].default_value = 0.0
+                        if 'Specular' in node.inputs:
+                            node.inputs['Specular'].default_value = 0.0
+                        material_count += 1
+                        print(f"[PHASE 2] Material configurado: {material.name}")
+        
+        print(f"[PHASE 2] ✓ {material_count} materiales configurados")
+        
+        # 2. Encontrar todas las mallas hijas del Source
         mesh_children = [obj for obj in bpy.data.objects 
-                        if obj.type == 'MESH' and obj.parent == source_armature]
-        
-        for mesh_obj in mesh_children:
-            print(f"[DEBUG] Procesando vertex groups de: {mesh_obj.name}")
-            
-            # Procesar vertex groups para cada mapeo
-            for target_bone_name, source_bone_names in target_to_sources.items():
-                target_vg = None
-                
-                # Crear o encontrar el vertex group objetivo
-                if target_bone_name in mesh_obj.vertex_groups:
-                    target_vg = mesh_obj.vertex_groups[target_bone_name]
-                else:
-                    target_vg = mesh_obj.vertex_groups.new(name=target_bone_name)
-                
-                # Fusionar pesos de todos los vertex groups fuente
-                for source_bone_name in source_bone_names:
-                    if source_bone_name in mesh_obj.vertex_groups:
-                        source_vg = mesh_obj.vertex_groups[source_bone_name]
-                        
-                        # Aquí iría la lógica de fusión de pesos
-                        # Por simplicidad, copiamos los pesos del primer grupo
-                        print(f"[DEBUG] Fusionando vertex group: {source_bone_name} -> {target_bone_name}")
-
-    def _cleanup_unmapped_vertex_groups(self):
-        """Limpia vertex groups que no están mapeados"""
-        source_armature = self.settings.source_armature
-        mapped_sources = set()
-        
-        # Recolectar todos los huesos fuente mapeados
-        for mapping in self.settings.bone_mappings:
-            if mapping.enabled and mapping.source_bone:
-                mapped_sources.add(mapping.source_bone)
-        
-        # Encontrar meshes hijos
-        mesh_children = [obj for obj in bpy.data.objects 
-                        if obj.type == 'MESH' and obj.parent == source_armature]
-        
-        for mesh_obj in mesh_children:
-            # Eliminar vertex groups no mapeados
-            groups_to_remove = []
-            for vg in mesh_obj.vertex_groups:
-                if vg.name not in mapped_sources:
-                    groups_to_remove.append(vg.name)
-            
-            for group_name in groups_to_remove:
-                if group_name in mesh_obj.vertex_groups:
-                    mesh_obj.vertex_groups.remove(mesh_obj.vertex_groups[group_name])
-                    print(f"[DEBUG] Vertex group eliminado: {group_name}")
-
-    def _unify_mesh_objects(self):
-        """Unifica todos los objetos mesh en uno solo"""
-        source_armature = self.settings.source_armature
-        mesh_children = [obj for obj in bpy.data.objects 
-                        if obj.type == 'MESH' and obj.parent == source_armature]
+                        if obj.type == 'MESH' and obj.parent == self.source_armature]
         
         if not mesh_children:
-            print("[ERROR] No se encontraron meshes para unificar.")
-            return None
+            raise Exception("No se encontraron mallas hijas del Source Armature")
         
-        # Seleccionar todos los meshes
+        print(f"[PHASE 2] Encontradas {len(mesh_children)} mallas para unir")
+        
+        # 3. Unir todas las mallas
+        bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
+        
+        # Seleccionar todas las mallas
         for mesh_obj in mesh_children:
             mesh_obj.select_set(True)
+            print(f"[PHASE 2] Seleccionada para unir: {mesh_obj.name}")
         
-        # Activar el primer mesh como principal
+        # Activar la primera malla como principal
         bpy.context.view_layer.objects.active = mesh_children[0]
         
         # Unir objetos
         bpy.ops.object.join()
         
-        joined_obj = bpy.context.active_object
-        joined_obj.name = f"{self.settings.skin_name or 'GTASkin'}_Unified"
+        # Renombrar el objeto unificado
+        self.unified_mesh = bpy.context.active_object
+        self.unified_mesh.name = "Mesh"
+        self.unified_mesh.data.name = "Mesh"
         
-        print(f"[DEBUG] Meshes unificados en: {joined_obj.name}")
-        return joined_obj
+        print(f"[PHASE 2] ✓ Mallas unificadas en: {self.unified_mesh.name}")
 
-    def _process_shape_keys_post_conversion(self, joined_obj):
-        """Procesa shape keys DESPUÉS de la unificación (solo si no se hizo antes)"""
-        if not joined_obj or not joined_obj.data.shape_keys:
+    def _phase_3_optimize_materials(self):
+        """FASE 3: Optimizar materiales y texturas"""
+        print("[PHASE 3] Optimizando materiales y texturas...")
+        
+        # 1. Eliminar sufijos .001, .002 de texturas
+        texture_count = 0
+        for image in bpy.data.images:
+            original_name = image.name
+            # Remover sufijos como .001, .002, etc.
+            import re
+            clean_name = re.sub(r'\.\d+$', '', original_name)
+            if clean_name != original_name:
+                image.name = clean_name
+                texture_count += 1
+                print(f"[PHASE 3] Textura renombrada: {original_name} -> {clean_name}")
+        
+        print(f"[PHASE 3] ✓ {texture_count} texturas renombradas")
+        
+        # 2. Unificar materiales que compartan la misma textura
+        materials_by_texture = {}
+        
+        # Agrupar materiales por textura principal
+        for material in bpy.data.materials:
+            if material.use_nodes:
+                main_texture = None
+                for node in material.node_tree.nodes:
+                    if node.type == 'TEX_IMAGE' and node.image:
+                        main_texture = node.image.name
+                        break
+                
+                if main_texture:
+                    if main_texture not in materials_by_texture:
+                        materials_by_texture[main_texture] = []
+                    materials_by_texture[main_texture].append(material)
+        
+        # Unificar materiales duplicados
+        unified_count = 0
+        for texture_name, materials in materials_by_texture.items():
+            if len(materials) > 1:
+                # Mantener el primer material, reemplazar referencias de los demás
+                primary_material = materials[0]
+                
+                for duplicate_material in materials[1:]:
+                    # Reemplazar en el mesh unificado
+                    if self.unified_mesh and self.unified_mesh.data.materials:
+                        for i, slot_material in enumerate(self.unified_mesh.data.materials):
+                            if slot_material == duplicate_material:
+                                self.unified_mesh.data.materials[i] = primary_material
+                    
+                    # Eliminar material duplicado
+                    bpy.data.materials.remove(duplicate_material)
+                    unified_count += 1
+                    print(f"[PHASE 3] Material unificado: {duplicate_material.name} -> {primary_material.name}")
+        
+        print(f"[PHASE 3] ✓ {unified_count} materiales unificados")
+
+    def _phase_4_process_shape_keys(self):
+        """FASE 4: Aplicar y eliminar todas las Shape Keys"""
+        print("[PHASE 4] Procesando Shape Keys...")
+        
+        if not self.unified_mesh or not self.unified_mesh.data.shape_keys:
+            print("[PHASE 4] No hay Shape Keys para procesar")
             return
         
-        print("[DEBUG] Procesando shape keys post-conversión...")
+        # Activar el mesh unificado
+        bpy.context.view_layer.objects.active = self.unified_mesh
+        bpy.ops.object.mode_set(mode='OBJECT')
         
-        # Aplicar shape keys finales si están configuradas
-        try:
-            key_blocks = joined_obj.data.shape_keys.key_blocks
-            for i in range(len(key_blocks) - 1, -1, -1):
-                if i < len(joined_obj.data.shape_keys.key_blocks):
-                    joined_obj.active_shape_key_index = i
-                    bpy.ops.object.shape_key_remove(all=False)
-            
-            print("[DEBUG] Shape keys post-conversión aplicadas")
-        except Exception as e:
-            print(f"[DEBUG] Error en shape keys post-conversión: {e}")
+        key_blocks = self.unified_mesh.data.shape_keys.key_blocks
+        initial_count = len(key_blocks)
+        
+        print(f"[PHASE 4] Encontradas {initial_count} Shape Keys")
+        
+        # Aplicar todas las shape keys desde la última hacia la primera
+        applied_count = 0
+        for i in range(len(key_blocks) - 1, -1, -1):
+            try:
+                if not self.unified_mesh.data.shape_keys or i >= len(self.unified_mesh.data.shape_keys.key_blocks):
+                    continue
+                
+                current_key = self.unified_mesh.data.shape_keys.key_blocks[i]
+                key_name = current_key.name
+                
+                print(f"[PHASE 4] Aplicando Shape Key: {key_name}")
+                
+                # Establecer como activa y aplicar
+                self.unified_mesh.active_shape_key_index = i
+                
+                # Aplicar shape key
+                bpy.ops.object.shape_key_remove(all=False)
+                applied_count += 1
+                
+            except Exception as e:
+                print(f"[PHASE 4] Error aplicando Shape Key {i}: {e}")
+        
+        print(f"[PHASE 4] ✓ {applied_count} Shape Keys aplicadas y eliminadas")
 
-    def _finalize_conversion(self, joined_obj):
-        """Finaliza la conversión configurando el objeto final"""
-        if not joined_obj:
-            return
+    def _phase_5_apply_armature_modifier(self):
+        """FASE 5: Aplicar modificador Armature del Source y aplicar pose"""
+        print("[PHASE 5] Aplicando modificador Armature y pose...")
         
-        # Cambiar el parent al armature objetivo
-        joined_obj.parent = self.settings.target_armature
-        joined_obj.parent_type = 'ARMATURE'
+        if not self.unified_mesh:
+            raise Exception("No hay mesh unificado para procesar")
         
-        # Crear modificador armature
-        if not any(mod.type == 'ARMATURE' for mod in joined_obj.modifiers):
-            armature_mod = joined_obj.modifiers.new(name="Armature", type='ARMATURE')
-            armature_mod.object = self.settings.target_armature
+        # Activar el mesh unificado
+        bpy.context.view_layer.objects.active = self.unified_mesh
+        bpy.ops.object.mode_set(mode='OBJECT')
         
-        print(f"[DEBUG] Conversión finalizada. Objeto final: {joined_obj.name}")
+        # 1. Encontrar y aplicar modificador Armature del Source
+        armature_modifier = None
+        for modifier in self.unified_mesh.modifiers:
+            if modifier.type == 'ARMATURE' and modifier.object == self.source_armature:
+                armature_modifier = modifier
+                break
+        
+        if armature_modifier:
+            modifier_name = armature_modifier.name
+            print(f"[PHASE 5] Aplicando modificador Armature: {modifier_name}")
+            
+            # Aplicar el modificador
+            bpy.ops.object.modifier_apply(modifier=modifier_name)
+            print(f"[PHASE 5] ✓ Modificador {modifier_name} aplicado")
+        else:
+            print("[PHASE 5] ⚠ No se encontró modificador Armature del Source")
+        
+        # 2. Aplicar pose del Source Armature
+        print("[PHASE 5] Aplicando pose del Source Armature...")
+        
+        bpy.context.view_layer.objects.active = self.source_armature
+        bpy.ops.object.mode_set(mode='POSE')
+        
+        # Aplicar pose como rest pose
+        bpy.ops.pose.armature_apply()
+        print("[PHASE 5] ✓ Pose del Source aplicada como rest pose")
+        
+        bpy.ops.object.mode_set(mode='OBJECT')
 
-    def post_conversion_pose_application(self):
-        """Aplica pose personalizada DESPUÉS de la conversión"""
-        from . import external_pose_caller
+    def _phase_6_reassign_to_target(self):
+        """FASE 6: Crear constraints y aplicar pose al Target"""
+        print("[PHASE 6] Reasignando al Target Armature...")
+        
+        # 1. Cambiar al Target en modo pose
+        bpy.context.view_layer.objects.active = self.target_armature
+        bpy.ops.object.mode_set(mode='POSE')
+        
+        # 2. Obtener mapeos habilitados
+        enabled_mappings = [(m.source_bone, m.target_bone) 
+                           for m in self.settings.bone_mappings 
+                           if m.enabled and m.source_bone and m.target_bone]
+        
+        print(f"[PHASE 6] Aplicando {len(enabled_mappings)} mapeos de huesos")
+        
+        # 3. Crear constraints COPY_LOCATION
+        constraint_count = 0
+        for source_bone, target_bone in enabled_mappings:
+            if (source_bone in self.source_armature.pose.bones and 
+                target_bone in self.target_armature.pose.bones):
+                
+                target_pose_bone = self.target_armature.pose.bones[target_bone]
+                
+                # Crear constraint
+                constraint = target_pose_bone.constraints.new('COPY_LOCATION')
+                constraint.target = self.source_armature
+                constraint.subtarget = source_bone
+                constraint.name = f"GTA_COPY_{source_bone}"
+                
+                constraint_count += 1
+                print(f"[PHASE 6] Constraint creado: {target_bone} <- {source_bone}")
+        
+        print(f"[PHASE 6] ✓ {constraint_count} constraints creados")
+        
+        # 4. Aplicar pose del Target
+        print("[PHASE 6] Aplicando pose del Target...")
+        bpy.ops.pose.armature_apply()
+        print("[PHASE 6] ✓ Pose del Target aplicada")
+        
+        # 5. Limpiar constraints
+        print("[PHASE 6] Limpiando constraints...")
+        constraint_count = 0
+        for bone in self.target_armature.pose.bones:
+            constraints_to_remove = list(bone.constraints)
+            for constraint in constraints_to_remove:
+                bone.constraints.remove(constraint)
+                constraint_count += 1
+        
+        print(f"[PHASE 6] ✓ {constraint_count} constraints eliminados")
+        
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+    def _phase_7_cleanup_old_objects(self):
+        """FASE 7: Eliminar objetos antiguos innecesarios"""
+        print("[PHASE 7] Limpiando objetos antiguos...")
+        
+        # 1. Eliminar mallas asociadas al Target ("unnamed", etc.)
+        target_children = [obj for obj in bpy.data.objects if obj.parent == self.target_armature]
+        removed_meshes = 0
+        
+        for child in target_children:
+            if child.type == 'MESH' and child != self.unified_mesh:
+                child_name = child.name
+                
+                # Verificar si es una malla "unnamed" típica
+                if any(keyword in child_name.lower() for keyword in ['unnamed', 'default', 'cube', 'plane']):
+                    print(f"[PHASE 7] Eliminando malla antigua: {child_name}")
+                    bpy.data.objects.remove(child, do_unlink=True)
+                    removed_meshes += 1
+        
+        print(f"[PHASE 7] ✓ {removed_meshes} mallas antiguas eliminadas")
+        
+        # 2. Eliminar el Source Armature
+        if self.source_armature and self.source_armature.name in bpy.data.objects:
+            source_name = self.source_armature.name
+            print(f"[PHASE 7] Eliminando Source Armature: {source_name}")
+            
+            # Asegurar que no esté activo
+            if bpy.context.active_object == self.source_armature:
+                bpy.context.view_layer.objects.active = self.target_armature
+            
+            # Eliminar
+            bpy.data.objects.remove(self.source_armature, do_unlink=True)
+            print(f"[PHASE 7] ✓ Source Armature {source_name} eliminado")
+        
+        # 3. Purgar datos huérfanos
+        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
+        print("[PHASE 7] ✓ Datos huérfanos purgados")
+
+    def _phase_8_final_setup(self):
+        """FASE 8: Configuración final del resultado"""
+        print("[PHASE 8] Configuración final...")
+        
+        if not self.unified_mesh:
+            raise Exception("No hay mesh unificado para la configuración final")
+        
+        # 1. Configurar jerarquía: Mesh como hijo del Target
+        print("[PHASE 8] Configurando jerarquía...")
+        self.unified_mesh.parent = self.target_armature
+        self.unified_mesh.parent_type = 'ARMATURE'
+        print(f"[PHASE 8] ✓ {self.unified_mesh.name} configurado como hijo de {self.target_armature.name}")
+        
+        # 2. Limpiar modificadores existentes del mesh
+        existing_modifiers = list(self.unified_mesh.modifiers)
+        for modifier in existing_modifiers:
+            self.unified_mesh.modifiers.remove(modifier)
+            print(f"[PHASE 8] Modificador eliminado: {modifier.name}")
+        
+        # 3. Agregar nuevo modificador Armature llamado "GTA_SKIN"
+        gta_modifier = self.unified_mesh.modifiers.new(name="GTA_SKIN", type='ARMATURE')
+        gta_modifier.object = self.target_armature
+        print(f"[PHASE 8] ✓ Modificador 'GTA_SKIN' creado apuntando a {self.target_armature.name}")
+        
+        # 4. Configurar nombres finales
+        self.target_armature.name = "Root"
+        self.target_armature.data.name = "Root"
+        
+        # Aplicar nombres personalizados si están configurados
+        if self.settings.skin_name and self.settings.skin_name != "MySkin":
+            self.unified_mesh.name = self.settings.skin_name
+            self.unified_mesh.data.name = self.settings.skin_name
+        
+        if self.settings.author_nickname and self.settings.author_nickname != "Author":
+            # Renombrar el primer hueso si existe
+            if len(self.target_armature.data.bones) > 0:
+                bpy.context.view_layer.objects.active = self.target_armature
+                bpy.ops.object.mode_set(mode='EDIT')
+                first_bone = self.target_armature.data.edit_bones[0]
+                first_bone.name = f"{self.settings.author_nickname}_Root"
+                bpy.ops.object.mode_set(mode='OBJECT')
+        
+        # 5. Configurar visibilidad y propiedades finales
+        self.target_armature.show_in_front = True
+        self.unified_mesh.show_wire = False
+        
+        print("[PHASE 8] ✓ Configuración final completada")
+        
+        # 6. Resumen final
+        print("\n" + "="*60)
+        print("CONVERSIÓN COMPLETADA - RESUMEN FINAL:")
+        print("="*60)
+        print(f"✓ Armature Final: {self.target_armature.name}")
+        print(f"✓ Mesh Final: {self.unified_mesh.name}")
+        print(f"✓ Modificador: GTA_SKIN -> {self.target_armature.name}")
+        print(f"✓ Materiales: {len(self.unified_mesh.data.materials)}")
+        print(f"✓ Vértices: {len(self.unified_mesh.data.vertices)}")
+        print(f"✓ Huesos: {len(self.target_armature.data.bones)}")
+        print("="*60)
+        
+        # Aplicar corrección automática de normales si está habilitado
+        if self.settings.auto_fix_normals:
+            self._fix_normals_final()
+
+    def _fix_normals_final(self):
+        """Aplica corrección de normales al resultado final"""
+        print("[PHASE 8] Aplicando corrección de normales...")
         
         try:
-            print("[CONVERSION] === APLICACIÓN DE POSE PERSONALIZADA ===")
-            
-            # Buscar el armature Root (resultado de la conversión)
-            root_armature = external_pose_caller._find_main_armature_post_conversion()
-            
-            if not root_armature:
-                print("[CONVERSION] ✗ No se encontró armature Root para aplicar pose")
-                return False
-            
-            print(f"[CONVERSION] ✓ Armature Root encontrado: {root_armature.name}")
-            
-            # Buscar meshes con modificadores armature
-            target_meshes = external_pose_caller._find_meshes_with_armature_modifier(root_armature)
-            print(f"[CONVERSION] ✓ {len(target_meshes)} meshes con modificadores encontrados")
-            
-            # Aplicar pose usando el sistema externo
-            applier = external_pose_caller.ExternalPoseApplier()
-            success = applier.execute_full_pose_application(
-                source_armature=None,  # Ya no existe
-                target_armature=root_armature
-            )
-            
-            if success:
-                print("[CONVERSION] ✓ Pose personalizada aplicada correctamente")
-            else:
-                print("[CONVERSION] ⚠ Problema aplicando pose personalizada")
-            
-            print("[CONVERSION] === APLICACIÓN DE POSE PERSONALIZADA COMPLETADA ===")
-            return success
-            
+            bpy.context.view_layer.objects.active = self.unified_mesh
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.normals_make_consistent(inside=False)
+            bpy.ops.object.mode_set(mode='OBJECT')
+            print("[PHASE 8] ✓ Normales corregidas")
         except Exception as e:
-            print(f"[CONVERSION] ✗ Error en aplicación de pose post-conversión: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+            print(f"[PHASE 8] ⚠ Error corrigiendo normales: {e}")
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+    def get_final_objects(self):
+        """Retorna los objetos finales de la conversión"""
+        return {
+            'armature': self.target_armature,
+            'mesh': self.unified_mesh
+        }

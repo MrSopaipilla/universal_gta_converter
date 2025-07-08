@@ -1,4 +1,4 @@
-# operators/pose.py - Versión CORREGIDA
+# operators/pose.py - Versión CORREGIDA COMPLETA
 import bpy
 from bpy.types import Operator
 from .. import external_pose_caller
@@ -166,12 +166,138 @@ class UNIVERSALGTA_OT_apply_manual_pose(Operator):
             return {'CANCELLED'}
 
 
+class UNIVERSALGTA_OT_reset_pose(Operator):
+    """Resetear pose del armature"""
+    bl_idname = "universalgta.reset_pose"
+    bl_label = "Reset Pose"
+    bl_description = "Resetea la pose del armature seleccionado"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        armature = context.active_object
+        
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "No hay armature válido seleccionado")
+            return {'CANCELLED'}
+        
+        try:
+            bpy.context.view_layer.objects.active = armature
+            bpy.ops.object.mode_set(mode='POSE')
+            bpy.ops.pose.select_all(action='SELECT')
+            bpy.ops.pose.transforms_clear()
+            bpy.ops.object.mode_set(mode='OBJECT')
+            
+            self.report({'INFO'}, "Pose reseteada con éxito")
+            return {'FINISHED'}
+                
+        except Exception as e:
+            self.report({'ERROR'}, f"Error al resetear pose: {str(e)}")
+            bpy.ops.object.mode_set(mode='OBJECT')
+            return {'CANCELLED'}
+
+
+class UNIVERSALGTA_OT_copy_pose(Operator):
+    """Copiar pose de un armature a otro"""
+    bl_idname = "universalgta.copy_pose"
+    bl_label = "Copy Pose"
+    bl_description = "Copia la pose del armature fuente al armature destino"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        settings = context.scene.universal_gta_settings
+        source_armature = settings.source_armature
+        target_armature = settings.target_armature
+        
+        # Validación
+        if not self._validate_armatures(source_armature, target_armature):
+            return {'CANCELLED'}
+        
+        try:
+            # Lógica básica de copia de pose
+            bpy.context.view_layer.objects.active = target_armature
+            bpy.ops.object.mode_set(mode='POSE')
+            
+            # Crear constraints temporales para copiar pose
+            for target_bone in target_armature.pose.bones:
+                if target_bone.name in source_armature.pose.bones:
+                    constraint = target_bone.constraints.new('COPY_TRANSFORMS')
+                    constraint.target = source_armature
+                    constraint.subtarget = target_bone.name
+            
+            # Aplicar pose
+            bpy.ops.pose.armature_apply()
+            
+            # Limpiar constraints
+            for bone in target_armature.pose.bones:
+                for constraint in list(bone.constraints):
+                    bone.constraints.remove(constraint)
+            
+            bpy.ops.object.mode_set(mode='OBJECT')
+            
+            self.report({'INFO'}, "Pose copiada con éxito")
+            return {'FINISHED'}
+                
+        except Exception as e:
+            self.report({'ERROR'}, f"Error: {str(e)}")
+            bpy.ops.object.mode_set(mode='OBJECT')
+            return {'CANCELLED'}
+    
+    def _validate_armatures(self, source, target):
+        """Valida que los armatures sean válidos"""
+        if not source or not target:
+            self.report({'ERROR'}, "Necesitas definir tanto el armature fuente como el destino")
+            return False
+        
+        if source.type != 'ARMATURE' or target.type != 'ARMATURE':
+            self.report({'ERROR'}, "Ambos objetos deben ser armatures")
+            return False
+        
+        return True
+
+
+class UNIVERSALGTA_OT_bake_pose(Operator):
+    """Hornear pose en el armature"""
+    bl_idname = "universalgta.bake_pose"
+    bl_label = "Bake Pose"
+    bl_description = "Hornea la pose actual del armature en su rest pose"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        armature = context.active_object
+        
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'ERROR'}, "No hay armature válido seleccionado")
+            return {'CANCELLED'}
+        
+        try:
+            # Activar armature y entrar en modo pose
+            context.view_layer.objects.active = armature
+            bpy.ops.object.mode_set(mode='POSE')
+            
+            # Aplicar pose como rest pose
+            bpy.ops.pose.armature_apply()
+            
+            # Volver a modo objeto
+            bpy.ops.object.mode_set(mode='OBJECT')
+            
+            self.report({'INFO'}, "Pose horneada con éxito")
+            return {'FINISHED'}
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"Error al hornear pose: {str(e)}")
+            bpy.ops.object.mode_set(mode='OBJECT')
+            return {'CANCELLED'}
+
+
 # Lista de clases para registrar
 classes = [
     UNIVERSALGTA_OT_apply_custom_pose,
     UNIVERSALGTA_OT_test_pose_application,
     UNIVERSALGTA_OT_verify_pose_setup,
     UNIVERSALGTA_OT_apply_manual_pose,
+    UNIVERSALGTA_OT_reset_pose,
+    UNIVERSALGTA_OT_copy_pose,
+    UNIVERSALGTA_OT_bake_pose,
 ]
 
 
