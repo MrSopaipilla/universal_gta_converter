@@ -407,7 +407,9 @@ def register():
 
 def unregister():
     for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)"""
+        bpy.utils.unregister_class(cls)
+        
+"""
 Operadores para animaciones predefinidas
 """
 
@@ -467,17 +469,25 @@ class UNIVERSALGTA_OT_load_animation(Operator):
             if action.name.startswith(armature.name):
                 bpy.data.actions.remove(action)
     
-    def load_predefined_animation(self, armature, animation_type):
-        """Carga una animación predefinida específica"""
-        try:
-            # Crear nueva action
-            action_name = f"{armature.name}_{animation_type}"
-            action = bpy.data.actions.new(name=action_name)
-            
-            # Asignar action al armature
-            if not armature.animation_data:
-                armature.animation_data_create()
-            armature.animation_data.action = action
-            
-            # Configurar frame range
-            bpy.context.scene.frame_start =
+def load_predefined_animation(self, armature, animation_type):
+    """Carga una animación predefinida específica"""
+    try:
+        # Crear nueva action
+        action_name = f"{armature.name}_{animation_type}"
+        action = bpy.data.actions.new(name=action_name)
+
+        # Asignar action al armature
+        if not armature.animation_data:
+            armature.animation_data_create()
+        armature.animation_data.action = action
+
+        # Configurar frame range
+        bpy.context.scene.frame_start = 1
+        bpy.context.scene.frame_end = 60
+
+        # Aquí deberías insertar keyframes si corresponde
+
+        return True
+    except Exception as e:
+        print(f"Error cargando animación: {e}")
+        return False

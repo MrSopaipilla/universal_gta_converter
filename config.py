@@ -8,17 +8,16 @@ def validate_name_input(self, context):
     
     # Validar skin_name
     if self.skin_name:
-        # Solo permitir letras, números, guiones y guiones bajos
-        if not re.match(r'^[a-zA-Z0-9_-]+, self.skin_name):
+        if not re.match(r'^[a-zA-Z0-9_-]+$', self.skin_name):
             self.name_validation_message = "❌ Skin name: Solo se permiten letras, números, _ y -"
             # Limpiar caracteres inválidos
             self.skin_name = re.sub(r'[^a-zA-Z0-9_-]', '', self.skin_name)
         else:
             self.name_validation_message = "✅ Skin name válido"
-    
+
     # Validar author_nickname
     if self.author_nickname:
-        if not re.match(r'^[a-zA-Z0-9_-]+, self.author_nickname):
+        if not re.match(r'^[a-zA-Z0-9_-]+$', self.author_nickname):
             if "❌" not in self.name_validation_message:
                 self.name_validation_message = "❌ Author nickname: Solo se permiten letras, números, _ y -"
             # Limpiar caracteres inválidos
