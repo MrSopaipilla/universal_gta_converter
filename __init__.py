@@ -64,7 +64,7 @@ from .operators.cleanup import (
     UNIVERSALGTA_OT_optimize_mesh
 )
 
-# NUEVOS IMPORTS: Operadores de normales
+# Importar operadores de normales
 from .operators.normals import (
     UNIVERSALGTA_OT_fix_normals,
     UNIVERSALGTA_OT_auto_fix_normals_post_conversion,
@@ -72,7 +72,7 @@ from .operators.normals import (
     UNIVERSALGTA_OT_check_normals_consistency
 )
 
-# NUEVOS IMPORTS: Operadores de nombres
+# Importar operadores de nombres
 from .operators.naming import (
     UNIVERSALGTA_OT_apply_custom_names,
     UNIVERSALGTA_OT_reset_names,
@@ -80,7 +80,7 @@ from .operators.naming import (
     UNIVERSALGTA_OT_auto_generate_names
 )
 
-# NUEVOS IMPORTS: Operadores de animaciones
+# Importar operadores de animaciones
 from .operators.animations import (
     UNIVERSALGTA_OT_load_animation,
     UNIVERSALGTA_OT_clear_animations,
@@ -101,7 +101,7 @@ from .panels.main_panel import (
     UNIVERSALGTA_PT_UtilitiesPanel
 )
 
-# NUEVOS IMPORTS: Paneles adicionales
+# Importar paneles adicionales
 from .panels.credits import (
     UNIVERSALGTA_OT_open_yoshi_channel,
     UNIVERSALGTA_PT_CreditsPanel,
@@ -109,19 +109,17 @@ from .panels.credits import (
     UNIVERSALGTA_PT_NamingPanel
 )
 
-# UIList mejorada con drag & drop FUNCIONAL y visual como la imagen original
+
 class UNIVERSALGTA_UL_BoneMappingList(bpy.types.UIList):
     """Lista UI para mapeos de huesos con drag & drop funcional y visual mejorado"""
     
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         """Dibuja cada elemento de la lista con estilo visual mejorado"""
-        
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            # Crear layout principal con estilo compacto
             row = layout.row(align=True)
             row.alignment = 'LEFT'
             
-            # Checkbox para habilitar/deshabilitar (más prominente)
+            # Checkbox para habilitar/deshabilitar
             checkbox_col = row.column()
             checkbox_col.scale_x = 0.8
             checkbox_col.prop(item, "enabled", text="")
@@ -131,68 +129,61 @@ class UNIVERSALGTA_UL_BoneMappingList(bpy.types.UIList):
             bone_col.scale_x = 0.6
             bone_col.label(text="", icon='BONE_DATA')
             
-            # Source bone (más ancho)
+            # Source bone
             source_col = row.column()
             source_col.scale_x = 2.0
             src_arm = data.source_armature
-            if src_arm and src_arm.type == 'ARMATURE' and item.source_bone:
-                # Mostrar nombre del hueso con validación visual
-                if item.source_bone in [b.name for b in src_arm.pose.bones]:
-                    source_col.label(text=item.source_bone, icon='CHECKMARK')
-                else:
-                    source_col.label(text=item.source_bone, icon='ERROR')
-            else:
-                source_col.label(text=item.source_bone if item.source_bone else "<None>", icon='DOT')
             
-            # Flecha direccional (visual llamativa)
+            if src_arm and src_arm.type == 'ARMATURE' and item.source_bone:
+                icon_type = 'CHECKMARK' if item.source_bone in [b.name for b in src_arm.pose.bones] else 'ERROR'
+                source_col.label(text=item.source_bone, icon=icon_type)
+            else:
+                source_col.label(text=item.source_bone or "<None>", icon='DOT')
+            
+            # Flecha direccional
             arrow_col = row.column()
             arrow_col.scale_x = 0.8
             arrow_col.label(text="→", icon='FORWARD')
             
-            # Target bone (más ancho)
+            # Target bone
             target_col = row.column()
             target_col.scale_x = 2.0
             tgt_arm = data.target_armature
+            
             if tgt_arm and tgt_arm.type == 'ARMATURE' and item.target_bone:
-                # Mostrar nombre del hueso con validación visual
-                if item.target_bone in [b.name for b in tgt_arm.pose.bones]:
-                    target_col.label(text=item.target_bone, icon='CHECKMARK')
-                else:
-                    target_col.label(text=item.target_bone, icon='ERROR')
+                icon_type = 'CHECKMARK' if item.target_bone in [b.name for b in tgt_arm.pose.bones] else 'ERROR'
+                target_col.label(text=item.target_bone, icon=icon_type)
             else:
-                target_col.label(text=item.target_bone if item.target_bone else "<None>", icon='DOT')
+                target_col.label(text=item.target_bone or "<None>", icon='DOT')
             
             # Indicadores de estado
             status_col = row.column()
             status_col.scale_x = 1.2
             
             # Método de detección
-            if item.detection_method == "Auto":
-                status_col.label(text="", icon='AUTO')
-            else:
-                status_col.label(text="", icon='HAND')
+            status_col.label(text="", icon='AUTO' if item.detection_method == "Auto" else 'HAND')
             
             # Confianza (solo para automáticos)
             if item.detection_method == "Auto" and item.confidence > 0:
                 conf_col = row.column()
                 conf_col.scale_x = 0.8
+                
                 if item.confidence > 0.7:
-                    conf_col.label(text=f"{item.confidence:.1f}", icon='CHECKMARK')
+                    icon_type = 'CHECKMARK'
                 elif item.confidence < 0.4:
-                    conf_col.label(text=f"{item.confidence:.1f}", icon='ERROR')
+                    icon_type = 'ERROR'
                 else:
-                    conf_col.label(text=f"{item.confidence:.1f}", icon='DOT')
+                    icon_type = 'DOT'
+                
+                conf_col.label(text=f"{item.confidence:.1f}", icon=icon_type)
         
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.scale_y = 0.8
-            if item.enabled:
-                layout.label(text="", icon='CHECKMARK')
-            else:
-                layout.label(text="", icon='X')
+            layout.label(text="", icon='CHECKMARK' if item.enabled else 'X')
     
     def draw_filter(self, context, layout):
-        """Filtros para la lista (mejora la funcionalidad)"""
+        """Filtros para la lista"""
         row = layout.row()
         
         # Filtro por nombre
@@ -210,7 +201,6 @@ class UNIVERSALGTA_UL_BoneMappingList(bpy.types.UIList):
         items = getattr(data, propname)
         helper_funcs = bpy.types.UI_UL_list
         
-        # Filtrado por nombre
         flt_flags = []
         flt_neworder = []
         
@@ -223,13 +213,13 @@ class UNIVERSALGTA_UL_BoneMappingList(bpy.types.UIList):
         if not flt_flags:
             flt_flags = [self.bitflag_filter_item] * len(items)
         
-        # Ordenamiento alfabético si está habilitado
         if self.use_filter_sort_alpha:
             flt_neworder = helper_funcs.sort_items_by_name(items, "target_bone")
             if self.use_filter_sort_reverse:
                 flt_neworder.reverse()
         
         return flt_flags, flt_neworder
+
 
 # Lista de todas las clases para registrar
 classes = [
@@ -268,19 +258,19 @@ classes = [
     UNIVERSALGTA_OT_disable_all_mappings,
     UNIVERSALGTA_OT_enable_high_confidence,
     
-    # NUEVOS: Operadores de normales
+    # Operadores de normales
     UNIVERSALGTA_OT_fix_normals,
     UNIVERSALGTA_OT_auto_fix_normals_post_conversion,
     UNIVERSALGTA_OT_flip_normals,
     UNIVERSALGTA_OT_check_normals_consistency,
     
-    # NUEVOS: Operadores de nombres
+    # Operadores de nombres
     UNIVERSALGTA_OT_apply_custom_names,
     UNIVERSALGTA_OT_reset_names,
     UNIVERSALGTA_OT_validate_names,
     UNIVERSALGTA_OT_auto_generate_names,
     
-    # NUEVOS: Operadores de animaciones
+    # Operadores de animaciones
     UNIVERSALGTA_OT_load_animation,
     UNIVERSALGTA_OT_clear_animations,
     UNIVERSALGTA_OT_refresh_animations_on_spacing_change,
@@ -307,7 +297,7 @@ classes = [
     UNIVERSALGTA_PT_ConversionPanel,
     UNIVERSALGTA_PT_UtilitiesPanel,
     
-    # NUEVOS: Paneles adicionales y créditos
+    # Paneles adicionales y créditos
     UNIVERSALGTA_OT_open_yoshi_channel,
     UNIVERSALGTA_PT_CreditsPanel,
     UNIVERSALGTA_PT_TestingPanel,
@@ -316,6 +306,7 @@ classes = [
 
 # Variable global para el converter
 converter_instance = None
+
 
 def register():
     """Registra todas las clases del addon"""
@@ -337,6 +328,7 @@ def register():
     print("[ADDON] • Panel de testing completo")
     print("[ADDON] • Panel de créditos con enlaces")
 
+
 def unregister():
     """Desregistra todas las clases del addon"""
     for cls in reversed(classes):
@@ -347,6 +339,7 @@ def unregister():
         del bpy.types.Scene.universal_gta_settings
     
     print("[ADDON] Universal GTA Converter desregistrado exitosamente")
+
 
 if __name__ == "__main__":
     register()

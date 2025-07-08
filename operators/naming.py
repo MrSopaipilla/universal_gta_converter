@@ -1,9 +1,11 @@
+# operators/naming.py - Versión mejorada
 """
 Operadores para sistema de nombres personalizados
 """
 
 import bpy
 import re
+import os
 from bpy.types import Operator
 
 
@@ -18,125 +20,171 @@ class UNIVERSALGTA_OT_apply_custom_names(Operator):
         settings = context.scene.universal_gta_settings
         
         # Validar nombres antes de aplicar
-        if not self.validate_names(settings):
+        if not self._validate_names(settings):
             return {'CANCELLED'}
         
-        # Aplicar nombre del skin
-        success_skin = self.apply_skin_name(settings)
+        # Aplicar nombres
+        results = {
+            'skin': self._apply_skin_name(settings),
+            'author': self._apply_author_name(settings)
+        }
         
-        # Aplicar nombre del autor
-        success_author = self.apply_author_name(settings)
-        
-        if success_skin and success_author:
-            self.report({'INFO'}, f"Nombres aplicados: Skin='{settings.skin_name}', Autor='{settings.author_nickname}'")
-        elif success_skin:
-            self.report({'WARNING'}, f"Solo se aplicó el nombre del skin: '{settings.skin_name}'")
-        elif success_author:
-            self.report({'WARNING'}, f"Solo se aplicó el nombre del autor: '{settings.author_nickname}'")
+        # Reportar resultados
+        if results['skin'] and results['author']:
+            self.report({'INFO'}, 
+                       f"Nombres aplicados: Skin='{settings.skin_name}', "
+                       f"Autor='{settings.author_nickname}'")
+        elif results['skin']:
+            self.report({'WARNING'}, 
+                       f"Solo se aplicó el nombre del skin: '{settings.skin_name}'")
+        elif results['author']:
+            self.report({'WARNING'}, 
+                       f"Solo se aplicó el nombre del autor: '{settings.author_nickname}'")
         else:
             self.report({'ERROR'}, "No se pudieron aplicar los nombres")
             return {'CANCELLED'}
         
         return {'FINISHED'}
     
-    def validate_names(self, settings):
+    def _validate_names(self, settings):
         """Valida que los nombres sean válidos"""
+        pattern = r'^[a-zA-Z0-9_-]+$'
+        errors = []
+        
         # Validar skin_name
-        if not settings.skin_name or not re.match(r'^[a-zA-Z0-9_-]+$', settings.skin_name):
-            self.report({'ERROR'}, "Nombre del skin inválido. Solo se permiten letras, números, _ y -")
-            return False
+        if not settings.skin_name:
+            errors.append("Nombre del skin está vacío")
+        elif not re.match(pattern, settings.skin_name):
+            errors.append("Nombre del skin contiene caracteres inválidos")
         
         # Validar author_nickname
-        if not settings.author_nickname or not re.match(r'^[a-zA-Z0-9_-]+$', settings.author_nickname):
-            self.report({'ERROR'}, "Nickname del autor inválido. Solo se permiten letras, números, _ y -")
+        if not settings.author_nickname:
+            errors.append("Nickname del autor está vacío")
+        elif not re.match(pattern, settings.author_nickname):
+            errors.append("Nickname del autor contiene caracteres inválidos")
+        
+        if errors:
+            self.report({'ERROR'}, ". ".join(errors))
             return False
         
         return True
     
-    def apply_skin_name(self, settings):
+    def _apply_skin_name(self, settings):
         """Aplica el nombre personalizado al skin (mesh principal)"""
         try:
             # Buscar el mesh principal
-            target_mesh = None
-            possible_names = ["Mesh", "MySkin"]
-            
-            for obj_name in possible_names:
-                if obj_name in bpy.data.objects:
-                    obj = bpy.data.objects[obj_name]
-                    if obj.type == 'MESH':
-                        target_mesh = obj
-                        break
+            target_mesh = self._find_main_mesh()
             
             if not target_mesh:
-                # Buscar cualquier mesh principal
-                for obj in bpy.data.objects:
-                    if obj.type == 'MESH' and obj.parent and obj.parent.type == 'ARMATURE':
-                        target_mesh = obj
-                        break
-            
-            if target_mesh:
-                # Cambiar nombre del objeto
-                old_name = target_mesh.name
-                target_mesh.name = settings.skin_name
-                
-                # Cambiar nombre de los datos del mesh
-                if target_mesh.data:
-                    target_mesh.data.name = settings.skin_name
-                
-                print(f"[NAMING] Mesh renombrado: {old_name} -> {settings.skin_name}")
-                return True
-            else:
                 print("[NAMING] No se encontró mesh principal para renombrar")
                 return False
+            
+            # Cambiar nombre
+            old_name = target_mesh.name
+            target_mesh.name = settings.skin_name
+            
+            # Cambiar nombre de los datos del mesh
+            if target_mesh.data:
+                target_mesh.data.name = settings.skin_name
+            
+            print(f"[NAMING] Mesh renombrado: {old_name} -> {settings.skin_name}")
+            return True
                 
         except Exception as e:
             print(f"[NAMING] Error aplicando nombre del skin: {e}")
             return False
     
-    def apply_author_name(self, settings):
+    def _find_main_mesh(self):
+        """Encuentra el mesh principal del modelo"""
+        # Buscar por nombres comunes
+        common_names = ["Mesh", "MySkin"]
+        for name in common_names:
+            if name in bpy.data.objects:
+                obj = bpy.data.objects[name]
+                if obj.type == 'MESH':
+                    return obj
+        
+        # Buscar mesh con armature parent
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH' and obj.parent and obj.parent.type == 'ARMATURE':
+                return obj
+        
+        # Buscar cualquier mesh grande
+        largest_mesh = None
+        largest_vertex_count = 0
+        
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH':
+                vertex_count = len(obj.data.vertices)
+                if vertex_count > largest_vertex_count:
+                    largest_vertex_count = vertex_count
+                    largest_mesh = obj
+        
+        return largest_mesh
+    
+    def _apply_author_name(self, settings):
         """Aplica el nombre del autor al armature y hueso root"""
         try:
+            if not settings.target_armature:
+                print("[NAMING] No hay target armature definido")
+                return False
+            
             success_count = 0
             
-            # Aplicar al target armature
-            if settings.target_armature:
-                old_armature_name = settings.target_armature.name
-                settings.target_armature.name = f"{settings.author_nickname}_Armature"
-                print(f"[NAMING] Armature renombrado: {old_armature_name} -> {settings.target_armature.name}")
+            # Aplicar al armature
+            old_armature_name = settings.target_armature.name
+            settings.target_armature.name = f"{settings.author_nickname}_Armature"
+            print(f"[NAMING] Armature renombrado: {old_armature_name} -> {settings.target_armature.name}")
+            success_count += 1
+            
+            # Aplicar al hueso Root
+            if self._rename_root_bone(settings):
                 success_count += 1
-                
-                # Aplicar al hueso Root
-                if settings.target_armature.type == 'ARMATURE':
-                    # Buscar hueso Root
-                    root_bone = None
-                    for bone in settings.target_armature.data.bones:
-                        if bone.name.lower() in ['root', 'base', 'origin']:
-                            root_bone = bone
-                            break
-                    
-                    # Si no se encuentra, usar el primer hueso
-                    if not root_bone and len(settings.target_armature.data.bones) > 0:
-                        root_bone = settings.target_armature.data.bones[0]
-                    
-                    if root_bone:
-                        # Cambiar a modo edición para renombrar hueso
-                        bpy.context.view_layer.objects.active = settings.target_armature
-                        bpy.ops.object.mode_set(mode='EDIT')
-                        
-                        edit_bone = settings.target_armature.data.edit_bones.get(root_bone.name)
-                        if edit_bone:
-                            old_bone_name = edit_bone.name
-                            edit_bone.name = f"{settings.author_nickname}_Root"
-                            print(f"[NAMING] Hueso root renombrado: {old_bone_name} -> {edit_bone.name}")
-                            success_count += 1
-                        
-                        bpy.ops.object.mode_set(mode='OBJECT')
             
             return success_count > 0
             
         except Exception as e:
             print(f"[NAMING] Error aplicando nombre del autor: {e}")
             return False
+    
+    def _rename_root_bone(self, settings):
+        """Renombra el hueso root con el nombre del autor"""
+        if settings.target_armature.type != 'ARMATURE':
+            return False
+        
+        # Buscar hueso Root
+        root_bone = None
+        root_keywords = ['root', 'base', 'origin', 'pelvis']
+        
+        for bone in settings.target_armature.data.bones:
+            if any(keyword in bone.name.lower() for keyword in root_keywords):
+                root_bone = bone
+                break
+        
+        # Si no se encuentra, usar el primer hueso
+        if not root_bone and len(settings.target_armature.data.bones) > 0:
+            root_bone = settings.target_armature.data.bones[0]
+        
+        if not root_bone:
+            return False
+        
+        # Cambiar a modo edición para renombrar
+        bpy.context.view_layer.objects.active = settings.target_armature
+        bpy.ops.object.mode_set(mode='EDIT')
+        
+        try:
+            edit_bone = settings.target_armature.data.edit_bones.get(root_bone.name)
+            if edit_bone:
+                old_bone_name = edit_bone.name
+                edit_bone.name = f"{settings.author_nickname}_Root"
+                print(f"[NAMING] Hueso root renombrado: {old_bone_name} -> {edit_bone.name}")
+                success = True
+            else:
+                success = False
+        finally:
+            bpy.ops.object.mode_set(mode='OBJECT')
+        
+        return success
 
 
 class UNIVERSALGTA_OT_reset_names(Operator):
@@ -168,12 +216,28 @@ class UNIVERSALGTA_OT_validate_names(Operator):
     def execute(self, context):
         settings = context.scene.universal_gta_settings
         
+        validation_result = self._validate_all_names(settings)
+        
+        # Actualizar mensaje de validación
+        settings.name_validation_message = validation_result['message']
+        
+        # Mostrar resultado
+        if validation_result['valid']:
+            self.report({'INFO'}, "Todos los nombres son válidos")
+        else:
+            self.report({'ERROR'}, f"Validación falló: {validation_result['details']}")
+        
+        return {'FINISHED'}
+    
+    def _validate_all_names(self, settings):
+        """Valida todos los nombres y devuelve resultado detallado"""
         issues = []
+        pattern = r'^[a-zA-Z0-9_-]+$'
         
         # Validar skin_name
         if not settings.skin_name:
             issues.append("Nombre del skin está vacío")
-        elif not re.match(r'^[a-zA-Z0-9_-]+$', settings.skin_name):
+        elif not re.match(pattern, settings.skin_name):
             issues.append("Nombre del skin contiene caracteres inválidos")
         elif len(settings.skin_name) > 32:
             issues.append("Nombre del skin es demasiado largo (máximo 32 caracteres)")
@@ -181,20 +245,24 @@ class UNIVERSALGTA_OT_validate_names(Operator):
         # Validar author_nickname
         if not settings.author_nickname:
             issues.append("Nickname del autor está vacío")
-        elif not re.match(r'^[a-zA-Z0-9_-]+$', settings.author_nickname):
+        elif not re.match(pattern, settings.author_nickname):
             issues.append("Nickname del autor contiene caracteres inválidos")
         elif len(settings.author_nickname) > 32:
             issues.append("Nickname del autor es demasiado largo (máximo 32 caracteres)")
         
-        # Mostrar resultados
+        # Preparar resultado
         if issues:
-            settings.name_validation_message = "❌ " + "; ".join(issues)
-            self.report({'ERROR'}, f"Validación falló: {'; '.join(issues)}")
+            return {
+                'valid': False,
+                'message': "❌ " + "; ".join(issues),
+                'details': "; ".join(issues)
+            }
         else:
-            settings.name_validation_message = "✅ Todos los nombres son válidos"
-            self.report({'INFO'}, "Todos los nombres son válidos")
-        
-        return {'FINISHED'}
+            return {
+                'valid': True,
+                'message': "✅ Todos los nombres son válidos",
+                'details': ""
+            }
 
 
 class UNIVERSALGTA_OT_auto_generate_names(Operator):
@@ -207,35 +275,78 @@ class UNIVERSALGTA_OT_auto_generate_names(Operator):
     def execute(self, context):
         settings = context.scene.universal_gta_settings
         
-        # Generar nombre del skin basado en el mesh actual
-        skin_name = "MySkin"
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH' and len(obj.data.vertices) > 100:  # Mesh principal probablemente
-                base_name = obj.name
-                # Limpiar nombre para que sea válido
-                clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', base_name)
-                if clean_name and clean_name != "Mesh":
-                    skin_name = clean_name[:32]  # Limitar longitud
-                break
-        
-        # Generar nickname del autor basado en el usuario del sistema
-        import os
-        author_name = "Author"
-        try:
-            system_user = os.getenv('USERNAME') or os.getenv('USER') or "User"
-            clean_author = re.sub(r'[^a-zA-Z0-9_-]', '_', system_user)
-            if clean_author:
-                author_name = clean_author[:32]
-        except:
-            pass
+        # Generar nombres
+        skin_name = self._generate_skin_name()
+        author_name = self._generate_author_name()
         
         # Aplicar nombres generados
         settings.skin_name = skin_name
         settings.author_nickname = author_name
         settings.name_validation_message = "✅ Nombres generados automáticamente"
         
-        self.report({'INFO'}, f"Nombres generados: Skin='{skin_name}', Autor='{author_name}'")
+        self.report({'INFO'}, 
+                   f"Nombres generados: Skin='{skin_name}', Autor='{author_name}'")
         return {'FINISHED'}
+    
+    def _generate_skin_name(self):
+        """Genera un nombre para el skin basado en el contenido"""
+        # Buscar mesh principal
+        main_mesh = None
+        for obj in bpy.data.objects:
+            if obj.type == 'MESH' and len(obj.data.vertices) > 100:
+                main_mesh = obj
+                break
+        
+        if main_mesh and main_mesh.name != "Mesh":
+            # Limpiar nombre del mesh
+            base_name = self._clean_name(main_mesh.name)
+            if base_name:
+                return base_name[:32]
+        
+        # Nombre por defecto basado en la fecha
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y%m%d")
+        return f"Skin_{date_str}"
+    
+    def _generate_author_name(self):
+        """Genera un nombre de autor"""
+        # Intentar obtener del sistema
+        author_name = self._get_system_username()
+        
+        if author_name:
+            return self._clean_name(author_name)[:32]
+        
+        # Nombre por defecto
+        return "Author"
+    
+    def _get_system_username(self):
+        """Obtiene el nombre de usuario del sistema"""
+        try:
+            # Intentar diferentes métodos
+            username = os.getenv('USERNAME') or os.getenv('USER')
+            if username:
+                return username
+            
+            # Intentar desde el path del usuario
+            import pathlib
+            home = pathlib.Path.home()
+            if home:
+                return home.name
+            
+        except Exception:
+            pass
+        
+        return None
+    
+    def _clean_name(self, name):
+        """Limpia un nombre para que sea válido"""
+        # Reemplazar caracteres inválidos con guiones bajos
+        cleaned = re.sub(r'[^a-zA-Z0-9_-]', '_', name)
+        # Eliminar guiones bajos múltiples
+        cleaned = re.sub(r'_+', '_', cleaned)
+        # Eliminar guiones bajos al principio y final
+        cleaned = cleaned.strip('_-')
+        return cleaned if cleaned else "Default"
 
 
 # Lista de clases para registrar

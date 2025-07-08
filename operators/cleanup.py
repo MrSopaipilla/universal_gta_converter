@@ -1,3 +1,4 @@
+# operators/cleanup.py - Versión mejorada
 """
 Operadores de limpieza para Universal GTA SA Converter
 """
@@ -7,6 +8,7 @@ import os
 import shutil
 from bpy.types import Operator
 from bpy.props import StringProperty
+from ..utils.cleanup import CleanupUtils
 
 
 class UNIVERSALGTA_OT_clean_model(Operator):
@@ -14,36 +16,10 @@ class UNIVERSALGTA_OT_clean_model(Operator):
     bl_idname = "universalgta.clean_model"
     bl_label = "Clean Model"
     bl_description = "Clean the model by removing unused vertex groups and materials"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        cleaned_items = 0
-        
-        # Limpiar vertex groups vacíos
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH':
-                groups_to_remove = []
-                for vg in obj.vertex_groups:
-                    has_vertices = False
-                    for vertex in obj.data.vertices:
-                        for group in vertex.groups:
-                            if group.group == vg.index and group.weight > 0:
-                                has_vertices = True
-                                break
-                        if has_vertices:
-                            break
-                    
-                    if not has_vertices:
-                        groups_to_remove.append(vg)
-                
-                for vg in groups_to_remove:
-                    obj.vertex_groups.remove(vg)
-                    cleaned_items += 1
-        
-        # Limpiar materiales no utilizados
-        for material in list(bpy.data.materials):
-            if material.users == 0:
-                bpy.data.materials.remove(material)
-                cleaned_items += 1
+        cleaned_items = CleanupUtils.clean_model_full()
         
         self.report({'INFO'}, f"Modelo limpiado. {cleaned_items} elementos eliminados.")
         return {'FINISHED'}
@@ -54,6 +30,7 @@ class UNIVERSALGTA_OT_export_textures(Operator):
     bl_idname = "universalgta.export_textures"
     bl_label = "Export Textures"
     bl_description = "Export all textures used in the model"
+    bl_options = {'REGISTER'}
     
     directory: StringProperty(subtype="DIR_PATH")
     
@@ -62,23 +39,7 @@ class UNIVERSALGTA_OT_export_textures(Operator):
             self.report({'ERROR'}, "No se seleccionó directorio de destino.")
             return {'CANCELLED'}
         
-        exported_count = 0
-        
-        for material in bpy.data.materials:
-            if material.use_nodes:
-                for node in material.node_tree.nodes:
-                    if node.type == 'TEX_IMAGE' and node.image:
-                        image = node.image
-                        if image.filepath:
-                            source_path = bpy.path.abspath(image.filepath)
-                            if os.path.exists(source_path):
-                                filename = os.path.basename(source_path)
-                                dest_path = os.path.join(self.directory, filename)
-                                try:
-                                    shutil.copy2(source_path, dest_path)
-                                    exported_count += 1
-                                except Exception as e:
-                                    print(f"Error copiando {source_path}: {e}")
+        exported_count = CleanupUtils.export_textures_to_directory(self.directory)
         
         self.report({'INFO'}, f"Exportadas {exported_count} texturas a {self.directory}")
         return {'FINISHED'}
@@ -93,11 +54,10 @@ class UNIVERSALGTA_OT_purge_unused_data(Operator):
     bl_idname = "universalgta.purge_unused_data"
     bl_label = "Purge Unused Data"
     bl_description = "Remove all unused data blocks from the blend file"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        # Purgar datos no utilizados
-        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-        
+        CleanupUtils.purge_unused_data()
         self.report({'INFO'}, "Datos no utilizados eliminados.")
         return {'FINISHED'}
 
@@ -107,18 +67,13 @@ class UNIVERSALGTA_OT_purge_scene(Operator):
     bl_idname = "universalgta.purge_scene"
     bl_label = "Purge Scene"
     bl_description = "Clean the entire scene and remove unused objects"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        # Eliminar objetos no utilizados
-        objects_removed = 0
+        objects_removed = CleanupUtils.purge_unused_objects()
         
-        for obj in list(bpy.data.objects):
-            if obj.users == 0:
-                bpy.data.objects.remove(obj)
-                objects_removed += 1
-        
-        # Purgar datos huérfanos
-        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
+        # Purgar datos huérfanos adicionales
+        CleanupUtils.purge_unused_data()
         
         self.report({'INFO'}, f"Escena limpiada. {objects_removed} objetos eliminados.")
         return {'FINISHED'}
@@ -129,33 +84,16 @@ class UNIVERSALGTA_OT_clean_armatures(Operator):
     bl_idname = "universalgta.clean_armatures"
     bl_label = "Clean Armatures"
     bl_description = "Remove unnecessary armatures and keep only the main one"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
         settings = context.scene.universal_gta_settings
         
-        # Usar la función del converter si está disponible
-        if hasattr(context.scene, 'converter_instance'):
-            converter = context.scene.converter_instance
-            converter.clean_armatures_keep_root_only()
-        else:
-            # Implementación simple alternativa
-            armatures = [obj for obj in bpy.data.objects if obj.type == 'ARMATURE']
-            target_armature = settings.target_armature
-            
-            if target_armature and len(armatures) > 1:
-                for armature in armatures:
-                    if armature != target_armature:
-                        # Reasignar modificadores antes de eliminar
-                        for obj in bpy.data.objects:
-                            if obj.type == 'MESH':
-                                for modifier in obj.modifiers:
-                                    if modifier.type == 'ARMATURE' and modifier.object == armature:
-                                        modifier.object = target_armature
-                        
-                        # Eliminar armature
-                        bpy.data.objects.remove(armature, do_unlink=True)
+        removed_count = CleanupUtils.clean_armatures_keep_root_only(
+            settings.target_armature
+        )
         
-        self.report({'INFO'}, "Armatures limpiados.")
+        self.report({'INFO'}, f"Armatures limpiados. {removed_count} eliminados.")
         return {'FINISHED'}
 
 
@@ -164,31 +102,14 @@ class UNIVERSALGTA_OT_clean_empty_vertex_groups(Operator):
     bl_idname = "universalgta.clean_empty_vertex_groups"
     bl_label = "Clean Empty Vertex Groups"
     bl_description = "Remove empty vertex groups from all mesh objects"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
         cleaned_count = 0
         
         for obj in bpy.data.objects:
             if obj.type == 'MESH':
-                groups_to_remove = []
-                for vg in obj.vertex_groups:
-                    # Verificar si el vertex group tiene vértices asignados
-                    has_vertices = False
-                    for vertex in obj.data.vertices:
-                        for group in vertex.groups:
-                            if group.group == vg.index and group.weight > 0:
-                                has_vertices = True
-                                break
-                        if has_vertices:
-                            break
-                    
-                    if not has_vertices:
-                        groups_to_remove.append(vg)
-                
-                for vg in groups_to_remove:
-                    print(f"[DEBUG] Eliminando vertex group vacío: {vg.name} de {obj.name}")
-                    obj.vertex_groups.remove(vg)
-                    cleaned_count += 1
+                cleaned_count += CleanupUtils.clean_empty_vertex_groups(obj)
         
         self.report({'INFO'}, f"Eliminados {cleaned_count} vertex groups vacíos.")
         return {'FINISHED'}
@@ -199,6 +120,7 @@ class UNIVERSALGTA_OT_fix_modifiers(Operator):
     bl_idname = "universalgta.fix_modifiers"
     bl_label = "Fix Modifiers"
     bl_description = "Fix broken or misassigned armature modifiers"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
         settings = context.scene.universal_gta_settings
@@ -208,26 +130,37 @@ class UNIVERSALGTA_OT_fix_modifiers(Operator):
             self.report({'WARNING'}, "No hay target armature asignado.")
             return {'CANCELLED'}
         
+        fixed_count = self._fix_armature_modifiers(target_armature)
+        
+        self.report({'INFO'}, f"Corregidos {fixed_count} modificadores.")
+        return {'FINISHED'}
+    
+    def _fix_armature_modifiers(self, target_armature):
+        """Corrige modificadores de armature"""
         fixed_count = 0
         
         for obj in bpy.data.objects:
             if obj.type == 'MESH':
                 for modifier in obj.modifiers:
                     if modifier.type == 'ARMATURE':
-                        # Si el modificador no tiene objeto asignado o es inválido
-                        if not modifier.object or modifier.object.type != 'ARMATURE':
+                        needs_fix = False
+                        
+                        # Si el modificador no tiene objeto asignado
+                        if not modifier.object:
+                            needs_fix = True
+                        # Si el objeto no es un armature
+                        elif modifier.object.type != 'ARMATURE':
+                            needs_fix = True
+                        # Si apunta a un armature temporal
+                        elif modifier.object.name.startswith('Armature.') and modifier.object != target_armature:
+                            needs_fix = True
+                        
+                        if needs_fix:
                             modifier.object = target_armature
                             fixed_count += 1
                             print(f"[DEBUG] Modificador corregido en {obj.name}")
-                        
-                        # Si el modificador apunta a un armature con nombre tipo "Armature.001"
-                        elif modifier.object.name.startswith('Armature.') and modifier.object != target_armature:
-                            modifier.object = target_armature
-                            fixed_count += 1
-                            print(f"[DEBUG] Modificador redirigido en {obj.name}")
         
-        self.report({'INFO'}, f"Corregidos {fixed_count} modificadores.")
-        return {'FINISHED'}
+        return fixed_count
 
 
 class UNIVERSALGTA_OT_remove_duplicates(Operator):
@@ -235,31 +168,59 @@ class UNIVERSALGTA_OT_remove_duplicates(Operator):
     bl_idname = "universalgta.remove_duplicates"
     bl_label = "Remove Duplicates"
     bl_description = "Remove duplicate objects in the scene"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
+        removed_count = self._remove_duplicate_objects()
+        
+        self.report({'INFO'}, f"Eliminados {removed_count} objetos duplicados.")
+        return {'FINISHED'}
+    
+    def _remove_duplicate_objects(self):
+        """Identifica y elimina objetos duplicados"""
         removed_count = 0
-        object_names = set()
+        object_base_names = {}
         objects_to_remove = []
         
+        # Agrupar objetos por nombre base
         for obj in bpy.data.objects:
-            # Buscar objetos con nombres como "Object.001", "Object.002", etc.
-            if '.' in obj.name and obj.name.split('.')[0] in object_names:
-                objects_to_remove.append(obj)
-            else:
-                base_name = obj.name.split('.')[0]
-                object_names.add(base_name)
+            base_name = self._get_base_name(obj.name)
+            
+            if base_name not in object_base_names:
+                object_base_names[base_name] = []
+            object_base_names[base_name].append(obj)
+        
+        # Identificar duplicados (mantener el primero)
+        for base_name, obj_list in object_base_names.items():
+            if len(obj_list) > 1:
+                # Ordenar por número de sufijo
+                obj_list.sort(key=lambda x: self._get_suffix_number(x.name))
+                # Marcar todos menos el primero para eliminar
+                objects_to_remove.extend(obj_list[1:])
         
         # Eliminar objetos duplicados
         for obj in objects_to_remove:
             try:
+                obj_name = obj.name
                 bpy.data.objects.remove(obj, do_unlink=True)
                 removed_count += 1
-                print(f"[DEBUG] Objeto duplicado eliminado: {obj.name}")
+                print(f"[DEBUG] Objeto duplicado eliminado: {obj_name}")
             except Exception as e:
                 print(f"[DEBUG] Error eliminando {obj.name}: {e}")
         
-        self.report({'INFO'}, f"Eliminados {removed_count} objetos duplicados.")
-        return {'FINISHED'}
+        return removed_count
+    
+    def _get_base_name(self, name):
+        """Obtiene el nombre base sin sufijos numéricos"""
+        import re
+        # Eliminar sufijos como .001, .002, etc.
+        return re.sub(r'\.\d+$', '', name)
+    
+    def _get_suffix_number(self, name):
+        """Obtiene el número del sufijo o 0 si no tiene"""
+        import re
+        match = re.search(r'\.(\d+)$', name)
+        return int(match.group(1)) if match else 0
 
 
 class UNIVERSALGTA_OT_optimize_mesh(Operator):
@@ -267,40 +228,71 @@ class UNIVERSALGTA_OT_optimize_mesh(Operator):
     bl_idname = "universalgta.optimize_mesh"
     bl_label = "Optimize Mesh"
     bl_description = "Optimize mesh geometry by removing duplicate vertices"
+    bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
         optimized_count = 0
+        total_vertices_removed = 0
         
         # Guardar el objeto activo actual
         original_active = context.active_object
+        original_mode = context.mode
         
-        for obj in bpy.data.objects:
-            if obj.type == 'MESH':
-                # Seleccionar y activar el objeto
-                bpy.ops.object.select_all(action='DESELECT')
-                obj.select_set(True)
-                context.view_layer.objects.active = obj
-                
-                # Entrar en modo edición
-                bpy.ops.object.mode_set(mode='EDIT')
-                
-                # Seleccionar todo y eliminar duplicados
-                bpy.ops.mesh.select_all(action='SELECT')
-                result = bpy.ops.mesh.remove_doubles()
-                
-                # Volver a modo objeto
-                bpy.ops.object.mode_set(mode='OBJECT')
-                
-                if 'FINISHED' in str(result):
-                    optimized_count += 1
-                    print(f"[DEBUG] Mesh optimizado: {obj.name}")
+        try:
+            for obj in bpy.data.objects:
+                if obj.type == 'MESH':
+                    vertices_removed = self._optimize_single_mesh(context, obj)
+                    if vertices_removed > 0:
+                        optimized_count += 1
+                        total_vertices_removed += vertices_removed
+            
+            # Restaurar el objeto activo original
+            if original_active:
+                context.view_layer.objects.active = original_active
+                if original_active.mode != original_mode:
+                    bpy.ops.object.mode_set(mode=original_mode)
+            
+            self.report({'INFO'}, 
+                       f"Optimizados {optimized_count} meshes. "
+                       f"{total_vertices_removed} vértices duplicados eliminados.")
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"Error durante la optimización: {str(e)}")
+            return {'CANCELLED'}
         
-        # Restaurar el objeto activo original
-        if original_active:
-            context.view_layer.objects.active = original_active
-        
-        self.report({'INFO'}, f"Optimizados {optimized_count} meshes.")
         return {'FINISHED'}
+    
+    def _optimize_single_mesh(self, context, obj):
+        """Optimiza un mesh individual"""
+        # Seleccionar y activar el objeto
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+        
+        # Contar vértices antes
+        vertices_before = len(obj.data.vertices)
+        
+        # Entrar en modo edición
+        bpy.ops.object.mode_set(mode='EDIT')
+        
+        # Seleccionar todo
+        bpy.ops.mesh.select_all(action='SELECT')
+        
+        # Eliminar duplicados
+        bpy.ops.mesh.remove_doubles()
+        
+        # Volver a modo objeto
+        bpy.ops.object.mode_set(mode='OBJECT')
+        
+        # Contar vértices después
+        vertices_after = len(obj.data.vertices)
+        vertices_removed = vertices_before - vertices_after
+        
+        if vertices_removed > 0:
+            print(f"[DEBUG] Mesh optimizado: {obj.name} - "
+                  f"{vertices_removed} vértices eliminados")
+        
+        return vertices_removed
 
 
 # Lista de clases para registrar

@@ -1,6 +1,7 @@
+# external_pose_caller.py - Versión mejorada
 """
 external_pose_caller.py - Funciones para aplicar poses personalizadas
-VERSIÓN CORREGIDA
+VERSIÓN MEJORADA Y OPTIMIZADA
 """
 
 import bpy
@@ -41,48 +42,17 @@ def apply_manual_pose_to_children_and_reassign(armature=None):
 
     try:
         # Aplicar pose al armature
-        context.view_layer.objects.active = armature
-        ops.object.mode_set(mode='POSE')
-        ops.pose.armature_apply()
-        ops.object.mode_set(mode='OBJECT')
-        print(f"[POSE_UTIL] Pose aplicada al armature: {armature.name}")
+        if not _apply_armature_pose(armature):
+            return False
 
         # Aplicar modificadores en hijos y crear nuevos
+        success_count = 0
         for mesh_obj in children_meshes:
-            print(f"[POSE_UTIL] Procesando mesh: {mesh_obj.name}")
-            
-            # Buscar modificador de armature
-            arm_mod = None
-            for mod in mesh_obj.modifiers:
-                if mod.type == 'ARMATURE' and mod.object == armature:
-                    arm_mod = mod
-                    break
+            if _process_mesh_object(mesh_obj, armature):
+                success_count += 1
 
-            if not arm_mod:
-                print(f"[POSE_UTIL] {mesh_obj.name} no tiene modificador válido, se salta.")
-                continue
-
-            # Activar el mesh y aplicar el modificador (hornear pose)
-            context.view_layer.objects.active = mesh_obj
-            try:
-                ops.object.modifier_apply(modifier=arm_mod.name)
-                print(f"[POSE_UTIL] Pose aplicada y horneada en: {mesh_obj.name}")
-            except Exception as e:
-                print(f"[POSE_UTIL] ERROR aplicando modificador en {mesh_obj.name}: {e}")
-                continue
-
-            # Buscar armature padre para asignar nuevo modificador
-            parent_arm = armature.parent if armature.parent and armature.parent.type == 'ARMATURE' else None
-            if parent_arm:
-                # Crear nuevo modificador apuntando al armature padre
-                new_mod = mesh_obj.modifiers.new(name="Armature", type='ARMATURE')
-                new_mod.object = parent_arm
-                print(f"[POSE_UTIL] Nuevo modificador asignado a {mesh_obj.name} -> {parent_arm.name}")
-            else:
-                print(f"[POSE_UTIL] No se encontró armature padre para {armature.name}. No se asignó nuevo modificador.")
-
-        print("[POSE_UTIL] Proceso completado exitosamente.")
-        return True
+        print(f"[POSE_UTIL] Proceso completado. {success_count}/{len(children_meshes)} mallas procesadas exitosamente.")
+        return success_count > 0
 
     except Exception as e:
         print(f"[POSE_UTIL] ERROR durante el proceso: {e}")
@@ -90,12 +60,89 @@ def apply_manual_pose_to_children_and_reassign(armature=None):
         traceback.print_exc()
         
         # Intentar volver a modo objeto en caso de error
-        try:
-            ops.object.mode_set(mode='OBJECT')
-        except Exception:
-            pass
-        
+        _safe_mode_set('OBJECT')
         return False
+
+
+def _apply_armature_pose(armature):
+    """Aplica la pose al armature"""
+    try:
+        context.view_layer.objects.active = armature
+        ops.object.mode_set(mode='POSE')
+        ops.pose.armature_apply()
+        ops.object.mode_set(mode='OBJECT')
+        print(f"[POSE_UTIL] Pose aplicada al armature: {armature.name}")
+        return True
+    except Exception as e:
+        print(f"[POSE_UTIL] ERROR aplicando pose al armature: {e}")
+        return False
+
+
+def _process_mesh_object(mesh_obj, armature):
+    """Procesa un objeto mesh individual"""
+    print(f"[POSE_UTIL] Procesando mesh: {mesh_obj.name}")
+    
+    # Buscar modificador de armature
+    arm_mod = _find_armature_modifier(mesh_obj, armature)
+    
+    if not arm_mod:
+        print(f"[POSE_UTIL] {mesh_obj.name} no tiene modificador válido, se salta.")
+        return False
+
+    # Aplicar el modificador (hornear pose)
+    if not _apply_modifier(mesh_obj, arm_mod):
+        return False
+
+    # Buscar y asignar nuevo armature padre
+    parent_arm = _find_parent_armature(armature)
+    if parent_arm:
+        _create_new_modifier(mesh_obj, parent_arm)
+    else:
+        print(f"[POSE_UTIL] No se encontró armature padre para {armature.name}.")
+    
+    return True
+
+
+def _find_armature_modifier(mesh_obj, armature):
+    """Encuentra el modificador de armature en el mesh"""
+    for mod in mesh_obj.modifiers:
+        if mod.type == 'ARMATURE' and mod.object == armature:
+            return mod
+    return None
+
+
+def _apply_modifier(mesh_obj, modifier):
+    """Aplica un modificador al mesh"""
+    try:
+        context.view_layer.objects.active = mesh_obj
+        ops.object.modifier_apply(modifier=modifier.name)
+        print(f"[POSE_UTIL] Pose aplicada y horneada en: {mesh_obj.name}")
+        return True
+    except Exception as e:
+        print(f"[POSE_UTIL] ERROR aplicando modificador en {mesh_obj.name}: {e}")
+        return False
+
+
+def _find_parent_armature(armature):
+    """Encuentra el armature padre si existe"""
+    if armature.parent and armature.parent.type == 'ARMATURE':
+        return armature.parent
+    return None
+
+
+def _create_new_modifier(mesh_obj, parent_armature):
+    """Crea un nuevo modificador de armature"""
+    new_mod = mesh_obj.modifiers.new(name="Armature", type='ARMATURE')
+    new_mod.object = parent_armature
+    print(f"[POSE_UTIL] Nuevo modificador asignado a {mesh_obj.name} -> {parent_armature.name}")
+
+
+def _safe_mode_set(mode):
+    """Cambia de modo de forma segura"""
+    try:
+        ops.object.mode_set(mode=mode)
+    except Exception:
+        pass
 
 
 class ExternalPoseApplier:
@@ -166,13 +213,8 @@ class ExternalPoseApplier:
             print("[EXTERNAL_POSE] No hay otros armatures para detectar como fuente")
             return None
         
-        # Criterios de detección:
-        # 1. Armature con más huesos
-        # 2. Armature que no contenga "root" en el nombre
-        # 3. Armature con objetos mesh como hijos
-        
-        best_candidate = None
-        best_score = -1
+        # Criterios de detección con pesos
+        candidates = []
         
         for armature in armatures:
             score = 0
@@ -186,9 +228,9 @@ class ExternalPoseApplier:
                 score -= 50
             
             # Puntos por tener objetos mesh como hijos
-            mesh_children = [obj for obj in bpy.data.objects 
-                           if obj.type == 'MESH' and obj.parent == armature]
-            score += len(mesh_children) * 10
+            mesh_children = sum(1 for obj in bpy.data.objects 
+                              if obj.type == 'MESH' and obj.parent == armature)
+            score += mesh_children * 10
             
             # Puntos por ser más reciente (índice más alto en el nombre)
             if '.' in armature.name:
@@ -198,16 +240,20 @@ class ExternalPoseApplier:
                 except ValueError:
                     pass
             
-            print(f"[EXTERNAL_POSE] Candidato {armature.name}: score {score}")
+            candidates.append((armature, score))
             
-            if score > best_score:
-                best_score = score
-                best_candidate = armature
+            if self.debug:
+                print(f"[EXTERNAL_POSE] Candidato {armature.name}: score {score}")
         
-        if best_candidate:
+        # Ordenar por score y devolver el mejor
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        
+        if candidates and candidates[0][1] > 0:
+            best_candidate = candidates[0][0]
             print(f"[EXTERNAL_POSE] Armature fuente detectado: {best_candidate.name}")
+            return best_candidate
         
-        return best_candidate
+        return None
     
     def copy_pose_between_armatures(self, source_armature, target_armature, bone_mappings=None):
         """
@@ -225,13 +271,7 @@ class ExternalPoseApplier:
             print(f"[EXTERNAL_POSE] Copiando pose de {source_armature.name} a {target_armature.name}")
             
             if not bone_mappings:
-                # Usar mapeos de la configuración si están disponibles
-                settings = bpy.context.scene.universal_gta_settings
-                bone_mappings = [
-                    (m.source_bone, m.target_bone)
-                    for m in settings.bone_mappings
-                    if m.enabled and m.source_bone and m.target_bone
-                ]
+                bone_mappings = self._get_bone_mappings_from_settings()
             
             if not bone_mappings:
                 print("[EXTERNAL_POSE] No hay mapeos de huesos disponibles")
@@ -244,18 +284,8 @@ class ExternalPoseApplier:
             copied_bones = 0
             
             for source_bone_name, target_bone_name in bone_mappings:
-                if (source_bone_name in source_armature.pose.bones and 
-                    target_bone_name in target_armature.pose.bones):
-                    
-                    source_bone = source_armature.pose.bones[source_bone_name]
-                    target_bone = target_armature.pose.bones[target_bone_name]
-                    
-                    # Copiar transformaciones
-                    target_bone.location = source_bone.location.copy()
-                    target_bone.rotation_euler = source_bone.rotation_euler.copy()
-                    target_bone.rotation_quaternion = source_bone.rotation_quaternion.copy()
-                    target_bone.scale = source_bone.scale.copy()
-                    
+                if self._copy_bone_transforms(source_armature, target_armature, 
+                                            source_bone_name, target_bone_name):
                     copied_bones += 1
                     if self.debug:
                         print(f"[EXTERNAL_POSE] Copiado: {source_bone_name} -> {target_bone_name}")
@@ -267,10 +297,42 @@ class ExternalPoseApplier:
             
         except Exception as e:
             print(f"[EXTERNAL_POSE] Error copiando pose: {e}")
-            try:
-                bpy.ops.object.mode_set(mode='OBJECT')
-            except Exception:
-                pass
+            _safe_mode_set('OBJECT')
+            return False
+    
+    def _get_bone_mappings_from_settings(self):
+        """Obtiene los mapeos de huesos desde la configuración"""
+        try:
+            settings = bpy.context.scene.universal_gta_settings
+            return [
+                (m.source_bone, m.target_bone)
+                for m in settings.bone_mappings
+                if m.enabled and m.source_bone and m.target_bone
+            ]
+        except:
+            return None
+    
+    def _copy_bone_transforms(self, source_armature, target_armature, 
+                             source_bone_name, target_bone_name):
+        """Copia las transformaciones de un hueso a otro"""
+        try:
+            if (source_bone_name not in source_armature.pose.bones or 
+                target_bone_name not in target_armature.pose.bones):
+                return False
+            
+            source_bone = source_armature.pose.bones[source_bone_name]
+            target_bone = target_armature.pose.bones[target_bone_name]
+            
+            # Copiar transformaciones
+            target_bone.location = source_bone.location.copy()
+            target_bone.rotation_euler = source_bone.rotation_euler.copy()
+            target_bone.rotation_quaternion = source_bone.rotation_quaternion.copy()
+            target_bone.scale = source_bone.scale.copy()
+            
+            return True
+            
+        except Exception as e:
+            print(f"[EXTERNAL_POSE] Error copiando transformaciones: {e}")
             return False
     
     def reset_armature_pose(self, armature):
@@ -300,10 +362,7 @@ class ExternalPoseApplier:
             
         except Exception as e:
             print(f"[EXTERNAL_POSE] Error reseteando pose: {e}")
-            try:
-                bpy.ops.object.mode_set(mode='OBJECT')
-            except Exception:
-                pass
+            _safe_mode_set('OBJECT')
             return False
 
 
