@@ -1,148 +1,194 @@
-# Universal GTA Converter v3.2.3 In-Dev - Instrucciones de Actualización
+# Universal GTA SA Converter v3.2.3 In-Dev
 
-## 🚀 Versión 3.2.3 In-Dev - Nomenclatura Exacta GTA SA
+**⚠️ ESTADO: EN DESARROLLO ACTIVO - CONTIENE ERRORES CONOCIDOS**
 
-### ✅ Cambios Principales Realizados:
+Un addon avanzado para Blender que convierte armatures personalizados al formato exacto de GTA San Andreas con mapeo inteligente de huesos, procesamiento automático de Shape Keys y herramientas completas de optimización.
 
-#### 1. **Nomenclatura EXACTA de GTA SA**
-- **CON espacios al inicio**: `" Spine"`, `" L UpperArm"`, `" R Thigh"`, etc.
-- **SIN espacios al inicio**: `"Pelvis"`, `"Bip01 L Clavicle"`, `"Jaw"`, etc.
-- **Corrección importante**: `" L ForeArm"` (con A mayúscula, no forearm)
-- **Pelvis incluido** correctamente (solo Root excluido)
+## 🚨 Advertencia Importante
 
-#### 2. **Nuevas Herramientas de Referencia GTA SA**
-- **"Show Bone Names"** - Muestra nombres exactos en consola
-- **"Create Template"** - Crea armature con estructura GTA SA completa
-- **Panel "Status & Reference"** - Verificación de configuración y herramientas
+Este addon está actualmente **en desarrollo** y contiene errores conocidos. No se recomienda para uso en producción. Use bajo su propio riesgo y siempre haga backups de sus proyectos.
 
-#### 3. **Detección Inteligente Mejorada**
-- Reconoce espacios al inicio de nombres de huesos
-- Patrones específicos para `Bip01 L/R Clavicle`
-- Prioridad correcta para nomenclatura GTA SA
-- Validación específica para Pelvis
+## 📋 Información General
 
-## 📁 Archivos a Actualizar:
+- **Versión**: 3.2.3 In-Dev
+- **Autores**: YoshiMaincra (Lead), Claude (AI), ChatGPT (AI)
+- **Compatibilidad**: Blender 4.0+
+- **Licencia**: GPL v3
+- **Categoría**: Rigging
 
-### 1. **__init__.py** (REEMPLAZAR COMPLETO)
-✅ **Reemplazar** con el contenido del artefacto `__init__.py - Versión 3.2.3 In-Dev`
-- Versión actualizada a 3.2.3 In-Dev
-- Importaciones de gta_reference agregadas
-- Nuevos operadores incluidos en la lista de clases
+## ✨ Características Principales
 
-### 2. **panels/main_panel.py**
-✅ **Reemplazar** con el contenido del artefacto de paneles simplificados
+### 🦴 Mapeo Inteligente de Huesos
+- **Detección automática** con nomenclatura exacta de GTA SA
+- **Soporte completo** para espacios en nombres (`" L Hand"`, `" R Thigh"`)
+- **Exclusión automática** del hueso Root
+- **Inclusión garantizada** del hueso Pelvis
+- **Validación en tiempo real** de mapeos
 
-### 3. **operators/mapping.py**
-✅ **Reemplazar** con el contenido del artefacto con nomenclatura exacta
+### 🎭 Procesamiento Avanzado de Shape Keys
+- **Aplicación automática** durante conversión
+- **Sistema de backup** antes de aplicar
+- **Preservación opcional** de Basis shape key
+- **Aplicación con modificadores** armature
+- **Listado y gestión** de shape keys existentes
 
-### 4. **operators/gta_reference.py** (NUEVO ARCHIVO)
-📁 **Crear** este archivo nuevo con el contenido del artefacto de referencia
+### 🎨 Corrección de Normales
+- **Recálculo automático** hacia afuera
+- **Detección de inconsistencias** en normales
+- **Duplicación con normales invertidas** (opcional)
+- **Verificación de consistencia** con análisis detallado
 
-### 5. **converter.py**
-✅ **Reemplazar** con el contenido del artefacto corregido (del mensaje anterior)
+### 🎯 Animaciones Predefinidas
+- **6 tipos de animación**: Idle, Walk, Running, Jump, Chat, Facial
+- **Carga desde archivos .blend** con fallbacks automáticos
+- **Expresividad facial** ajustable (cejas, mandíbula)
+- **Sincronización con espaciado** de huesos
 
-## 🎯 Estructura de Nombres GTA SA Exacta:
+### 🧹 Herramientas de Limpieza
+- **Limpieza de vertex groups** vacíos
+- **Purga de datos** no utilizados
+- **Optimización de materiales** (metallic=0, specular=0)
+- **Unificación de materiales** duplicados
+- **Eliminación de armatures** temporales
 
-### **Columna Vertebral:**
+### 📝 Sistema de Nombres Personalizados
+- **Validación de caracteres** (solo alfanuméricos, _, -)
+- **Aplicación automática** a mesh y armature
+- **Generación automática** basada en contenido
+- **Límite de 32 caracteres** por nombre
+
+## 🔧 Flujo de Conversión Detallado
+
+### Fase 1: Preparación
+1. Aplicar transformaciones al Source armature
+2. Aplicar transformaciones a objetos hijos
+
+### Fase 2: Procesamiento de Materiales
+3. Configurar materiales (metallic=0, specular=0)
+4. Unir todas las mallas en una sola
+5. Limpiar nombres de texturas (.001, .002)
+6. Fusionar materiales duplicados
+
+### Fase 3: Shape Keys
+7. Aplicar todas las Shape Keys activas
+8. Eliminar shape keys restantes
+
+### Fase 4: Modificadores
+9. Aplicar modificador Armature del Source
+10. Hornear pose actual del Source
+
+### Fase 5: Reasignación
+11. Crear constraints Copy Location en Target
+12. Aplicar pose copiada
+13. Eliminar constraints temporales
+
+### Fase 6: Limpieza Final
+14. Eliminar mallas no deseadas del Target
+15. Eliminar Source armature completamente
+
+### Fase 7: Configuración Final
+16. Establecer Target como padre del mesh
+17. Crear modificador "GTA_SKIN"
+18. Aplicar nombres personalizados
+
+## 🎛️ Paneles de Interfaz
+
+### Panel Principal
+- Configuración Source/Target armatures
+- Botones "Auto Setup" y "Convert"
+
+### Bone Mapping
+- Lista drag & drop de mapeos
+- Editor en línea de mapeos individuales
+- Validación y estadísticas
+
+### Shape Keys Manager
+- Listado de shape keys detectadas
+- Herramientas de backup y restauración
+- Configuración de aplicación
+
+### Advanced Options
+- Configuración de conversión automática
+- Espaciado de brazos y piernas
+- Herramientas de testing
+
+### Status & Reference
+- **Herramientas de referencia GTA SA**
+- **Verificación de configuración**
+- **Estado de Shape Keys y backups**
+
+## 📚 Nomenclatura Exacta GTA SA
+
+### Con Espacios al Inicio:
 ```
-"Pelvis"     # Sin espacio
-" Spine"     # Con espacio al inicio
-" Spine1"    # Con espacio al inicio
-" Neck"      # Con espacio al inicio
-" Head"      # Con espacio al inicio
+" Spine", " Spine1", " Neck", " Head"
+" L UpperArm", " L ForeArm", " L Hand"
+" R UpperArm", " R ForeArm", " R Hand"
+" L Thigh", " L Calf", " L Foot", " L Toe0"
+" R Thigh", " R Calf", " R Foot", " R Toe0"
 ```
 
-### **Brazos:**
+### Sin Espacios al Inicio:
 ```
-"Bip01 L Clavicle"  # Sin espacio al inicio
-" L UpperArm"       # Con espacio al inicio
-" L ForeArm"        # Con espacio al inicio (ForeArm con A mayúscula)
-" L Hand"           # Con espacio al inicio
-" L Finger"         # Con espacio al inicio
-"L Finger01"        # Sin espacio al inicio
-
-"Bip01 R Clavicle"  # Sin espacio al inicio
-" R UpperArm"       # Con espacio al inicio
-" R ForeArm"        # Con espacio al inicio
-" R Hand"           # Con espacio al inicio
-" R Finger"         # Con espacio al inicio
-"R Finger01"        # Sin espacio al inicio
+"Pelvis", "Jaw", "L Brow", "R Brow"
+"Bip01 L Clavicle", "Bip01 R Clavicle"
+"L breast", "R breast", "Belly"
 ```
 
-### **Piernas:**
+### Siempre Excluido:
 ```
-" L Thigh"    # Con espacio al inicio
-" L Calf"     # Con espacio al inicio
-" L Foot"     # Con espacio al inicio
-" L Toe0"     # Con espacio al inicio
-
-" R Thigh"    # Con espacio al inicio
-" R Calf"     # Con espacio al inicio
-" R Foot"     # Con espacio al inicio
-" R Toe0"     # Con espacio al inicio
+"Root" - Se excluye automáticamente
 ```
 
-### **Faciales y Especiales:**
-```
-"Jaw"         # Sin espacio al inicio
-"L Brow"      # Sin espacio al inicio
-"R Brow"      # Sin espacio al inicio
-"L breast"    # Sin espacio al inicio
-"R breast"    # Sin espacio al inicio
-"Belly"       # Sin espacio al inicio
-```
+## 🐛 Problemas Conocidos
 
-### **Siempre Excluido:**
-```
-"Root"        # NUNCA se mapea
-```
+- **Errores de importación** en algunos módulos
+- **Inconsistencias** en mapeo automático
+- **Fallos ocasionales** en aplicación de pose
+- **Problemas de compatibilidad** con ciertos armatures
+- **Shape Keys** pueden no aplicarse correctamente en todos los casos
 
-## 🔧 Nuevas Características:
+## 📦 Instalación
 
-### **Panel "Status & Reference":**
-- **Show Bone Names**: Lista completa de huesos GTA SA en consola
-- **Create Template**: Crea armature con estructura exacta
-- **Verificación de Pelvis**: Confirma que está mapeado
-- **Estado de configuración**: Visual feedback del setup
+1. Descargar el addon como .zip
+2. En Blender: Edit > Preferences > Add-ons > Install
+3. Seleccionar el archivo .zip
+4. Activar "Universal to GTA SA Converter"
+5. Guardar preferencias
 
-### **Auto-Detección Mejorada:**
-- Reconoce espacios al inicio de nombres
-- Patrones específicos para cada hueso
-- Confianza mejorada para nomenclatura GTA SA
-- Pelvis incluido automáticamente
+## 🚀 Uso Básico
 
-## ⚠️ Puntos Críticos:
+1. **Configurar armatures** (Source y Target)
+2. **Click "Auto Setup"** para detectar mapeos
+3. **Verificar en Status** que Pelvis esté incluido
+4. **Backup Shape Keys** si existen
+5. **Click "Convert"** para ejecutar conversión
 
-1. **Los espacios al inicio SON parte del nombre** - no son errores
-2. **ForeArm** tiene A mayúscula (no forearm)
-3. **Pelvis** es crucial y ahora se incluye automáticamente
-4. **Root** siempre se excluye automáticamente
-5. **Bip01** es formato especial solo para clavículas
+## 🔍 Herramientas de Diagnóstico
 
-## 🚀 Flujo de Trabajo Actualizado:
+- **Test Bone Mappings**: Prueba mapeos con constraints temporales
+- **Preview Conversion**: Vista previa sin ejecutar
+- **Validate Mappings**: Verifica configuración actual
+- **Show Bone Names**: Referencia completa de huesos GTA SA
 
-1. **Instalar addon v3.2.3 In-Dev**
-2. **Usar "Create Template"** para tener referencia (opcional)
-3. **Asignar Source y Target armatures**
-4. **Click "Auto Setup"** - detecta con nomenclatura exacta
-5. **Verificar en "Status & Reference"** que Pelvis esté incluido
-6. **Click "Convert"** - conversión con nombres exactos
+## 🛠️ Desarrollo
 
-## 🧪 Testing:
+Este addon está en desarrollo activo. Los principales desarrolladores son:
 
-- **"Show Bone Names"** muestra lista con espacios exactos
-- **Auto-detección** mapea a nombres con espacios correctos
-- **Template creator** genera estructura exacta GTA SA
-- **Panel Status** confirma que Pelvis está mapeado
+- **YoshiMaincra**: Concepto, ensamblaje, testing
+- **Claude (Anthropic)**: Programación Python, arquitectura
+- **ChatGPT (OpenAI)**: Consultoría, completado de código
 
-## 📊 Cambios de Versión:
+## 📞 Soporte
 
-**v3.2.2 → v3.2.3 In-Dev:**
-- ✅ Nomenclatura exacta GTA SA implementada
-- ✅ Herramientas de referencia agregadas
-- ✅ Pelvis incluido correctamente
-- ✅ Espacios al inicio reconocidos
-- ✅ Template creator con estructura real
-- ✅ Interfaz simplificada y amigable
+Para reportar bugs o sugerencias:
+- Canal de YouTube: [Yoshi Maincra](https://www.youtube.com/@YoshiMaincra)
+- Los bugs y problemas se reportan a través del canal
 
-¡El addon ahora mapea con la nomenclatura EXACTA de GTA SA incluyendo todos los espacios y formatos especiales!
+## ⚖️ Licencia
+
+GPL v3 - Ver archivo LICENSE para detalles completos.
+
+---
+
+**Recuerda**: Este addon está en desarrollo activo. Siempre haz backup de tus proyectos antes de usar cualquier funcionalidad de conversión.
