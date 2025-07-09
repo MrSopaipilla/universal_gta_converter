@@ -1,6 +1,8 @@
-# operators/shape_keys.py
+# operators/shape_keys.py - VERSIÓN CORREGIDA
 """
 Operadores para manejo de Shape Keys en Universal GTA SA Converter
+CORREGIDO: Aplica TODAS las shape keys independientemente de su valor (incluso 0)
+           Elimina TODAS las shape keys incluyendo Basis
 """
 
 import bpy
@@ -10,16 +12,17 @@ from bpy.props import BoolProperty, FloatProperty
 
 
 class UNIVERSALGTA_OT_apply_all_shape_keys(Operator):
-    """Aplicar todas las shape keys de los meshes hijos del Source armature"""
+    """Aplicar TODAS las shape keys sin importar su valor (incluso 0)"""
     bl_idname = "universalgta.apply_all_shape_keys"
     bl_label = "Apply All Shape Keys"
-    bl_description = "Aplica todas las shape keys de los meshes hijos del armature fuente"
+    bl_description = "Aplica TODAS las shape keys de los meshes hijos del armature fuente (incluso las de valor 0)"
     bl_options = {'REGISTER', 'UNDO'}
     
+    # OBSOLETO - Ahora siempre se eliminan todas
     preserve_basis: BoolProperty(
-        name="Preserve Basis",
-        description="Mantener la shape key Basis después de aplicar las otras",
-        default=True
+        name="Preserve Basis (OBSOLETO)",
+        description="OBSOLETO - Ahora se eliminan todas las shape keys incluyendo Basis",
+        default=False
     )
     
     apply_with_modifier: BoolProperty(
@@ -49,7 +52,7 @@ class UNIVERSALGTA_OT_apply_all_shape_keys(Operator):
             
             # Procesar cada mesh hijo
             for mesh_obj in child_meshes:
-                result = self._process_mesh_shape_keys(mesh_obj)
+                result = self._process_mesh_shape_keys_corrected(mesh_obj)
                 total_shape_keys_applied += result['applied']
                 if result['applied'] > 0:
                     processed_meshes.append(mesh_obj.name)
@@ -58,7 +61,7 @@ class UNIVERSALGTA_OT_apply_all_shape_keys(Operator):
             if total_shape_keys_applied > 0:
                 mesh_list = ", ".join(processed_meshes)
                 self.report({'INFO'}, 
-                           f"Aplicadas {total_shape_keys_applied} shape keys en {len(processed_meshes)} meshes: {mesh_list}")
+                           f"Aplicadas {total_shape_keys_applied} shape keys (incluyendo valor 0) en {len(processed_meshes)} meshes: {mesh_list}")
             else:
                 self.report({'INFO'}, "No se encontraron shape keys para aplicar")
             
@@ -84,8 +87,11 @@ class UNIVERSALGTA_OT_apply_all_shape_keys(Operator):
         
         return child_meshes
     
-    def _process_mesh_shape_keys(self, mesh_obj):
-        """Procesa las shape keys de un mesh individual"""
+    def _process_mesh_shape_keys_corrected(self, mesh_obj):
+        """
+        VERSIÓN CORREGIDA: Procesa TODAS las shape keys sin importar su valor
+        Elimina TODAS las shape keys incluyendo Basis
+        """
         result = {'applied': 0, 'errors': []}
         
         # Verificar si el mesh tiene shape keys
@@ -93,36 +99,39 @@ class UNIVERSALGTA_OT_apply_all_shape_keys(Operator):
             print(f"[SHAPE_KEYS] {mesh_obj.name} no tiene shape keys")
             return result
         
-        print(f"[SHAPE_KEYS] Procesando {mesh_obj.name}")
+        print(f"[SHAPE_KEYS] === PROCESANDO {mesh_obj.name} (MÉTODO CORREGIDO) ===")
         
         # Obtener lista de shape keys
         key_blocks = mesh_obj.data.shape_keys.key_blocks
         shape_key_names = [key.name for key in key_blocks]
+        total_keys = len(shape_key_names)
         
         print(f"[SHAPE_KEYS] Shape keys encontradas: {shape_key_names}")
+        print(f"[SHAPE_KEYS] Total: {total_keys} shape keys")
         
         # Activar el mesh
         bpy.context.view_layer.objects.active = mesh_obj
         bpy.ops.object.mode_set(mode='OBJECT')
         
         try:
-            # Aplicar shape keys según configuración
-            if self.apply_with_modifier:
-                applied = self._apply_shape_keys_with_modifier(mesh_obj)
-            else:
-                applied = self._apply_shape_keys_standard(mesh_obj)
+            # MÉTODO CORREGIDO: Aplicar TODAS las shape keys sin verificar valor
+            applied_count = self._apply_all_shape_keys_regardless_of_value(mesh_obj)
+            result['applied'] = applied_count
             
-            result['applied'] = applied
+            print(f"[SHAPE_KEYS] ✓ {mesh_obj.name}: {applied_count} shape keys aplicadas")
             
         except Exception as e:
             error_msg = f"Error en {mesh_obj.name}: {str(e)}"
             result['errors'].append(error_msg)
-            print(f"[SHAPE_KEYS] {error_msg}")
+            print(f"[SHAPE_KEYS] ✗ {error_msg}")
         
         return result
     
-    def _apply_shape_keys_standard(self, mesh_obj):
-        """Aplica shape keys usando el método estándar de Blender"""
+    def _apply_all_shape_keys_regardless_of_value(self, mesh_obj):
+        """
+        MÉTODO CORREGIDO: Aplica TODAS las shape keys sin importar su valor
+        Elimina TODAS las shape keys incluyendo Basis
+        """
         applied_count = 0
         
         # Verificar shape keys
@@ -130,117 +139,107 @@ class UNIVERSALGTA_OT_apply_all_shape_keys(Operator):
             return applied_count
         
         key_blocks = mesh_obj.data.shape_keys.key_blocks
+        initial_count = len(key_blocks)
         
-        # Crear lista de shape keys a aplicar (excluyendo Basis si se preserva)
-        shape_keys_to_apply = []
+        print(f"[SHAPE_KEYS] === APLICANDO TODAS LAS SHAPE KEYS ===")
+        print(f"[SHAPE_KEYS] Total inicial: {initial_count}")
+        
+        # Crear lista de shape keys a procesar (TODAS excepto Basis)
+        shape_keys_to_process = []
+        basis_key = None
         
         for key_block in key_blocks:
-            if key_block.name == "Basis" and self.preserve_basis:
-                continue
-            
-            # Solo aplicar shape keys que tengan valor > 0
-            if key_block.value > 0.0:
-                shape_keys_to_apply.append(key_block)
+            if key_block.name == "Basis":
+                basis_key = key_block
+                print(f"[SHAPE_KEYS] Basis encontrada: {key_block.name}")
+            else:
+                shape_keys_to_process.append({
+                    'name': key_block.name,
+                    'original_value': key_block.value
+                })
+                print(f"[SHAPE_KEYS] Shape key a procesar: {key_block.name} (valor: {key_block.value})")
         
-        if not shape_keys_to_apply:
-            print(f"[SHAPE_KEYS] {mesh_obj.name}: No hay shape keys activas para aplicar")
+        if not shape_keys_to_process:
+            print(f"[SHAPE_KEYS] Solo hay Basis, nada que procesar")
+            # Eliminar Basis también
+            if basis_key:
+                mesh_obj.active_shape_key_index = 0
+                bpy.ops.object.shape_key_remove(all=False)
+                applied_count = 1
+                print(f"[SHAPE_KEYS] Basis eliminada")
             return applied_count
         
-        print(f"[SHAPE_KEYS] {mesh_obj.name}: Aplicando {len(shape_keys_to_apply)} shape keys")
-        
-        # Aplicar cada shape key de arriba hacia abajo
-        for key_block in reversed(shape_keys_to_apply):
+        # PASO 1: Aplicar cada shape key individualmente sin importar su valor
+        for i, shape_info in enumerate(shape_keys_to_process):
             try:
-                # Seleccionar la shape key
-                mesh_obj.active_shape_key_index = self._get_shape_key_index(mesh_obj, key_block.name)
+                # Verificar que todavía existe
+                if not mesh_obj.data.shape_keys or len(mesh_obj.data.shape_keys.key_blocks) <= 1:
+                    break
                 
-                # Aplicar la shape key como mix
-                bpy.ops.object.shape_key_remove(all=False)
+                # Buscar la shape key por nombre (el índice puede cambiar)
+                key_index = self._find_shape_key_index_by_name(mesh_obj, shape_info['name'])
+                
+                if key_index == -1:
+                    print(f"[SHAPE_KEYS] ⚠ Shape key {shape_info['name']} ya no existe")
+                    continue
+                
+                # Seleccionar la shape key
+                mesh_obj.active_shape_key_index = key_index
+                current_key = mesh_obj.data.shape_keys.key_blocks[key_index]
+                
+                print(f"[SHAPE_KEYS] Procesando: {current_key.name} (valor original: {shape_info['original_value']})")
+                
+                # APLICAR sin modificar el valor - usar from_mix=True para aplicar la deformación actual
+                bpy.ops.object.shape_key_add(from_mix=True)
                 applied_count += 1
                 
-                print(f"[SHAPE_KEYS] Aplicada shape key: {key_block.name}")
+                print(f"[SHAPE_KEYS] ✓ Aplicada: {shape_info['name']}")
                 
             except Exception as e:
-                print(f"[SHAPE_KEYS] Error aplicando {key_block.name}: {e}")
+                print(f"[SHAPE_KEYS] ✗ Error procesando {shape_info['name']}: {e}")
         
-        return applied_count
-    
-    def _apply_shape_keys_with_modifier(self, mesh_obj):
-        """Aplica shape keys junto con modificadores armature"""
-        applied_count = 0
+        # PASO 2: Eliminar TODAS las shape keys restantes (incluyendo Basis)
+        print(f"[SHAPE_KEYS] === ELIMINANDO TODAS LAS SHAPE KEYS ===")
         
-        # Verificar que tenga shape keys
-        if not mesh_obj.data.shape_keys:
-            return applied_count
-        
-        # Crear una copia temporal para hacer la aplicación
-        bpy.ops.object.select_all(action='DESELECT')
-        mesh_obj.select_set(True)
-        bpy.context.view_layer.objects.active = mesh_obj
-        
-        # Duplicar el objeto
-        bpy.ops.object.duplicate()
-        temp_obj = bpy.context.active_object
-        temp_obj.name = f"{mesh_obj.name}_temp_shape_keys"
-        
-        try:
-            # Aplicar todas las shape keys en el objeto temporal
-            if temp_obj.data.shape_keys:
-                key_blocks = temp_obj.data.shape_keys.key_blocks
+        elimination_count = 0
+        while mesh_obj.data.shape_keys and len(mesh_obj.data.shape_keys.key_blocks) > 0:
+            try:
+                # Siempre eliminar la primera shape key
+                mesh_obj.active_shape_key_index = 0
+                key_name = mesh_obj.data.shape_keys.key_blocks[0].name
                 
-                for key_block in key_blocks:
-                    if key_block.name == "Basis" and self.preserve_basis:
-                        continue
-                    
-                    if key_block.value > 0.0:
-                        # Establecer la shape key como activa
-                        temp_obj.active_shape_key_index = self._get_shape_key_index(temp_obj, key_block.name)
-                        
-                        # Aplicar shape key
-                        bpy.ops.object.shape_key_remove(all=False)
-                        applied_count += 1
-                        
-                        print(f"[SHAPE_KEYS] Aplicada shape key con modifier: {key_block.name}")
-            
-            # Aplicar modificadores si existen
-            for modifier in temp_obj.modifiers:
-                if modifier.type == 'ARMATURE':
-                    bpy.ops.object.modifier_apply(modifier=modifier.name)
-                    print(f"[SHAPE_KEYS] Aplicado modificador: {modifier.name}")
-            
-            # Transferir la geometría de vuelta al objeto original
-            self._transfer_mesh_data(temp_obj, mesh_obj)
-            
-        finally:
-            # Limpiar objeto temporal
-            bpy.data.objects.remove(temp_obj, do_unlink=True)
+                bpy.ops.object.shape_key_remove(all=False)
+                elimination_count += 1
+                
+                print(f"[SHAPE_KEYS] ✓ Eliminada: {key_name}")
+                
+            except Exception as e:
+                print(f"[SHAPE_KEYS] ✗ Error eliminando shape key: {e}")
+                break
+        
+        print(f"[SHAPE_KEYS] ✓ Proceso completado:")
+        print(f"[SHAPE_KEYS]   - Shape keys aplicadas: {applied_count}")
+        print(f"[SHAPE_KEYS]   - Shape keys eliminadas: {elimination_count}")
+        
+        # Verificar que no queden shape keys
+        remaining_keys = len(mesh_obj.data.shape_keys.key_blocks) if mesh_obj.data.shape_keys else 0
+        if remaining_keys == 0:
+            print(f"[SHAPE_KEYS] ✓ Todas las shape keys eliminadas correctamente")
+        else:
+            print(f"[SHAPE_KEYS] ⚠ Quedan {remaining_keys} shape keys")
         
         return applied_count
     
-    def _get_shape_key_index(self, obj, shape_key_name):
-        """Obtiene el índice de una shape key por nombre"""
-        if not obj.data.shape_keys:
+    def _find_shape_key_index_by_name(self, mesh_obj, name):
+        """Encuentra el índice de una shape key por nombre"""
+        if not mesh_obj.data.shape_keys:
             return -1
         
-        for i, key_block in enumerate(obj.data.shape_keys.key_blocks):
-            if key_block.name == shape_key_name:
+        for i, key_block in enumerate(mesh_obj.data.shape_keys.key_blocks):
+            if key_block.name == name:
                 return i
         
         return -1
-    
-    def _transfer_mesh_data(self, source_obj, target_obj):
-        """Transfiere datos de mesh de un objeto a otro"""
-        # Crear nuevo mesh data desde el source
-        new_mesh = source_obj.data.copy()
-        
-        # Reemplazar mesh data del target
-        old_mesh = target_obj.data
-        target_obj.data = new_mesh
-        
-        # Limpiar mesh data antiguo
-        bpy.data.meshes.remove(old_mesh)
-        
-        print(f"[SHAPE_KEYS] Datos de mesh transferidos a {target_obj.name}")
 
 
 class UNIVERSALGTA_OT_backup_shape_keys(Operator):
@@ -384,7 +383,7 @@ class UNIVERSALGTA_OT_list_shape_keys(Operator):
         meshes_with_shape_keys = 0
         
         print("\n" + "="*50)
-        print("SHAPE KEYS ENCONTRADAS")
+        print("SHAPE KEYS ENCONTRADAS - MÉTODO CORREGIDO")
         print("="*50)
         
         for obj in bpy.data.objects:
@@ -394,7 +393,7 @@ class UNIVERSALGTA_OT_list_shape_keys(Operator):
                     print(f"\nMesh: {obj.name}")
                     
                     for i, key_block in enumerate(obj.data.shape_keys.key_blocks):
-                        value_str = f"(valor: {key_block.value:.2f})" if key_block.value > 0 else ""
+                        value_str = f"(valor: {key_block.value:.3f})" if key_block.value != 0 else "(valor: 0 - SE APLICARÁ IGUAL)"
                         print(f"  {i}: {key_block.name} {value_str}")
                         total_shape_keys += 1
                 else:
@@ -402,6 +401,7 @@ class UNIVERSALGTA_OT_list_shape_keys(Operator):
         
         print("\n" + "="*50)
         print(f"RESUMEN: {total_shape_keys} shape keys en {meshes_with_shape_keys} meshes")
+        print("NOTA: TODAS las shape keys se aplicarán, incluso las de valor 0")
         print("="*50 + "\n")
         
         self.report({'INFO'}, 

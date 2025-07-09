@@ -35,7 +35,7 @@ class BoneMappingItem(PropertyGroup):
     confidence: FloatProperty(name="Confidence", default=0.0)
 
 class UniversalGTASettings(PropertyGroup):
-    """Configuración principal del addon - VERSIÓN COMPLETA CORREGIDA"""
+    """Configuración principal del addon - VERSIÓN CORREGIDA CON BONE_MAPPINGS"""
     
     # Espaciado
     arm_spacing: FloatProperty(name="Arm Spacing", default=0.0, min=-1.0, max=1.0)
@@ -51,7 +51,7 @@ class UniversalGTASettings(PropertyGroup):
     auto_detect_mode: BoolProperty(name="Auto Detect", default=True)
     detection_threshold: FloatProperty(name="Detection Threshold", default=0.5)
     
-    # Mapeos de huesos
+    # MAPEOS DE HUESOS - CORREGIDO
     bone_mappings: CollectionProperty(type=BoneMappingItem)
     bone_mappings_index: IntProperty(name="Index", default=0)
     
@@ -140,17 +140,17 @@ class UniversalGTASettings(PropertyGroup):
         default=""
     )
     
-    # SHAPE KEYS - TODAS LAS PROPIEDADES DENTRO DE LA CLASE
+    # SHAPE KEYS - TODAS LAS PROPIEDADES CORREGIDAS
     auto_apply_shape_keys: BoolProperty(
         name="Auto Apply Shape Keys",
-        description="Aplica automáticamente todas las shape keys durante la conversión",
+        description="Aplica automáticamente todas las shape keys durante la conversión (incluso las de valor 0)",
         default=True
     )
 
     preserve_basis_shape_key: BoolProperty(
         name="Preserve Basis Shape Key",
-        description="Mantiene la shape key 'Basis' sin aplicar durante el proceso",
-        default=False  # CAMBIADO: No preservar Basis por defecto para GTA SA
+        description="OBSOLETO - Ahora se eliminan todas las shape keys incluyendo Basis",
+        default=False
     )
 
     create_shape_keys_backup: BoolProperty(
@@ -168,13 +168,13 @@ class UniversalGTASettings(PropertyGroup):
     apply_final_shape_keys: BoolProperty(
         name="Apply Final Shape Keys",
         description="Aplica shape keys finales en el objeto unificado después de la conversión",
-        default=True  # CAMBIADO: Aplicar shape keys finales por defecto
+        default=True
     )
 
     shape_key_threshold: FloatProperty(
         name="Shape Key Threshold",
-        description="Valor mínimo para aplicar una shape key (shape keys con valor menor se eliminan)",
-        default=0.001,  # CAMBIADO: Umbral más bajo para detectar shape keys sutiles
+        description="OBSOLETO - Ahora se aplican todas las shape keys sin importar el valor",
+        default=0.0,
         min=0.0,
         max=1.0
     )
