@@ -231,7 +231,7 @@ try:
 except ImportError as e:
     print(f"[ADDON] ⚠ Operadores de referencia GTA SA no disponibles: {e}")
 
-# Importar paneles principales (REQUERIDOS)
+# Importar paneles principales (REQUERIDAS)
 try:
     from .panels.main_panel import (
         UNIVERSALGTA_PT_MainPanel,
@@ -370,7 +370,7 @@ def get_all_classes():
         UNIVERSALGTA_OT_enable_high_confidence
     ])
     
-    # Agregar paneles principales (REQUERIDOS)
+    # Agregar paneles principales (REQUERIDAS)
     classes.extend([
         UNIVERSALGTA_PT_MainPanel,
         UNIVERSALGTA_PT_ShapeKeysPanel,
@@ -393,95 +393,7 @@ def get_all_classes():
     classes.extend(CREDITS_PANELS)
     classes.extend(CREDITS_OPERATORS)
 
-
-    from .operators.enhanced_bone_mapping_panel import (
-    UNIVERSALGTA_OT_save_mapping,
-    UNIVERSALGTA_OT_load_mapping,
-    UNIVERSALGTA_OT_export_mapping_template,
-    UNIVERSALGTA_OT_import_mapping_from_names,
-    UNIVERSALGTA_OT_validate_mapping_file,
-)
-
-from .panels.mapping_operators_enhanced import (
-    UNIVERSALGTA_UL_ModernBoneMappingList,
-    UNIVERSALGTA_OT_save_bone_mapping,
-    UNIVERSALGTA_OT_load_bone_mapping,
-    UNIVERSALGTA_PT_ModernBoneMappingPanel,
-)
-
-from .ui.modern_styles import (
-    UNIVERSALGTA_OT_adjust_value,
-    UNIVERSALGTA_PT_ModernStylesDemo,
-    UNIVERSALGTA_PT_StyledBoneMappingPanel,
-    
-)
-    
-
-# Agregar estas importaciones:
-from .operators.enhanced_bone_mapping_panel import (
-    UNIVERSALGTA_OT_save_mapping,
-    UNIVERSALGTA_OT_load_mapping,
-    UNIVERSALGTA_OT_export_mapping_template,
-    UNIVERSALGTA_OT_import_mapping_from_names,
-    UNIVERSALGTA_OT_validate_mapping_file,
-)
-
-from .panels.mapping_operators_enhanced import (
-    UNIVERSALGTA_UL_ModernBoneMappingList,
-    UNIVERSALGTA_OT_save_bone_mapping,
-    UNIVERSALGTA_OT_load_bone_mapping,
-    UNIVERSALGTA_PT_ModernBoneMappingPanel,
-)
-
-from .ui.modern_styles import (
-    UNIVERSALGTA_OT_adjust_value,
-    UNIVERSALGTA_PT_ModernStylesDemo,
-    UNIVERSALGTA_PT_StyledBoneMappingPanel,
-)
-
-# En tu __init__.py, agregar las importaciones:
-from .enhanced_bone_mapping_panel import (
-    UNIVERSALGTA_UL_ModernBoneMappingList,
-    UNIVERSALGTA_OT_save_bone_mapping,
-    UNIVERSALGTA_OT_load_bone_mapping,
-    UNIVERSALGTA_PT_ModernBoneMappingPanel,
-)
-
-from .mapping_operators_enhanced import (
-    UNIVERSALGTA_OT_save_mapping,
-    UNIVERSALGTA_OT_load_mapping,
-    UNIVERSALGTA_OT_export_mapping_template,
-    UNIVERSALGTA_OT_import_mapping_from_names,
-    UNIVERSALGTA_OT_validate_mapping_file,
-)
-
-from .modern_ui_styles import (
-    UNIVERSALGTA_OT_adjust_value,
-    UNIVERSALGTA_PT_ModernStylesDemo,
-    UNIVERSALGTA_PT_StyledBoneMappingPanel,
-)
-
-# Agregar a la lista classes:
-classes.extend([
-    # Mapping Enhanced
-    UNIVERSALGTA_OT_save_mapping,
-    UNIVERSALGTA_OT_load_mapping,
-    UNIVERSALGTA_OT_export_mapping_template,
-    UNIVERSALGTA_OT_import_mapping_from_names,
-    UNIVERSALGTA_OT_validate_mapping_file,
-    
-    # Modern Bone Mapping
-    UNIVERSALGTA_UL_ModernBoneMappingList,
-    UNIVERSALGTA_OT_save_bone_mapping,
-    UNIVERSALGTA_OT_load_bone_mapping,
-    UNIVERSALGTA_PT_ModernBoneMappingPanel,
-    
-    # Modern Styles
-    UNIVERSALGTA_OT_adjust_value,
-    UNIVERSALGTA_PT_ModernStylesDemo,
-    UNIVERSALGTA_PT_StyledBoneMappingPanel,
-])
-
+    return classes
     
 
 
