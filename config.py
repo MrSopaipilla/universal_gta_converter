@@ -3,57 +3,134 @@ from bpy.types import PropertyGroup
 from bpy.props import StringProperty, PointerProperty, BoolProperty, CollectionProperty, FloatProperty, IntProperty, EnumProperty
 
 def validate_name_input(self, context):
-    """Validador para nombres de skin y autor"""
+    """Validador para nombres de skin y autor - VERSIÓN CORREGIDA"""
     import re
     
-    # Validar skin_name
-    if self.skin_name:
-        if not re.match(r'^[a-zA-Z0-9_-]+$', self.skin_name):
-            self.name_validation_message = "❌ Skin name: Solo se permiten letras, números, _ y -"
-            # Limpiar caracteres inválidos
-            self.skin_name = re.sub(r'[^a-zA-Z0-9_-]', '', self.skin_name)
-        else:
-            self.name_validation_message = "✅ Skin name válido"
+    try:
+        # Validar skin_name
+        if hasattr(self, 'skin_name') and self.skin_name:
+            if not re.match(r'^[a-zA-Z0-9_-]+$', self.skin_name):
+                self.name_validation_message = "❌ Skin name: Solo se permiten letras, números, _ y -"
+                # Limpiar caracteres inválidos
+                self.skin_name = re.sub(r'[^a-zA-Z0-9_-]', '', self.skin_name)
+            else:
+                self.name_validation_message = "✅ Skin name válido"
 
-    # Validar author_nickname
-    if self.author_nickname:
-        if not re.match(r'^[a-zA-Z0-9_-]+$', self.author_nickname):
-            if "❌" not in self.name_validation_message:
-                self.name_validation_message = "❌ Author nickname: Solo se permiten letras, números, _ y -"
-            # Limpiar caracteres inválidos
-            self.author_nickname = re.sub(r'[^a-zA-Z0-9_-]', '', self.author_nickname)
-        else:
-            if "❌" not in self.name_validation_message:
-                self.name_validation_message = "✅ Nombres válidos"
+        # Validar author_nickname
+        if hasattr(self, 'author_nickname') and self.author_nickname:
+            if not re.match(r'^[a-zA-Z0-9_-]+$', self.author_nickname):
+                if "❌" not in self.name_validation_message:
+                    self.name_validation_message = "❌ Author nickname: Solo se permiten letras, números, _ y -"
+                # Limpiar caracteres inválidos
+                self.author_nickname = re.sub(r'[^a-zA-Z0-9_-]', '', self.author_nickname)
+            else:
+                if "❌" not in self.name_validation_message:
+                    self.name_validation_message = "✅ Nombres válidos"
+    except Exception as e:
+        print(f"[CONFIG] Error en validación de nombres: {e}")
+        # No fallar, solo reportar
+
 
 class BoneMappingItem(PropertyGroup):
-    """Elemento de mapeo de huesos"""
-    source_bone: StringProperty(name="Source Bone")
-    target_bone: StringProperty(name="Target Bone")
-    enabled: BoolProperty(name="Enabled", default=True)
-    detection_method: StringProperty(name="Detection Method", default="Manual")
-    confidence: FloatProperty(name="Confidence", default=0.0)
+    """Elemento de mapeo de huesos - VERSIÓN CORREGIDA"""
+    source_bone: StringProperty(
+        name="Source Bone",
+        description="Nombre del hueso en el armature fuente",
+        default=""
+    )
+    target_bone: StringProperty(
+        name="Target Bone",
+        description="Nombre del hueso en el armature destino",
+        default=""
+    )
+    enabled: BoolProperty(
+        name="Enabled", 
+        description="Si este mapeo está habilitado para la conversión",
+        default=True
+    )
+    detection_method: StringProperty(
+        name="Detection Method", 
+        description="Método usado para detectar este mapeo",
+        default="Manual"
+    )
+    confidence: FloatProperty(
+        name="Confidence", 
+        description="Nivel de confianza en la detección automática",
+        default=0.0,
+        min=0.0,
+        max=1.0
+    )
+
 
 class UniversalGTASettings(PropertyGroup):
-    """Configuración principal del addon - VERSIÓN COMPLETA CORREGIDA"""
+    """Configuración principal del addon - VERSIÓN CORREGIDA Y COMPLETA"""
     
     # Espaciado
-    arm_spacing: FloatProperty(name="Arm Spacing", default=0.0, min=-1.0, max=1.0)
-    leg_spacing: FloatProperty(name="Leg Spacing", default=0.0, min=-1.0, max=1.0)
+    arm_spacing: FloatProperty(
+        name="Arm Spacing", 
+        description="Espaciado horizontal de los brazos",
+        default=0.0, 
+        min=-1.0, 
+        max=1.0
+    )
+    leg_spacing: FloatProperty(
+        name="Leg Spacing", 
+        description="Espaciado horizontal de las piernas",
+        default=0.0, 
+        min=-1.0, 
+        max=1.0
+    )
 
     # Armatures
-    source_armature: PointerProperty(type=bpy.types.Object)
-    target_armature: PointerProperty(type=bpy.types.Object)
+    source_armature: PointerProperty(
+        type=bpy.types.Object,
+        name="Source Armature",
+        description="Armature fuente a convertir",
+        poll=lambda self, obj: obj.type == 'ARMATURE'
+    )
+    target_armature: PointerProperty(
+        type=bpy.types.Object,
+        name="Target Armature", 
+        description="Armature destino con estructura GTA SA",
+        poll=lambda self, obj: obj.type == 'ARMATURE'
+    )
     
     # Opciones de conversión básicas
-    keep_vertex_colors: BoolProperty(name="Mantener Vertex Colors", default=False)
-    debug_mode: BoolProperty(name="Debug Mode", default=False)
-    auto_detect_mode: BoolProperty(name="Auto Detect", default=True)
-    detection_threshold: FloatProperty(name="Detection Threshold", default=0.5)
+    keep_vertex_colors: BoolProperty(
+        name="Mantener Vertex Colors", 
+        description="Preservar vertex colors durante la conversión",
+        default=False
+    )
+    debug_mode: BoolProperty(
+        name="Debug Mode", 
+        description="Activar modo debug con información detallada",
+        default=False
+    )
+    auto_detect_mode: BoolProperty(
+        name="Auto Detect", 
+        description="Detectar automáticamente mapeos de huesos",
+        default=True
+    )
+    detection_threshold: FloatProperty(
+        name="Detection Threshold", 
+        description="Umbral mínimo para detección automática",
+        default=0.5,
+        min=0.0,
+        max=1.0
+    )
     
     # Mapeos de huesos
-    bone_mappings: CollectionProperty(type=BoneMappingItem)
-    bone_mappings_index: IntProperty(name="Index", default=0)
+    bone_mappings: CollectionProperty(
+        type=BoneMappingItem,
+        name="Bone Mappings",
+        description="Lista de mapeos entre huesos fuente y destino"
+    )
+    bone_mappings_index: IntProperty(
+        name="Index", 
+        description="Índice del mapeo seleccionado",
+        default=0,
+        min=0
+    )
     
     # Auto-aplicar pose personalizada
     auto_apply_custom_pose: BoolProperty(
@@ -150,7 +227,7 @@ class UniversalGTASettings(PropertyGroup):
     preserve_basis_shape_key: BoolProperty(
         name="Preserve Basis Shape Key",
         description="Mantiene la shape key 'Basis' sin aplicar durante el proceso",
-        default=False  # CAMBIADO: No preservar Basis por defecto para GTA SA
+        default=False  # No preservar Basis por defecto para GTA SA
     )
 
     create_shape_keys_backup: BoolProperty(
@@ -168,13 +245,13 @@ class UniversalGTASettings(PropertyGroup):
     apply_final_shape_keys: BoolProperty(
         name="Apply Final Shape Keys",
         description="Aplica shape keys finales en el objeto unificado después de la conversión",
-        default=True  # CAMBIADO: Aplicar shape keys finales por defecto
+        default=True
     )
 
     shape_key_threshold: FloatProperty(
         name="Shape Key Threshold",
         description="Valor mínimo para aplicar una shape key (shape keys con valor menor se eliminan)",
-        default=0.001,  # CAMBIADO: Umbral más bajo para detectar shape keys sutiles
+        default=0.001,
         min=0.0,
         max=1.0
     )
@@ -241,6 +318,72 @@ class UniversalGTASettings(PropertyGroup):
 def register_validation():
     """
     Función para registrar validadores adicionales si es necesario.
+    VERSIÓN CORREGIDA: Manejo de errores mejorado
     """
-    print("[CONFIG] Validadores de nombres registrados")
-    pass
+    try:
+        print("[CONFIG] Validadores de nombres registrados")
+        # Aquí se pueden agregar validadores adicionales en el futuro
+        return True
+    except Exception as e:
+        print(f"[CONFIG] Error registrando validadores: {e}")
+        return False
+
+
+# Funciones de utilidad para validación
+def validate_armature_object(obj):
+    """Valida que un objeto sea un armature válido"""
+    if not obj:
+        return False, "No se ha seleccionado objeto"
+    
+    if obj.type != 'ARMATURE':
+        return False, f"El objeto '{obj.name}' no es un armature"
+    
+    if len(obj.data.bones) == 0:
+        return False, f"El armature '{obj.name}' no tiene huesos"
+    
+    return True, "Armature válido"
+
+
+def validate_bone_mappings(mappings, source_armature, target_armature):
+    """Valida una lista de mapeos de huesos"""
+    if not mappings:
+        return False, "No hay mapeos definidos"
+    
+    if not source_armature or not target_armature:
+        return False, "Armatures fuente y destino requeridos"
+    
+    enabled_mappings = [m for m in mappings if m.enabled]
+    if not enabled_mappings:
+        return False, "No hay mapeos habilitados"
+    
+    # Verificar que los huesos existen
+    source_bones = {bone.name for bone in source_armature.pose.bones}
+    target_bones = {bone.name for bone in target_armature.pose.bones}
+    
+    invalid_mappings = []
+    for mapping in enabled_mappings:
+        if mapping.source_bone not in source_bones:
+            invalid_mappings.append(f"Hueso fuente '{mapping.source_bone}' no existe")
+        if mapping.target_bone not in target_bones:
+            invalid_mappings.append(f"Hueso destino '{mapping.target_bone}' no existe")
+    
+    if invalid_mappings:
+        return False, "; ".join(invalid_mappings)
+    
+    return True, f"{len(enabled_mappings)} mapeos válidos"
+
+
+def get_addon_version():
+    """Obtiene la versión del addon"""
+    return (3, 2, 3)
+
+
+def get_addon_info():
+    """Obtiene información del addon"""
+    return {
+        'name': 'Universal to GTA SA Converter',
+        'version': get_addon_version(),
+        'authors': ['YoshiMaincra', 'Claude (Anthropic)', 'ChatGPT (OpenAI)'],
+        'description': 'Convierte armatures personalizados al formato GTA San Andreas',
+        'status': 'In Development'
+    }
