@@ -63,6 +63,29 @@ class BoneMappingItem(PropertyGroup):
 
 
 class UniversalGTASettings(PropertyGroup):
+
+    # Colección de huesos fuente para UI doble lista
+    source_bones_collection: CollectionProperty(
+        type=BoneMappingItem,
+        name="Source Bones",
+        description="Lista de huesos del armature fuente para drag & drop"
+    )
+    source_bones_index: IntProperty(
+        name="Source Bone Index",
+        default=0,
+        min=0
+    )
+    # Colección de huesos destino para UI doble lista
+    target_bones_collection: CollectionProperty(
+        type=BoneMappingItem,
+        name="Target Bones",
+        description="Lista de huesos del armature destino para drag & drop"
+    )
+    target_bones_index: IntProperty(
+        name="Target Bone Index",
+        default=0,
+        min=0
+    )
     """Configuración principal del addon - VERSIÓN CORREGIDA Y COMPLETA"""
     
     # Espaciado
