@@ -1,0 +1,31 @@
+{
+  "format_version": "2.0",
+  "description": "Empty GTA SA Bone Mappings Template",
+  "mappings": [
+    {"index": 0, "source_bone": "", "target_bone": " Pelvis", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 1, "source_bone": "", "target_bone": " Spine", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 2, "source_bone": "", "target_bone": " Spine1", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 3, "source_bone": "", "target_bone": " Neck", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 4, "source_bone": "", "target_bone": " Head", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 5, "source_bone": "", "target_bone": "Bip01 L Clavicle", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 6, "source_bone": "", "target_bone": " L UpperArm", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 7, "source_bone": "", "target_bone": " L ForeArm", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 8, "source_bone": "", "target_bone": " L Hand", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 9, "source_bone": "", "target_bone": " L Finger", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 10, "source_bone": "", "target_bone": "L Finger01", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 11, "source_bone": "", "target_bone": "Bip01 R Clavicle", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 12, "source_bone": "", "target_bone": " R UpperArm", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 13, "source_bone": "", "target_bone": " R ForeArm", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 14, "source_bone": "", "target_bone": " R Hand", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 15, "source_bone": "", "target_bone": " R Finger", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 16, "source_bone": "", "target_bone": "R Finger01", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 17, "source_bone": "", "target_bone": " L Thigh", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 18, "source_bone": "", "target_bone": " L Calf", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 19, "source_bone": "", "target_bone": " L Foot", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 20, "source_bone": "", "target_bone": " L Toe0", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 21, "source_bone": "", "target_bone": " R Thigh", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 22, "source_bone": "", "target_bone": " R Calf", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 23, "source_bone": "", "target_bone": " R Foot", "enabled": false, "detection_method": "Manual", "confidence": 1.0},
+    {"index": 24, "source_bone": "", "target_bone": " R Toe0", "enabled": false, "detection_method": "Manual", "confidence": 1.0}
+  ]
+}

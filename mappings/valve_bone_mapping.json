@@ -1,0 +1,526 @@
+{
+  "format_version": "2.0",
+  "description": "Universal GTA SA Converter Bone Mappings",
+  "mappings": [
+    {
+      "index": 0,
+      "source_bone": "ValveBiped.Bip01_Pelvis",
+      "target_bone": " Pelvis",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 1,
+      "source_bone": "ValveBiped.Bip01_Spine",
+      "target_bone": " Spine",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 2,
+      "source_bone": "ValveBiped.Bip01_Spine1",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 3,
+      "source_bone": "ValveBiped.Bip01_Spine4",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 4,
+      "source_bone": "ValveBiped.Bip01_Spine2",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 5,
+      "source_bone": "ValveBiped.Bip01_Neck1",
+      "target_bone": " Neck",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 6,
+      "source_bone": "ValveBiped.Bip01_Head1",
+      "target_bone": " Head",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 7,
+      "source_bone": "ValveBiped.Bip01_L_Hand",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 8,
+      "source_bone": "ValveBiped.Bip01_L_Finger0",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 9,
+      "source_bone": "ValveBiped.Bip01_L_Finger01",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 10,
+      "source_bone": "ValveBiped.Bip01_L_Finger02",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 11,
+      "source_bone": "ValveBiped.Bip01_L_Finger1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 12,
+      "source_bone": "ValveBiped.Bip01_L_Finger11",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 13,
+      "source_bone": "ValveBiped.Bip01_L_Finger12",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 14,
+      "source_bone": "ValveBiped.Bip01_L_Finger2",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 15,
+      "source_bone": "ValveBiped.Bip01_L_Finger21",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 16,
+      "source_bone": "ValveBiped.Bip01_L_Finger22",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 17,
+      "source_bone": "ValveBiped.Bip01_L_Finger3",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 18,
+      "source_bone": "ValveBiped.Bip01_L_Finger31",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 19,
+      "source_bone": "ValveBiped.Bip01_L_Finger32",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 20,
+      "source_bone": "ValveBiped.Bip01_L_Finger4",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 21,
+      "source_bone": "ValveBiped.Bip01_L_Finger41",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 22,
+      "source_bone": "ValveBiped.Bip01_L_Finger42",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 23,
+      "source_bone": "ValveBiped.Bip01_L_Ulna",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 24,
+      "source_bone": "ValveBiped.Bip01_L_Wrist",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 25,
+      "source_bone": "ValveBiped.Bip01_L_Elbow",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 26,
+      "source_bone": "ValveBiped.Bip01_L_Forearm",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 27,
+      "source_bone": "ValveBiped.Bip01_L_Bicep",
+      "target_bone": " L UpperArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 28,
+      "source_bone": "ValveBiped.Bip01_L_UpperArm",
+      "target_bone": " L UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 29,
+      "source_bone": "ValveBiped.Bip01_L_Trapezius",
+      "target_bone": "Bip01 L Clavicle",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 30,
+      "source_bone": "ValveBiped.Bip01_L_Shoulder",
+      "target_bone": "Bip01 L Clavicle",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 31,
+      "source_bone": "ValveBiped.Bip01_L_Clavicle",
+      "target_bone": "Bip01 L Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 32,
+      "source_bone": "ValveBiped.Bip01_R_Hand",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 33,
+      "source_bone": "ValveBiped.Bip01_R_Finger0",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 34,
+      "source_bone": "ValveBiped.Bip01_R_Finger01",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 35,
+      "source_bone": "ValveBiped.Bip01_R_Finger02",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 36,
+      "source_bone": "ValveBiped.Bip01_R_Finger1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 37,
+      "source_bone": "ValveBiped.Bip01_R_Finger11",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 38,
+      "source_bone": "ValveBiped.Bip01_R_Finger12",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 39,
+      "source_bone": "ValveBiped.Bip01_R_Finger2",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 40,
+      "source_bone": "ValveBiped.Bip01_R_Finger21",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 41,
+      "source_bone": "ValveBiped.Bip01_R_Finger22",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 42,
+      "source_bone": "ValveBiped.Bip01_R_Finger3",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 43,
+      "source_bone": "ValveBiped.Bip01_R_Finger31",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 44,
+      "source_bone": "ValveBiped.Bip01_R_Finger32",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 45,
+      "source_bone": "ValveBiped.Bip01_R_Finger4",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 46,
+      "source_bone": "ValveBiped.Bip01_R_Finger41",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 47,
+      "source_bone": "ValveBiped.Bip01_R_Finger42",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+  "index": 48,
+      "source_bone": "ValveBiped.Bip01_R_Ulna",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 49,
+      "source_bone": "ValveBiped.Bip01_R_Wrist",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 50,
+      "source_bone": "ValveBiped.Bip01_R_Shoulder",
+      "target_bone": "Bip01 R Clavicle",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 51,
+      "source_bone": "ValveBiped.Bip01_R_Bicep",
+      "target_bone": " R UpperArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 52,
+      "source_bone": "ValveBiped.Bip01_R_Elbow",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 53,
+      "source_bone": "ValveBiped.Bip01_R_UpperArm",
+      "target_bone": " R UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 54,
+      "source_bone": "ValveBiped.Bip01_R_Trapezius",
+      "target_bone": "Bip01 R Clavicle",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.800000011920929
+    },
+    {
+  "index": 55,
+      "source_bone": "ValveBiped.Bip01_R_Clavicle",
+      "target_bone": "Bip01 R Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 56,
+      "source_bone": "ValveBiped.Bip01_L_Thigh",
+      "target_bone": " L Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 57,
+      "source_bone": "ValveBiped.Bip01_L_Calf",
+      "target_bone": " L Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 58,
+      "source_bone": "ValveBiped.Bip01_L_Foot",
+      "target_bone": " L Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 59,
+      "source_bone": "ValveBiped.Bip01_R_Forearm",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 60,
+      "source_bone": "ValveBiped.Bip01_L_Toe0",
+      "target_bone": " L Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 61,
+      "source_bone": "ValveBiped.Bip01_R_Thigh",
+      "target_bone": " R Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 62,
+      "source_bone": "ValveBiped.Bip01_R_Calf",
+      "target_bone": " R Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 63,
+      "source_bone": "ValveBiped.Bip01_R_Foot",
+      "target_bone": " R Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+  "index": 64,
+      "source_bone": "ValveBiped.Bip01_R_Toe0",
+      "target_bone": " R Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    }
+  ]
+}

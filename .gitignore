@@ -1,0 +1,89 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Archivos compilados de Python
+*.pyc
+*.pyo
+*.pyd
+
+# Distribuciones / empaquetado
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+wheels/
+*.manifest
+*.spec
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+.venv
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Blender
+*.blend1
+*.blend2
+*.blend3
+.blend_old
+backups/
+*.bak
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.temp
+*.cache
+logs/
+
+# Archivos del sistema operativo (Windows)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Archivos del sistema operativo (macOS)
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Archivos del sistema operativo (Linux)
+*~
+.directory
+.Trash-*
+
+# Archivos de configuración local
+*.local
+.env
+.env.local
+
+# Archivos de prueba temporales
+test_*.blend
+*.test
+
+# Archivos de backup
+*.backup
+backup/
+backups/
+
+# Archivos de configuración personal
+config_local.py
+settings_local.py
+

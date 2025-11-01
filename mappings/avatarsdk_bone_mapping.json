@@ -1,0 +1,566 @@
+{
+  "format_version": "2.0",
+  "description": "Universal GTA SA Converter Bone Mappings",
+  "mappings": [
+    {
+      "index": 0,
+      "source_bone": "Hips",
+      "target_bone": " Pelvis",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 1,
+      "source_bone": "Spine",
+      "target_bone": " Spine",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 2,
+      "source_bone": "Spine1",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 3,
+      "source_bone": "Spine2",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 4,
+      "source_bone": "Neck",
+      "target_bone": " Neck",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 5,
+      "source_bone": "Neck1",
+      "target_bone": " Neck",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 6,
+      "source_bone": "Neck2",
+      "target_bone": " Neck",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 7,
+      "source_bone": "LeftEye",
+      "target_bone": " Head",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 8,
+      "source_bone": "RightEye",
+      "target_bone": " Head",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 9,
+      "source_bone": "Head",
+      "target_bone": " Head",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 10,
+      "source_bone": "LeftShoulder",
+      "target_bone": "Bip01 L Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 11,
+      "source_bone": "LeftArm",
+      "target_bone": " L UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 12,
+      "source_bone": "LeftForeArm1",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 13,
+      "source_bone": "LeftForeArm2",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 14,
+      "source_bone": "LeftForeArm",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 15,
+      "source_bone": "LeftHandThumb1",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 16,
+      "source_bone": "LeftHandThumb2",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 17,
+      "source_bone": "LeftHandThumb3",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 18,
+      "source_bone": "LeftHandThumb4",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 19,
+      "source_bone": "LeftHand",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 20,
+      "source_bone": "LeftHandIndex1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 21,
+      "source_bone": "LeftHandRing1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 22,
+      "source_bone": "LeftHandPinky1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 23,
+      "source_bone": "LeftHandMiddle1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 24,
+      "source_bone": "LeftHandIndex2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 25,
+      "source_bone": "LeftHandRing2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 26,
+      "source_bone": "LeftHandPinky2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 27,
+      "source_bone": "LeftHandIndex3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 28,
+      "source_bone": "LeftHandMiddle3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 29,
+      "source_bone": "LeftHandRing3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 30,
+      "source_bone": "LeftHandPinky3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 31,
+      "source_bone": "LeftHandIndex4",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 32,
+      "source_bone": "LeftHandMiddle4",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 33,
+      "source_bone": "LeftHandRing4",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 34,
+      "source_bone": "LeftHandPinky4",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 35,
+      "source_bone": "LeftHandMiddle2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 36,
+      "source_bone": "RightShoulder",
+      "target_bone": "Bip01 R Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 37,
+      "source_bone": "RightArm",
+      "target_bone": " R UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 38,
+      "source_bone": "RightForeArm1",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 39,
+      "source_bone": "RightForeArm2",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 40,
+      "source_bone": "RightForeArm",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 41,
+      "source_bone": "RightHandThumb1",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 42,
+      "source_bone": "RightHandThumb2",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 43,
+      "source_bone": "RightHandThumb3",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 44,
+      "source_bone": "RightHandThumb4",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 45,
+      "source_bone": "RightHand",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 46,
+      "source_bone": "RightHandIndex1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 47,
+      "source_bone": "RightHandRing1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 48,
+      "source_bone": "RightHandPinky1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 49,
+      "source_bone": "RightHandMiddle1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 50,
+      "source_bone": "RightHandIndex2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 51,
+      "source_bone": "RightHandRing2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 52,
+      "source_bone": "RightHandPinky2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 53,
+      "source_bone": "RightHandIndex3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 54,
+      "source_bone": "RightHandMiddle3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 55,
+      "source_bone": "RightHandRing3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 56,
+      "source_bone": "RightHandPinky3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 57,
+      "source_bone": "RightHandIndex4",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 58,
+      "source_bone": "RightHandMiddle4",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 59,
+      "source_bone": "RightHandRing4",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 60,
+      "source_bone": "RightHandPinky4",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 61,
+      "source_bone": "LeftUpLeg",
+      "target_bone": " L Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 62,
+      "source_bone": "RightHandMiddle2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 63,
+      "source_bone": "LeftLeg",
+      "target_bone": " L Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 64,
+      "source_bone": "LeftFoot",
+      "target_bone": " L Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 65,
+      "source_bone": "LeftToeBase",
+      "target_bone": " L Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 66,
+      "source_bone": "RightUpLeg",
+      "target_bone": " R Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 67,
+      "source_bone": "RightLeg",
+      "target_bone": " R Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 68,
+      "source_bone": "RightFoot",
+      "target_bone": " R Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 69,
+      "source_bone": "RightToeBase",
+      "target_bone": " R Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    }
+  ]
+}
