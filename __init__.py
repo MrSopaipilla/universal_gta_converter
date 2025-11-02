@@ -5,7 +5,7 @@ Universal GTA SA Converter v1.0
 
 bl_info = {
     "name": "Universal to GTA SA Converter",
-    "author": "YoshiMaincra + AI Team (Claude & ChatGPT)",
+    "author": "YoshiMaincra + Cursor AI",
     "version": (1, 0, 0),
     "blender": (4, 5, 0),
     "location": "View3D > Sidebar > Tool > Universal GTA",
@@ -309,23 +309,19 @@ else:
     # Operadores opcionales (resto)
     OPTIONAL_OPERATORS = []
     
-    # Cleanup
+    # Cleanup (clean_model y clean_armatures removidos - eran redundantes)
     try:
         from .operators.cleanup import (
-            UNIVERSALGTA_OT_clean_model,
             UNIVERSALGTA_OT_purge_unused_data,
             UNIVERSALGTA_OT_purge_scene,
-            UNIVERSALGTA_OT_clean_armatures,
             UNIVERSALGTA_OT_clean_empty_vertex_groups,
             UNIVERSALGTA_OT_fix_modifiers,
             UNIVERSALGTA_OT_remove_duplicates,
             UNIVERSALGTA_OT_optimize_mesh
         )
         OPTIONAL_OPERATORS.extend([
-            UNIVERSALGTA_OT_clean_model,
             UNIVERSALGTA_OT_purge_unused_data,
             UNIVERSALGTA_OT_purge_scene,
-            UNIVERSALGTA_OT_clean_armatures,
             UNIVERSALGTA_OT_clean_empty_vertex_groups,
             UNIVERSALGTA_OT_fix_modifiers,
             UNIVERSALGTA_OT_remove_duplicates,

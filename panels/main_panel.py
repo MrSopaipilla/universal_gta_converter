@@ -444,15 +444,6 @@ class UNIVERSALGTA_PT_UtilitiesPanel(Panel):
 
     def draw(self, context):
         layout = self.layout
-        
-        cleanup_box = layout.box()
-        cleanup_box.label(text="🧹 Cleanup Tools", icon=get_blender5_icon('TRASH'))
-        
-        row1 = cleanup_box.row()
-        row1.operator("universalgta.clean_model", text="Clean Model", icon=get_blender5_icon('MESH_DATA'))
-        row1.operator("universalgta.clean_armatures", text="Clean Arms", icon=get_blender5_icon('ARMATURE_DATA'))
-        
-        layout.separator()
         texture_box = layout.box()
         texture_box.label(text="🎨 Texture Tools", icon=get_blender5_icon('NODE_TEXTURE'))
         
