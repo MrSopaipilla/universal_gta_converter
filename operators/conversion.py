@@ -344,6 +344,40 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             except Exception as e:
                 print(f"⚠️ Error al ajustar materiales de 'Mesh': {e}")
 
+            # === CONFIGURAR SPECULAR = 0 EN TODOS LOS MATERIALES DE LA MALLA 'Mesh' ===
+            print("🔧 Configurando Specular = 0 en todos los materiales de la malla 'Mesh'...")
+            try:
+                mesh_obj = bpy.data.objects.get("Mesh")
+                if mesh_obj and hasattr(mesh_obj, 'data') and getattr(mesh_obj.data, 'materials', None) is not None:
+                    mats = [m for m in mesh_obj.data.materials if m]
+                    specular_updated = 0
+                    for mat in mats:
+                        try:
+                            if mat.use_nodes and mat.node_tree:
+                                for node in mat.node_tree.nodes:
+                                    if node.type == 'BSDF_PRINCIPLED':
+                                        # Blender 5.0+ puede usar 'Specular' o 'Specular IOR Level'
+                                        if 'Specular' in node.inputs:
+                                            node.inputs['Specular'].default_value = 0.0
+                                            specular_updated += 1
+                                            print(f"  ✅ Specular = 0 configurado en material '{mat.name}' (input 'Specular')")
+                                        elif 'Specular IOR Level' in node.inputs:
+                                            node.inputs['Specular IOR Level'].default_value = 0.0
+                                            specular_updated += 1
+                                            print(f"  ✅ Specular = 0 configurado en material '{mat.name}' (input 'Specular IOR Level')")
+                                        break
+                        except Exception as e:
+                            print(f"⚠️ Error configurando Specular en material {getattr(mat, 'name', str(mat))}: {e}")
+
+                    if specular_updated > 0:
+                        print(f"✅ Specular = 0 configurado en {specular_updated} materiales de la malla 'Mesh'.")
+                    else:
+                        print("ℹ️ No se encontraron nodos Principled BSDF para configurar Specular.")
+                else:
+                    print("ℹ️ No se encontró la malla 'Mesh' o no tiene materiales para configurar Specular.")
+            except Exception as e:
+                print(f"⚠️ Error al configurar Specular de materiales de 'Mesh': {e}")
+
             return {'FINISHED'}
             
         except Exception as e:
