@@ -446,6 +446,30 @@ class UNIVERSALGTA_PT_UtilitiesPanel(Panel):
         layout = self.layout
         texture_box = layout.box()
         texture_box.label(text="🎨 Texture Tools", icon=get_blender5_icon('NODE_TEXTURE'))
+
+        props = getattr(context.scene, "texture_exporter_props", None)
+        if props:
+            config_box = texture_box.box()
+            config_box.label(text="Modo de Exportación", icon=get_blender5_icon('SETTINGS'))
+            config_box.prop(props, "export_mode", expand=True)
+
+            format_box = config_box.box()
+            format_box.label(text="Formato de Exportación", icon=get_blender5_icon('IMAGE_DATA'))
+            format_box.prop(props, "force_format_enabled")
+            format_row = format_box.row()
+            format_row.enabled = props.force_format_enabled
+            format_row.prop(props, "forced_format", text="Formato")
+
+            if props.export_path:
+                path_box = config_box.box()
+                path_box.label(text="Carpeta Actual:", icon=get_blender5_icon('FILE_FOLDER'))
+                path_box.label(text=os.path.basename(props.export_path))
+                path_parts = props.export_path.split(os.sep)
+                if len(path_parts) > 3:
+                    short_path = "..." + os.sep + os.sep.join(path_parts[-2:])
+                else:
+                    short_path = props.export_path
+                path_box.label(text=short_path, icon=get_blender5_icon('FILE_FOLDER'))
         
         tex_row1 = texture_box.row()
         tex_row1.operator("universalgta.export_textures_with_browser", 
@@ -456,22 +480,6 @@ class UNIVERSALGTA_PT_UtilitiesPanel(Panel):
         tex_row2.operator("universalgta.quick_texture_export", 
                          text="⚡ Quick Export to /textures", 
                          icon=get_blender5_icon('FILE_REFRESH'))
-        
-        tex_row3 = texture_box.row()
-        tex_row3.operator("universalgta.export_textures_enhanced", 
-                         text="Export + Smart Processing", 
-                         icon=get_blender5_icon('PRESET_NEW'))
-        
-        tex_row4 = texture_box.row()
-        tex_row4.operator("universalgta.quick_material_rgb_fix", 
-                         text="Quick RGB Fix", 
-                         icon=get_blender5_icon('AUTO'))
-        
-        tex_row5 = texture_box.row()
-        tex_row5.scale_y = 1.3
-        tex_row5.operator("universalgta.manual_smart_baking", 
-                         text="🔥 Smart Baking", 
-                         icon=get_blender5_icon('SHADING_RENDERED'))
         
         # Info sobre las nuevas funciones
         info_box = texture_box.box()

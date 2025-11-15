@@ -3,9 +3,206 @@
 import bpy
 import os
 import bmesh
-from bpy.types import Operator
-from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
+from bpy.types import Operator, PropertyGroup
+from bpy.props import (
+    StringProperty,
+    BoolProperty,
+    EnumProperty,
+    IntProperty,
+    PointerProperty,
+)
+from bpy_extras.io_utils import ExportHelper
 from mathutils import Color, Vector
+from mathutils import Color, Vector
+
+
+FORMAT_EXTENSION_MAP = {
+    'PNG': '.png',
+    'JPEG': '.jpg',
+    'JPEG2000': '.jp2',
+    'TARGA': '.tga',
+    'TARGA_RAW': '.tga',
+    'BMP': '.bmp',
+    'TIFF': '.tif',
+    'OPEN_EXR': '.exr',
+    'OPEN_EXR_MULTILAYER': '.exr',
+    'HDR': '.hdr',
+    'WEBP': '.webp',
+    'DDS': '.dds',
+    'CINEON': '.cin',
+    'DPX': '.dpx',
+    'IRIS': '.rgb',
+}
+
+FORCED_FORMAT_ITEMS = [
+    ('PNG', "PNG", "Guardar como PNG"),
+    ('JPEG', "JPEG", "Guardar como JPEG (comprimido)"),
+    ('TIFF', "TIFF", "Guardar como TIFF (sin pérdida)"),
+    ('OPEN_EXR', "OpenEXR", "Guardar como OpenEXR (alto rango dinámico)"),
+    ('TARGA', "TGA", "Guardar como TGA"),
+    ('BMP', "BMP", "Guardar como BMP"),
+    ('HDR', "HDR", "Guardar como HDR (rango dinámico alto)"),
+]
+
+EXPORT_MODE_ITEMS = [
+    ('ALL', "Todas las Texturas", "Exportar todas las texturas del proyecto", 'MATERIAL', 0),
+    ('SELECTED', "Solo del Objeto Seleccionado", "Exportar solo las texturas del objeto seleccionado", 'RESTRICT_SELECT_OFF', 1),
+]
+
+SUFFIXES_TO_REMOVE = ['_png', '_jpg', '_jpeg', '_tga', '_bmp', '_tiff', '_exr', '_hdr']
+
+
+def get_extension_for_format(file_format: str) -> str:
+    return FORMAT_EXTENSION_MAP.get(file_format, '.png')
+
+
+class TextureExporterProperties(PropertyGroup):
+    export_path: StringProperty(
+        name="Carpeta de Exportación",
+        description="Selecciona la carpeta donde guardar las texturas",
+        default="",
+        maxlen=1024,
+        subtype='DIR_PATH'
+    )
+
+    export_mode: EnumProperty(
+        name="Modo de Exportación",
+        description="Selecciona qué texturas exportar",
+        items=EXPORT_MODE_ITEMS,
+        default='ALL'
+    )
+
+    force_format_enabled: BoolProperty(
+        name="Forzar formato",
+        description="Exportar todas las texturas en un formato específico",
+        default=False
+    )
+
+    forced_format: EnumProperty(
+        name="Formato objetivo",
+        description="Formato final para todas las texturas exportadas",
+        items=FORCED_FORMAT_ITEMS,
+        default='PNG'
+    )
+
+
+def _get_texture_exporter_props(context):
+    return getattr(context.scene, "texture_exporter_props", None)
+
+
+def _collect_images_to_export(context, export_mode):
+    images_to_export = set()
+
+    if export_mode == 'ALL':
+        images_to_export = set(bpy.data.images)
+    elif export_mode == 'SELECTED':
+        selected_objects = list(context.selected_objects) if hasattr(context, 'selected_objects') else []
+        if not selected_objects:
+            return None, "No hay ningún objeto seleccionado"
+
+        found_any_materials = False
+        for obj in selected_objects:
+            if not hasattr(obj, 'data') or not hasattr(obj.data, 'materials') or not obj.data.materials:
+                continue
+            found_any_materials = True
+            for material_slot in obj.material_slots:
+                if material_slot.material and material_slot.material.use_nodes:
+                    for node in material_slot.material.node_tree.nodes:
+                        if node.type == 'TEX_IMAGE' and node.image:
+                            images_to_export.add(node.image)
+                            print(f"📷 Encontrada textura: {node.image.name} en objeto {obj.name}, material {material_slot.material.name}")
+
+        if not found_any_materials:
+            return None, "Los objetos seleccionados no tienen materiales"
+
+    return images_to_export, None
+
+
+def _normalize_export_path(path: str) -> str:
+    return os.path.abspath(os.path.normpath(os.path.expanduser(path)))
+
+
+def _describe_export_mode(context, export_mode):
+    if export_mode == 'ALL':
+        return "todas las texturas"
+    num_sel = len(context.selected_objects) if hasattr(context, 'selected_objects') else (1 if context.active_object else 0)
+    return f"texturas de la selección ({num_sel} objeto(s))"
+
+
+def _export_images(images_to_export, export_path, force_format_enabled, forced_format):
+    exported = []
+    failed = []
+
+    for image in images_to_export:
+        if not image or not getattr(image, "size", None):
+            failed.append(getattr(image, "name", "desconocida"))
+            continue
+
+        if image.size[0] <= 0 or image.size[1] <= 0:
+            print(f"⚠️ Imagen no válida para exportar: {image.name}")
+            failed.append(image.name)
+            continue
+
+        image_name = bpy.path.clean_name(image.name)
+        name_without_ext = os.path.splitext(image_name)[0]
+
+        for suffix in SUFFIXES_TO_REMOVE:
+            if name_without_ext.lower().endswith(suffix):
+                name_without_ext = name_without_ext[:-len(suffix)]
+                break
+
+        original_format_setting = getattr(image, 'file_format', None) or 'PNG'
+        target_format = forced_format if force_format_enabled and forced_format else original_format_setting or 'PNG'
+        extension = get_extension_for_format(target_format)
+        image_name = name_without_ext + extension
+        export_file = os.path.join(export_path, image_name)
+
+        try:
+            original_filepath = image.filepath_raw
+            previous_format_setting = getattr(image, 'file_format', None)
+
+            image.use_fake_user = True
+            image.filepath_raw = export_file
+            image.file_format = target_format
+            image.save()
+
+            image.filepath_raw = original_filepath
+            if previous_format_setting is not None:
+                image.file_format = previous_format_setting
+
+            print(f"✅ Exportada: {export_file}")
+            exported.append(image_name)
+        except Exception as e:
+            print(f"❌ Error exportando {image.name}: {e}")
+            failed.append(image.name)
+            image.filepath_raw = original_filepath
+            if previous_format_setting is not None:
+                image.file_format = previous_format_setting
+
+    return exported, failed
+
+
+def _report_export_summary(operator, context, exported, failed, export_mode, force_format_enabled, forced_format):
+    mode_text = _describe_export_mode(context, export_mode)
+    format_suffix = f" • Formato: {forced_format}" if force_format_enabled else ""
+
+    if exported:
+        operator.report({'INFO'}, f"Exportadas {len(exported)} {mode_text} exitosamente (sin pérdida de color){format_suffix}")
+    else:
+        operator.report({'WARNING'}, f"No se pudo exportar ninguna textura de {mode_text}{format_suffix}")
+
+    if failed:
+        operator.report({'WARNING'}, f"{len(failed)} texturas fallaron al exportar")
+
+    print(f"\n📁 Exportación terminada ({mode_text}).")
+    print(f"Total exportadas: {len(exported)}")
+    print(f"No exportadas: {len(failed)}")
+    if force_format_enabled:
+        print(f"Formato final aplicado: {forced_format}")
+    if failed:
+        print("Estas no se exportaron:")
+        for name in failed:
+            print(f" - {name}")
 
 
 def get_original_texture_resolution(material):
@@ -1027,176 +1224,213 @@ class UNIVERSALGTA_OT_pre_conversion_rasterization_advanced(Operator):
 
 
 class UNIVERSALGTA_OT_quick_texture_export(Operator):
-    """Exportación rápida de texturas mejorada"""
+    """Exportación rápida reutilizando la última configuración"""
     bl_idname = "universalgta.quick_texture_export"
     bl_label = "⚡ Quick Texture Export"
-    bl_description = "Exporta todas las texturas rápidamente a /textures"
+    bl_description = "Exporta rápidamente usando la última carpeta seleccionada"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        try:
-            # Verificar archivo guardado
-            blend_file = bpy.data.filepath
-            if not blend_file:
-                self.report({'WARNING'}, "Guarda el archivo .blend primero")
-                return {'CANCELLED'}
-            
-            # Crear directorio de texturas
-            texture_dir = os.path.join(os.path.dirname(blend_file), "textures")
-            os.makedirs(texture_dir, exist_ok=True)
-            
-            exported = 0
-            for image in bpy.data.images:
-                if image.size[0] > 0 and image.size[1] > 0:
-                    try:
-                        # Naming para GTA SA
-                        name = image.name.split('.')[0]  # Remover extensión
-                        name = name.replace(' ', '_')    # Espacios por underscores
-                        
-                        filepath = os.path.join(texture_dir, f"{name}.png")
-                        
-                        # Configurar formato
-                        image.file_format = 'PNG'
-                        image.save_render(filepath)
-                        exported += 1
-                        
-                    except Exception as e:
-                        print(f"❌ Error exportando {image.name}: {e}")
-            
-            self.report({'INFO'}, f"✅ {exported} texturas exportadas a /textures")
-            return {'FINISHED'}
-            
-        except Exception as e:
-            self.report({'ERROR'}, f"Error en exportación: {e}")
+        props = _get_texture_exporter_props(context)
+        if not props:
+            self.report({'ERROR'}, "Propiedades de exportación no disponibles")
             return {'CANCELLED'}
 
+        export_path = props.export_path
+        if not export_path or not os.path.exists(export_path):
+            self.report({'ERROR'}, "Primero selecciona una carpeta válida con 'Export Textures (Browse)'")
+            return {'CANCELLED'}
 
-class UNIVERSALGTA_OT_export_textures_enhanced(Operator):
-    """Exportación de texturas con configuraciones avanzadas"""
+        if props.export_mode == 'SELECTED':
+            selected_objects = list(context.selected_objects) if hasattr(context, 'selected_objects') else []
+            if not selected_objects:
+                self.report({'ERROR'}, "Selecciona uno o más objetos para exportar sus texturas")
+                return {'CANCELLED'}
+
+        images_to_export, error_msg = _collect_images_to_export(context, props.export_mode)
+        if error_msg:
+            self.report({'ERROR'}, error_msg)
+            return {'CANCELLED'}
+
+        if not images_to_export:
+            self.report({'WARNING'}, "No se encontraron texturas para exportar")
+            return {'CANCELLED'}
+
+        export_path = _normalize_export_path(export_path)
+        try:
+            os.makedirs(export_path, exist_ok=True)
+        except Exception as e:
+            self.report({'ERROR'}, f"No se pudo crear la carpeta: {e}")
+            return {'CANCELLED'}
+
+        exported, failed = _export_images(
+            images_to_export,
+            export_path,
+            props.force_format_enabled,
+            props.forced_format if props.force_format_enabled else None,
+        )
+
+        props.export_path = export_path
+
+        _report_export_summary(self, context, exported, failed, props.export_mode, props.force_format_enabled, props.forced_format)
+        return {'FINISHED'}
+
+
+class UNIVERSALGTA_OT_export_textures_enhanced(Operator, ExportHelper):
+    """Exportación avanzada usando el nuevo sistema universal"""
     bl_idname = "universalgta.export_textures_enhanced"
     bl_label = "🎨 Enhanced Texture Export"
-    bl_description = "Exportación avanzada con formatos y resoluciones configurables"
+    bl_description = "Exporta texturas con opciones de formato y selección personalizadas"
     bl_options = {'REGISTER', 'UNDO'}
-    
-    export_format: EnumProperty(
-        name="Export Format",
-        items=[
-            ('PNG', 'PNG', 'Formato PNG con transparencia'),
-            ('JPEG', 'JPEG', 'Formato JPEG comprimido'),
-            ('TGA', 'TGA', 'Formato TGA para GTA SA'),
-        ],
+
+    filename_ext = ""
+    use_filter_folder = True
+
+    directory: StringProperty(
+        name="Carpeta de Destino",
+        description="Selecciona la carpeta donde guardar las texturas",
+        maxlen=1024,
+        subtype='DIR_PATH'
+    )
+
+    export_mode: EnumProperty(
+        name="Modo de Exportación",
+        description="Selecciona qué texturas exportar",
+        items=EXPORT_MODE_ITEMS,
+        default='ALL'
+    )
+
+    force_format_enabled: BoolProperty(
+        name="Forzar formato",
+        description="Exportar todas las texturas en un formato específico",
+        default=True
+    )
+
+    forced_format: EnumProperty(
+        name="Formato objetivo",
+        description="Formato final para todas las texturas exportadas",
+        items=FORCED_FORMAT_ITEMS,
         default='PNG'
-    )
-    
-    resize_textures: BoolProperty(
-        name="Resize Textures",
-        description="Redimensionar texturas al exportar",
-        default=False
-    )
-    
-    target_resolution: IntProperty(
-        name="Target Resolution",
-        description="Resolución objetivo para redimensionar",
-        default=512,
-        min=64,
-        max=2048
     )
 
     def execute(self, context):
-        try:
-            blend_file = bpy.data.filepath
-            if not blend_file:
-                self.report({'WARNING'}, "Guarda el archivo .blend primero")
-                return {'CANCELLED'}
-            
-            texture_dir = os.path.join(os.path.dirname(blend_file), "textures_enhanced")
-            os.makedirs(texture_dir, exist_ok=True)
-            
-            exported = 0
-            for image in bpy.data.images:
-                if image.size[0] > 0 and image.size[1] > 0:
-                    try:
-                        # Preparar nombre
-                        name = image.name.split('.')[0].replace(' ', '_')
-                        ext = self.export_format.lower()
-                        filepath = os.path.join(texture_dir, f"{name}.{ext}")
-                        
-                        # Redimensionar si está habilitado
-                        if self.resize_textures:
-                            image.scale(self.target_resolution, self.target_resolution)
-                        
-                        # Configurar formato
-                        image.file_format = self.export_format
-                        if self.export_format == 'JPEG':
-                            image.jpeg_quality = 90
-                        
-                        image.save_render(filepath)
-                        exported += 1
-                        
-                    except Exception as e:
-                        print(f"❌ Error exportando {image.name}: {e}")
-            
-            self.report({'INFO'}, f"✅ {exported} texturas exportadas (Enhanced)")
-            return {'FINISHED'}
-            
-        except Exception as e:
-            self.report({'ERROR'}, f"Error en exportación enhanced: {e}")
+        if not self.directory:
+            self.report({'ERROR'}, "Selecciona una carpeta válida")
             return {'CANCELLED'}
+
+        export_path = _normalize_export_path(self.directory)
+        try:
+            os.makedirs(export_path, exist_ok=True)
+        except Exception as e:
+            self.report({'ERROR'}, f"No se pudo crear la carpeta: {e}")
+            return {'CANCELLED'}
+
+        images_to_export, error_msg = _collect_images_to_export(context, self.export_mode)
+        if error_msg:
+            self.report({'ERROR'}, error_msg)
+            return {'CANCELLED'}
+
+        if not images_to_export:
+            self.report({'WARNING'}, "No se encontraron texturas para exportar")
+            return {'CANCELLED'}
+
+        exported, failed = _export_images(
+            images_to_export,
+            export_path,
+            self.force_format_enabled,
+            self.forced_format if self.force_format_enabled else None,
+        )
+
+        props = _get_texture_exporter_props(context)
+        if props:
+            props.export_path = export_path
+            props.export_mode = self.export_mode
+            props.force_format_enabled = self.force_format_enabled
+            props.forced_format = self.forced_format
+
+        _report_export_summary(self, context, exported, failed, self.export_mode, self.force_format_enabled, self.forced_format)
+        return {'FINISHED'}
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "export_format")
-        layout.prop(self, "resize_textures")
-        if self.resize_textures:
-            layout.prop(self, "target_resolution")
+        layout.prop(self, "export_mode", text="Modo")
+        layout.prop(self, "force_format_enabled")
+        row = layout.row()
+        row.enabled = self.force_format_enabled
+        row.prop(self, "forced_format", text="Formato")
+
+    def invoke(self, context, event):
+        props = _get_texture_exporter_props(context)
+        if props:
+            if props.export_path:
+                self.directory = props.export_path
+            self.export_mode = props.export_mode
+            self.force_format_enabled = props.force_format_enabled
+            self.forced_format = props.forced_format
+
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
-class UNIVERSALGTA_OT_export_textures_with_browser(Operator):
-    """Exportador con navegador de archivos"""
+class UNIVERSALGTA_OT_export_textures_with_browser(Operator, ExportHelper):
+    """Exportador con navegador de archivos basado en el nuevo sistema"""
     bl_idname = "universalgta.export_textures_with_browser"
     bl_label = "📁 Export Textures (Browse)"
-    bl_description = "Exporta texturas con navegador de archivos"
+    bl_description = "Exporta texturas seleccionando la carpeta de destino"
     bl_options = {'REGISTER', 'UNDO'}
-    
+
+    filename_ext = ""
+    use_filter_folder = True
+
     directory: StringProperty(
-        name="Directorio de destino",
-        description="Selecciona dónde guardar las texturas",
+        name="Carpeta de Destino",
+        description="Selecciona la carpeta donde guardar las texturas",
         maxlen=1024,
         subtype='DIR_PATH'
     )
 
     def execute(self, context):
+        props = _get_texture_exporter_props(context)
+        if not props:
+            self.report({'ERROR'}, "Propiedades de exportación no disponibles")
+            return {'CANCELLED'}
+
         if not self.directory:
             self.report({'ERROR'}, "Selecciona un directorio válido")
             return {'CANCELLED'}
-        
+
+        export_path = _normalize_export_path(self.directory)
         try:
-            os.makedirs(self.directory, exist_ok=True)
-            
-            exported = 0
-            for image in bpy.data.images:
-                if image.size[0] > 0 and image.size[1] > 0:
-                    try:
-                        name = image.name.split('.')[0].replace(' ', '_')
-                        filepath = os.path.join(self.directory, f"{name}.png")
-                        
-                        # Configurar formato
-                        image.file_format = 'PNG'
-                        image.save_render(filepath)
-                        exported += 1
-                        
-                    except Exception as e:
-                        print(f"❌ Error exportando {image.name}: {e}")
-            
-            self.report({'INFO'}, f"✅ {exported} texturas exportadas a directorio seleccionado")
-            return {'FINISHED'}
-            
+            os.makedirs(export_path, exist_ok=True)
         except Exception as e:
-            self.report({'ERROR'}, f"Error en exportación con browser: {e}")
+            self.report({'ERROR'}, f"No se pudo crear la carpeta: {e}")
             return {'CANCELLED'}
 
+        images_to_export, error_msg = _collect_images_to_export(context, props.export_mode)
+        if error_msg:
+            self.report({'ERROR'}, error_msg)
+            return {'CANCELLED'}
+
+        if not images_to_export:
+            self.report({'WARNING'}, "No se encontraron texturas para exportar")
+            return {'CANCELLED'}
+
+        exported, failed = _export_images(
+            images_to_export,
+            export_path,
+            props.force_format_enabled,
+            props.forced_format if props.force_format_enabled else None,
+        )
+
+        props.export_path = export_path
+
+        _report_export_summary(self, context, exported, failed, props.export_mode, props.force_format_enabled, props.forced_format)
+        return {'FINISHED'}
+
     def invoke(self, context, event):
-        # Abrir browser de directorios
+        props = _get_texture_exporter_props(context)
+        if props and props.export_path:
+            self.directory = props.export_path
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -1604,6 +1838,7 @@ class UNIVERSALGTA_OT_pre_conversion_rasterization(Operator):
 # ========================================================================================
 
 classes = [
+    TextureExporterProperties,
     UNIVERSALGTA_OT_pre_conversion_rasterization_advanced,
     UNIVERSALGTA_OT_pre_conversion_rasterization,  # Alias de compatibilidad
     UNIVERSALGTA_OT_quick_texture_export,
@@ -1621,11 +1856,17 @@ def register():
             bpy.utils.register_class(cls)
         except ValueError:
             pass  # Ya registrado
+    if not hasattr(bpy.types.Scene, "texture_exporter_props"):
+        bpy.types.Scene.texture_exporter_props = PointerProperty(
+            type=TextureExporterProperties
+        )
     print("[TEXTURE_EXPORT_ADVANCED] ✅ Todos los operadores avanzados registrados")
 
 
 def unregister():
     """Desregistrar operadores avanzados de texturas"""
+    if hasattr(bpy.types.Scene, "texture_exporter_props"):
+        del bpy.types.Scene.texture_exporter_props
     for cls in reversed(classes):
         try:
             bpy.utils.unregister_class(cls)
