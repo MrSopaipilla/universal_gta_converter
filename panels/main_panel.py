@@ -172,7 +172,7 @@ class UNIVERSALGTA_PT_MainPanel(Panel):
         preserve_box.scale_y = 0.8
         preserve_row = preserve_box.row()
         preserve_row.prop(settings, "preserve_vertex_data", 
-             text="☑️ Preservar Vertex Colors / Atributos")
+             text="Preservar Vertex Colors / Atributos")
         raster_row = preserve_box.row()
         raster_row.prop(settings, "rasterize_textures", text="Limpiar materiales")
         clean_row = preserve_box.row()
