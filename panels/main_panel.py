@@ -174,9 +174,9 @@ class UNIVERSALGTA_PT_MainPanel(Panel):
         preserve_row.prop(settings, "preserve_vertex_data", 
              text="Preservar Vertex Colors / Atributos")
         raster_row = preserve_box.row()
-        raster_row.prop(settings, "rasterize_textures", text="Limpiar materiales")
+        raster_row.prop(settings, "rasterize_textures", text="Rasterizar texturas RVA")
         clean_row = preserve_box.row()
-        clean_row.prop(settings, "clean_materials", text="Rasterizar texturas RVA")
+        clean_row.prop(settings, "clean_materials", text="Limpiar materiales")
 
 class UNIVERSALGTA_PT_AdvancedMappingPanel(Panel):
     """Panel de mapeo avanzado"""
