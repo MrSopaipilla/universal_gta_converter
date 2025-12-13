@@ -9,6 +9,22 @@ class UNIVERSALGTA_OT_adjust_skin_height(bpy.types.Operator):
     bl_description = "Escala la malla y armature para ajustar la altura del skin en metros"
 
     def execute(self, context):
+        # Asegurar que estamos en modo OBJECT antes de cualquier operación
+        if context.object and context.object.mode != 'OBJECT':
+            try:
+                bpy.ops.object.mode_set(mode='OBJECT')
+            except Exception:
+                pass
+                
+        # Doble verificación para asegurar contexto correcto para operadores
+        if context.mode != 'OBJECT':
+            # Intentar forzar cambio de contexto si method anterior falló o no había objeto activo
+            try:
+                if context.view_layer.objects.active:
+                    bpy.ops.object.mode_set(mode='OBJECT')
+            except Exception:
+                pass
+
         scene = context.scene
         height = getattr(scene, 'gta_skin_height', 1.8)
 
@@ -239,7 +255,14 @@ class UNIVERSALGTA_OT_adjust_skin_height(bpy.types.Operator):
         prev_selected = [o for o in context.selected_objects]
 
         try:
-            bpy.ops.object.select_all(action='DESELECT')
+            # Intentar deseleccionar todo de forma segura
+            try:
+                if bpy.ops.object.select_all.poll():
+                    bpy.ops.object.select_all(action='DESELECT')
+                else:
+                    self.report({'WARNING'}, "No se pudo deseleccionar objetos (contexto incorrecto)")
+            except Exception as e:
+                self.report({'WARNING'}, f"Fallo al deseleccionar inicial: {e}")
 
             # Determinar armature de referencia (si existe) para el ajuste de hueso
             ref_armature = next((o for o in sel_objs if o.type == 'ARMATURE'), None)
@@ -255,53 +278,61 @@ class UNIVERSALGTA_OT_adjust_skin_height(bpy.types.Operator):
 
             # Paso 4: aplicar todas las transformaciones a los objetos modificados
             for obj in objs_to_scale:
-                context.view_layer.objects.active = obj
-                obj.select_set(True)
-                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-                obj.select_set(False)
+                try:
+                    context.view_layer.objects.active = obj
+                    obj.select_set(True)
+                    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                    obj.select_set(False)
+                except Exception as e:
+                    self.report({'WARNING'}, f"No se pudo aplicar transform a {obj.name}: {e}")
 
             # Después de las transformaciones parciales, aplicar transform a TODOS los objetos
             # para garantizar que local/world transforms queden aplicados.
             # Asegurarse de estar en Object mode antes de operar.
             try:
-                if bpy.ops.object.mode_set.poll():
+                if context.mode != 'OBJECT':
                     bpy.ops.object.mode_set(mode='OBJECT')
             except Exception:
                 pass
-            bpy.ops.object.select_all(action='SELECT')
+                
             try:
+                bpy.ops.object.select_all(action='SELECT')
                 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+            except Exception as e:
+                self.report({'WARNING'}, f"Warning en transform_apply global: {e}")
+                
+            try:
+                bpy.ops.object.select_all(action='DESELECT')
             except Exception:
-                # En caso de que aplicar a algún tipo falle, continuar
                 pass
-            bpy.ops.object.select_all(action='DESELECT')
 
             # Paso 5: detectar hueso raíz mediante custom property bone_id == 0 en el armature de referencia
             root_bone_name = find_bone_by_id(ref_armature, 0) if ref_armature is not None else None
             if root_bone_name is None:
-                self.report({'WARNING'}, "No se encontró hueso con custom property bone_id == 0 en el armature de referencia")
+                # No es error crítico, solo warning
+                pass 
+                # self.report({'WARNING'}, "No se encontró hueso con bone_id == 0")
             else:
                 # Paso 6: mover el hueso root al pivote (origin) del armature en espacio mundial
-                bpy.ops.object.select_all(action='DESELECT')
-                ref_armature.select_set(True)
-                context.view_layer.objects.active = ref_armature
-                bpy.ops.object.mode_set(mode='EDIT')
-                eb = ref_armature.data.edit_bones.get(root_bone_name)
-                if eb:
-                    # Código simple y directo como en el script que funciona
-                    try:
-                        # Desconectar/desparentar primero
+                try:
+                    bpy.ops.object.select_all(action='DESELECT')
+                    ref_armature.select_set(True)
+                    context.view_layer.objects.active = ref_armature
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    
+                    eb = ref_armature.data.edit_bones.get(root_bone_name)
+                    if eb:
                         eb.use_connect = False
                         eb.parent = None
-                        
-                        # Mover directo al origin como en tu script
                         eb.head = Vector((0.0, 0.0, 0.0))
                         eb.tail = Vector((0.04, 0.0, 0.0))
+                        self.report({'INFO'}, "Root bone movido al origen")
                         
-                        self.report({'INFO'}, "Root bone moved to origin (direct approach)")
-                    except Exception as e:
-                        self.report({'WARNING'}, f"Failed to move bone: {str(e)}")
-                bpy.ops.object.mode_set(mode='OBJECT')
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                except Exception as e:
+                    self.report({'WARNING'}, f"Error ajustando root bone: {e}")
+                    if context.mode != 'OBJECT':
+                        bpy.ops.object.mode_set(mode='OBJECT')
 
             # Restaurar padres originales (se ejecuta siempre)
             for o, p in parent_map.items():
@@ -314,12 +345,35 @@ class UNIVERSALGTA_OT_adjust_skin_height(bpy.types.Operator):
                 except Exception:
                     pass
 
+        except Exception as e:
+            self.report({'ERROR'}, f"Error crítico aplicando altura: {e}")
+            return {'CANCELLED'}
+
         finally:
-            # Restaurar selección
-            bpy.ops.object.select_all(action='DESELECT')
-            for o in prev_selected:
-                o.select_set(True)
-            context.view_layer.objects.active = prev_active
+            # Restaurar selección de forma segura
+            try:
+                if context.mode != 'OBJECT':
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                
+                bpy.ops.object.select_all(action='DESELECT')
+                
+                # Validar que los objetos originales aún existan antes de seleccionarlos
+                safe_select = []
+                for o in prev_selected:
+                    try:
+                        if o and o.name in context.scene.objects:
+                            safe_select.append(o)
+                    except:
+                        pass
+                        
+                for o in safe_select:
+                    o.select_set(True)
+                    
+                if prev_active and prev_active.name in context.scene.objects:
+                    context.view_layer.objects.active = prev_active
+                    
+            except Exception as e:
+                print(f"Error restaurando selección: {e}")
 
         self.report({'INFO'}, f"Altura aplicada: factor {scale_factor:.4f}")
         return {'FINISHED'}
