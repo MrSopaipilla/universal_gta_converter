@@ -13,7 +13,7 @@ from bpy.props import (
 # Propiedades globales de la escena
 bpy.types.Scene.gta_leg_roll_angle = FloatProperty(
     name="Leg Roll Angle",
-    description="Ajustar ángulo de rotación para las piernas",
+    description="Ajustar ángulo de rotación para las piernas (Offset relativo)",
     default=0.0,
     min=-180.0,
     max=180.0,

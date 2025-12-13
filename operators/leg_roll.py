@@ -24,11 +24,16 @@ class UNIVERSALGTA_OT_apply_leg_roll(Operator):
         bpy.context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='EDIT')
 
-        angle = context.scene.gta_leg_roll_angle
+        offset = context.scene.gta_leg_roll_angle
+        
+        # Valores de referencia GTA SA (Asimetria natural)
+        ref_left = -14.2734
+        ref_right = -148.123
 
+        # Aplicar offset simetricamente (invertido para R para mantener simetria visual de la operacion)
         bone_names = {
-            ' L Thigh': angle,
-            ' R Thigh': -angle
+            ' L Thigh': ref_left + offset,
+            ' R Thigh': ref_right - offset
         }
 
         edit_bones = armature.data.edit_bones
