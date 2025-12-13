@@ -21,141 +21,108 @@ class UNIVERSALGTA_OT_apply_custom_pose(Operator):
     
     def execute(self, context):
         try:
-            # Buscar armature target "GTA SA (Root)"
+
+            # Asegurar que estamos en modo OBJECT antes de cualquier operación de selección
+            if context.object and context.object.mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+            
+            # Obtener configuración
+            settings = getattr(context.scene, 'universal_gta_settings', None)
             target_armature = None
-            for obj in bpy.data.objects:
-                if obj.type == 'ARMATURE' and 'Root' in obj.name:
-                    target_armature = obj
-                    break
+            
+            # Intentar obtener armature desde settings
+            if settings and settings.target_armature:
+                target_armature = settings.target_armature
+            
+            # Fallback: Buscar por nombre si no está en settings
+            if not target_armature:
+                for obj in bpy.data.objects:
+                    if obj.type == 'ARMATURE' and 'Root' in obj.name:
+                        target_armature = obj
+                        break
             
             if not target_armature:
-                self.report({'ERROR'}, "No se encontro armature target 'GTA SA (Root)'")
+                self.report({'ERROR'}, "No se encontró armature target (configure 'Target Armature' en el panel o use un armature con 'Root' en el nombre)")
                 return {'CANCELLED'}
+
+            print(f"[POSE] Target Armature: {target_armature.name}")
             
-            # Guardar objeto activo original
-            original_active = context.active_object
+            # Buscamos mallas que tengan modificador Armature apuntando a este target
+            meshes_to_process = []
             
-            # PASO 1: Aplicar modificador de Armature a la malla padre de GTA SA (Root)
-            parent_mesh = target_armature.parent
-            if parent_mesh and parent_mesh.type == 'MESH':
-                # Buscar modificadores de Armature que apuntan al target_armature
-                modifier_names = [mod.name for mod in parent_mesh.modifiers 
-                                if mod.type == 'ARMATURE' and mod.object == target_armature]
-                
-                if modifier_names:
-                    # Seleccionar y activar la malla padre
-                    bpy.ops.object.select_all(action='DESELECT')
-                    parent_mesh.select_set(True)
-                    context.view_layer.objects.active = parent_mesh
-                    
-                    # Aplicar cada modificador de Armature (aplicar en orden inverso)
-                    for mod_name in reversed(modifier_names):
-                        try:
-                            if mod_name in parent_mesh.modifiers:
-                                bpy.ops.object.modifier_apply(modifier=mod_name)
-                                print(f"[POSE] Modificador '{mod_name}' aplicado a malla padre '{parent_mesh.name}'")
-                        except Exception as e:
-                            print(f"[POSE] Error aplicando modificador '{mod_name}' en '{parent_mesh.name}': {e}")
-                    print(f"[POSE] Modificadores aplicados a malla padre '{parent_mesh.name}'")
-                else:
-                    print(f"[POSE] No se encontraron modificadores de Armature en malla padre '{parent_mesh.name}'")
-            else:
-                print("[POSE] No se encontró malla padre para GTA SA (Root)")
-            
-            # PASO 2: Aplicar la pose del armature a rest pose (como reset pose)
-            try:
-                bpy.context.view_layer.objects.active = target_armature
-                bpy.ops.object.mode_set(mode='POSE')
-                bpy.ops.pose.armature_apply(selected=False)
-                bpy.ops.object.mode_set(mode='OBJECT')
-                print("[POSE] Pose del armature aplicada como rest pose")
-            except Exception as e:
-                print(f"[POSE] Error aplicando pose como rest pose: {e}")
-            
-            # PASO 3: Aplicar la pose personalizada del armature
-            try:
-                from ..external_pose_caller import apply_external_pose
-                success = apply_external_pose(target_armature)
-                
-                if success:
-                    print("[POSE] Pose personalizada aplicada usando external_pose_caller")
-                else:
-                    # Fallback: aplicar pose basica
-                    self.apply_basic_pose(target_armature)
-                    print("[POSE] Pose basica aplicada (fallback)")
-                    
-            except ImportError:
-                # Fallback: aplicar pose basica
-                self.apply_basic_pose(target_armature)
-                print("[POSE] Pose basica aplicada (external_pose_caller no disponible)")
-            
-            # PASO 4: Aplicar modificadores de Armature que apuntan a GTA SA (Root) (otras mallas)
-            mesh_objects_processed = []
-            # Incluir la malla padre si existe y aún no se procesó completamente
-            if parent_mesh and parent_mesh.type == 'MESH':
-                mesh_objects_processed.append(parent_mesh)
-            
-            # Buscar otras mallas con modificadores
+            # Recorrer todos los objetos mesh
             for obj in bpy.data.objects:
-                if obj.type == 'MESH' and obj != parent_mesh:
-                    # Buscar modificadores de Armature que apuntan al target_armature
-                    # Guardar nombres primero porque la lista puede cambiar al aplicar
-                    modifier_names = [mod.name for mod in obj.modifiers 
-                                    if mod.type == 'ARMATURE' and mod.object == target_armature]
+                if obj.type == 'MESH':
+                    modifiers_to_apply = []
+                    for mod in obj.modifiers:
+                        if mod.type == 'ARMATURE' and mod.object == target_armature:
+                            modifiers_to_apply.append(mod.name)
                     
-                    if modifier_names:
-                        # Seleccionar y activar el objeto mesh
-                        bpy.ops.object.select_all(action='DESELECT')
-                        obj.select_set(True)
-                        context.view_layer.objects.active = obj
-                        
-                        # Aplicar cada modificador de Armature (aplicar en orden inverso para evitar problemas de índices)
-                        for mod_name in reversed(modifier_names):
-                            try:
-                                # Verificar que el modificador aún existe
-                                if mod_name in obj.modifiers:
-                                    # Aplicar el modificador
-                                    bpy.ops.object.modifier_apply(modifier=mod_name)
-                                    print(f"[POSE] Modificador '{mod_name}' aplicado a '{obj.name}'")
-                            except Exception as e:
-                                print(f"[POSE] Error aplicando modificador '{mod_name}' en '{obj.name}': {e}")
-                        
-                        mesh_objects_processed.append(obj)
+                    if modifiers_to_apply:
+                        meshes_to_process.append((obj, modifiers_to_apply))
+
+            if not meshes_to_process:
+                self.report({'WARNING'}, "No se encontraron mallas con modificador Armature apuntando al target")
             
-            if not mesh_objects_processed:
-                self.report({'WARNING'}, "No se encontraron objetos mesh con modificadores de Armature apuntando a GTA SA (Root)")
-            else:
-                print(f"[POSE] Total de mallas a procesar: {len(mesh_objects_processed)}")
-            
-            # PASO 5: Crear nuevos modificadores de Armature apuntando a GTA SA (Root)
-            modifiers_created = 0
-            for obj in mesh_objects_processed:
-                # Seleccionar y activar el objeto mesh
+            # Aplicar modificadores en las mallas encontradas
+            for obj, mod_names in meshes_to_process:
+                # Deseleccionar todo y seleccionar solo el objeto actual
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
                 context.view_layer.objects.active = obj
                 
-                # Crear nuevo modificador de Armature
+                # Aplicar modificadores (en orden inverso por seguridad)
+                for mod_name in reversed(mod_names):
+                    try:
+                        bpy.ops.object.modifier_apply(modifier=mod_name)
+                        print(f"[POSE] Modificador '{mod_name}' aplicado en '{obj.name}'")
+                    except Exception as e:
+                        print(f"[POSE] Error aplicando modificador '{mod_name}' en '{obj.name}': {e}")
+            
+
+            try:
+                bpy.ops.object.select_all(action='DESELECT')
+                target_armature.select_set(True)
+                context.view_layer.objects.active = target_armature
+                
+                bpy.ops.object.mode_set(mode='POSE')
+                # Seleccionar todos los huesos para aplicar la pose
+                bpy.ops.pose.select_all(action='SELECT')
+                bpy.ops.pose.armature_apply(selected=False)
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                print(f"[POSE] Pose aplicada como Rest Pose en '{target_armature.name}'")
+            except Exception as e:
+                self.report({'ERROR'}, f"Error aplicando pose al armature: {e}")
+                import traceback
+                traceback.print_exc()
+                # Intentar recuperar modo objeto
+                if context.object and context.object.mode != 'OBJECT':
+                    bpy.ops.object.mode_set(mode='OBJECT')
+            
+
+            modifiers_created = 0
+            for obj, _ in meshes_to_process:
                 try:
+                    bpy.ops.object.select_all(action='DESELECT')
+                    obj.select_set(True)
+                    context.view_layer.objects.active = obj
+                    
+                    # Crear nuevo modificador
                     new_mod = obj.modifiers.new(name="Armature", type='ARMATURE')
                     new_mod.object = target_armature
                     new_mod.use_vertex_groups = True
                     modifiers_created += 1
                     print(f"[POSE] Nuevo modificador Armature creado en '{obj.name}'")
+                    
                 except Exception as e:
-                    print(f"[POSE] Error creando modificador en '{obj.name}': {e}")
+                    print(f"[POSE] Error recreando modificador en '{obj.name}': {e}")
             
-            # Restaurar objeto activo original
-            if original_active:
-                bpy.ops.object.select_all(action='DESELECT')
-                original_active.select_set(True)
-                context.view_layer.objects.active = original_active
-            
-            self.report({'INFO'}, f"Pose aplicada. {modifiers_created} modificadores recreados")
+            self.report({'INFO'}, f"Proceso completado. {modifiers_created} modificadores recreados.")
             return {'FINISHED'}
                 
         except Exception as e:
-            self.report({'ERROR'}, f"Error aplicando pose: {e}")
+            self.report({'ERROR'}, f"Error crítico aplicando pose: {e}")
             import traceback
             traceback.print_exc()
             return {'CANCELLED'}
