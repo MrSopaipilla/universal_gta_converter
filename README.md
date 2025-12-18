@@ -231,6 +231,37 @@ Por eso el orden es crítico: **los huesos auxiliares (twist y jinglebones) debe
 
 ---
 
+### ✅ Ejemplo de Mapping Correcto (Rig Valve + Anime)
+
+Tomando como referencia un rig de Valve (`valve_bone_mapping.json`) y añadiendo huesos típicos de un modelo de anime (pechos, falda, twist), así debería verse el orden para que el personaje se vea perfecto:
+
+1.  **Huesos Twist (AL INICIO):**
+    *   `ValveBiped.Bip01_L_UpperArm_Twist` → ` L UpperArm`
+    *   `ValveBiped.Bip01_R_UpperArm_Twist` → ` R UpperArm`
+    *   *¿Por qué?* Queremos que el brazo principal sobreescriba cualquier rotación extra del twist al final.
+
+2.  **Jingle Bones (Anime/Accesorios):**
+    *   `Breast_L` → ` Spine1` (Hueso del pecho izquierdo)
+    *   `Breast_R` → ` Spine1` (Hueso del pecho derecho)
+    *   `Side_Hair_L` → ` Head` (Hueso de pelo lateral)
+    *   `Skirt_01_Front` → ` Pelvis` (Hueso de falda delantera)
+    *   *¿Por qué?* Estos huesos deben procesarse antes que el tronco o la cabeza para que no "tiren" del modelo de forma incorrecta si el hueso principal se aplica después.
+
+3.  **Huesos Duplicados (Secundarios):**
+    *   `ValveBiped.Bip01_Spine` → ` Spine1`
+    *   `ValveBiped.Bip01_Spine4` → ` Spine1`
+    *   *¿Por qué?* Estos huesos ayudan a mover el torso, pero no son el punto central del pecho.
+
+4.  **Huesos Principales (AL FINAL - ¡LOS QUE GANAN!):**
+    *   `ValveBiped.Bip01_Pelvis` → ` Pelvis` (**GANA** sobre la falda)
+    *   `ValveBiped.Bip01_Spine2` → ` Spine1` (**GANA** sobre pechos y otros spine - El Spine2 es el pecho real en Valve)
+    *   `ValveBiped.Bip01_L_UpperArm` → ` L UpperArm` (**GANA** sobre el twist)
+    *   `ValveBiped.Bip01_Head1` → ` Head` (**GANA** sobre el pelo)
+
+**Regla de oro:** Lo que pongas más abajo en la lista es lo que el motor de Blender usará como posición final para ese hueso de GTA.
+
+---
+
 ### 📐 Orden Correcto para los Mappings
 
 #### 1. **Huesos Twist** (AL INICIO)
