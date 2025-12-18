@@ -575,7 +575,7 @@ else:
                     failed_count += 1
         
         if failed_count == 0:
-            print("[ADDON] [OK] Universal GTA Converter v4.0.1 desregistrado correctamente")
+            print("[ADDON] [OK] Universal GTA Converter v1.0 desregistrado correctamente")
         else:
             print(f"[ADDON] [WARNING] Desregistrado con {failed_count} errores menores")
 
