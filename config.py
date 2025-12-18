@@ -249,6 +249,5 @@ def register_validation():
     Funcion para registrar validadores adicionales si es necesario.
     Por ahora solo es un placeholder para compatibilidad.
     """
-    print("[CONFIG] Validadores de nombres registrados")
     pass
 

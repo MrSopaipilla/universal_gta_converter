@@ -95,18 +95,14 @@ def check_blender_version():
     """Verifica que estemos en Blender 5.0+"""
     if bpy.app.version < (5, 0, 0):
         print("[ADDON] [WARNING] Advertencia: Este addon fue diseñado para Blender 5.0+")
-        print(f"[ADDON] Versión actual: {bpy.app.version_string}")
-    else:
-        print(f"[ADDON] [OK] Blender 5.0+ detectado: {bpy.app.version_string}")
 
-check_blender_version()
+# Silence auto-check on import
+# check_blender_version()
 
 # === PASO 1: IMPORTAR CONFIGURACIÓN (CRÍTICO) ===
-print("[ADDON] === FASE 1: IMPORTANDO CONFIGURACIÓN ===")
 try:
     from .config import UniversalGTASettings, BoneMappingItem, register_validation
     CONFIG_AVAILABLE = True
-    print("[ADDON] [OK] Configuración importada correctamente")
 except ImportError as e:
     print(f"[ADDON] [ERROR] ERROR CRÍTICO - config.py: {e}")
     CONFIG_AVAILABLE = False
@@ -121,37 +117,27 @@ if not CONFIG_AVAILABLE:
         pass
 else:
     # === PASO 2: IMPORTAR SISTEMA DE PERFILES ===
-    print("[ADDON] === FASE 2: IMPORTANDO SISTEMA DE PERFILES ===")
     try:
         from .rig_profiles import RigProfileSystem
         RIG_PROFILES_AVAILABLE = True
-        print("[ADDON] [OK] Sistema de perfiles de rigs (Smart Auto-Detect) disponible")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] rig_profiles.py no disponible: {e}")
+    except ImportError:
         RIG_PROFILES_AVAILABLE = False
 
     # === PASO 3: IMPORTAR CONVERSOR PRINCIPAL ===
-    print("[ADDON] === FASE 3: IMPORTANDO CONVERSOR ===")
     try:
         from .converter import UniversalGTAConverter
         CONVERTER_AVAILABLE = True
-        print("[ADDON] [OK] Conversor principal disponible")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] converter.py no disponible: {e}")
+    except ImportError:
         CONVERTER_AVAILABLE = False
 
     # === PASO 4: IMPORTAR EXTERNAL POSE CALLER ===
-    print("[ADDON] === FASE 4: IMPORTANDO EXTERNAL POSE CALLER ===")
     try:
         from . import external_pose_caller
         EXTERNAL_POSE_AVAILABLE = True
-        print("[ADDON] [OK] External pose caller disponible")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] external_pose_caller.py no disponible: {e}")
+    except ImportError:
         EXTERNAL_POSE_AVAILABLE = False
 
     # === PASO 5: IMPORTAR OPERADORES (CRÍTICO) ===
-    print("[ADDON] === FASE 5: IMPORTANDO OPERADORES ===")
     
     # Operadores de conversión (OBLIGATORIOS) - SINTAXIS CORREGIDA
     CONVERSION_OPERATORS = []
@@ -170,20 +156,15 @@ else:
             UNIVERSALGTA_OT_execute_conversion_no_autofix,
             UNIVERSALGTA_OT_auto_detect_bones,
         ])
-        print("[OPERATORS] ✅ conversion.py importado")
-    except ImportError as e:
-        print(f"[ADDON] [ERROR] Error importando operadores básicos: {e}")
+    except ImportError:
+        pass
 
     # Importar operador de conversión completa
     try:
         from .operators.gta_complete_conversion import UNIVERSALGTA_OT_complete_gta_conversion
         CONVERSION_OPERATORS.append(UNIVERSALGTA_OT_complete_gta_conversion)
-        print("[OPERATORS] ✅ gta_complete_conversion.py importado")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] No se pudo importar complete_gta_conversion: {e}")
-        print("[ADDON] [INFO] El addon funcionará sin este operador")
-
-    print(f"[ADDON] [INFO] Total operadores de conversión cargados: {len(CONVERSION_OPERATORS)}")
+    except ImportError:
+        pass
 
     # Operadores de mapeo (IMPORTANTES)
     try:
@@ -223,9 +204,7 @@ else:
             UNIVERSALGTA_OT_enable_high_confidence,
             UNIVERSALGTA_OT_enable_only_valid_mappings,
         ]
-        print("[ADDON] [OK] Operadores de mapeo importados")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] operators/mapping.py: {e}")
+    except ImportError:
         MAPPING_OPERATORS = []
 
     # Operadores de validación (IMPORTANTES)
@@ -242,9 +221,7 @@ else:
             UNIVERSALGTA_OT_ignore_naming_warnings,
             UNIVERSALGTA_OT_validate_mappings_and_disable_invalid,
         ]
-        print("[ADDON] [OK] Operadores de validación importados")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] operators/validation_fixed.py: {e}")
+    except ImportError:
         VALIDATION_OPERATORS = []
 
     # Operadores de materiales
@@ -259,9 +236,7 @@ else:
             UNIVERSALGTA_OT_apply_gta_color_all,
             UNIVERSALGTA_OT_verify_materials_gta,
         ]
-        print("[ADDON] [OK] Operadores de materiales importados")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] operators/materials.py: {e}")
+    except ImportError:
         MATERIAL_OPERATORS = []
         
     # === OPERADORES DE TEXTURAS (COMPLETOS) ===
@@ -282,9 +257,7 @@ else:
             UNIVERSALGTA_OT_quick_material_rgb_fix,
             UNIVERSALGTA_OT_manual_smart_baking,
         ]
-        print("[ADDON] ✅ Operadores de texturas importados desde texture_export.py")
-    except ImportError as e:
-        print(f"[ADDON] ❌ Error importando texture_export.py: {e}")
+    except ImportError:
         TEXTURE_EXPORT_OPERATORS = []
 
     # Operadores de pose
@@ -301,9 +274,7 @@ else:
             UNIVERSALGTA_OT_copy_pose,
             UNIVERSALGTA_OT_apply_constraints,
         ]
-        print("[ADDON] [OK] Pose operators imported (Apply Pose to Mesh included)")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] pose operators error: {e}")
+    except ImportError:
         POSE_OPERATORS = []
 
     # Operadores opcionales (resto)
@@ -378,7 +349,6 @@ else:
         pass
 
     # === PASO 6: IMPORTAR UI LIST ===
-    print("[ADDON] === FASE 6: IMPORTANDO UI LIST ===")
     class UNIVERSALGTA_UL_BoneMappingList(bpy.types.UIList):
         def filter_items(self, context, data, propname):
             # Solo filtra, NO ordena, así el orden visual respeta la colección
@@ -457,7 +427,6 @@ else:
                     layout.label(text="[ERROR]")
 
     # === PASO 7: IMPORTAR PANELES ===
-    print("[ADDON] === FASE 7: IMPORTANDO PANELES ===")
     try:
         from .panels.main_panel import (
             UNIVERSALGTA_PT_MainPanel,           
@@ -475,9 +444,7 @@ else:
             UNIVERSALGTA_PT_UtilitiesPanel,      # 5. Utilities
             UNIVERSALGTA_PT_InfoPanel,           # 6. Info
         ]
-        print("[PANELS] ✅ Paneles principales importados correctamente")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] panels/main_panel.py: {e}")
+    except ImportError:
         MAIN_PANELS = []
 
 
@@ -488,13 +455,10 @@ else:
         CREDITS_PANELS = [
             UNIVERSALGTA_OT_open_yoshi_channel,
         ]
-        print("[PANELS] ✅ Operador de créditos importado correctamente")
-    except ImportError as e:
-        print(f"[ADDON] [WARNING] panels/credits.py: {e}")
+    except ImportError:
         CREDITS_PANELS = []
 
     # === CONSTRUIR LISTA FINAL DE CLASES ===
-    print("[ADDON] === FASE 8: CONSTRUYENDO LISTA DE CLASES ===")
     
     # ORDEN CRÍTICO: PropertyGroups primero
     all_classes = [
@@ -516,21 +480,17 @@ else:
     all_classes.extend(MAIN_PANELS)               # Main panels PRIMERO
     all_classes.extend(CREDITS_PANELS)            # Paneles de créditos
 
-    # Registrar operador de ángulo de pierna
     try:
         from .operators.leg_roll import UNIVERSALGTA_OT_apply_leg_roll
         all_classes.append(UNIVERSALGTA_OT_apply_leg_roll)
-        print("[ADDON] ✓ Operador de ángulo de pierna registrado")
-    except Exception as e:
-        print(f"[ADDON] [ERROR] No se pudo registrar el operador de ángulo de pierna: {e}")
+    except Exception:
+        pass
 
-    # Registrar operador de ajuste de altura del skin
     try:
         from .operators.adjust_skin_height import UNIVERSALGTA_OT_adjust_skin_height
         all_classes.append(UNIVERSALGTA_OT_adjust_skin_height)
-        print("[ADDON] ✓ Operador adjust_skin_height registrado")
-    except Exception as e:
-        print(f"[ADDON] [ERROR] No se pudo registrar adjust_skin_height: {e}")
+    except Exception:
+        pass
 
     # Eliminar duplicados de clases
     seen = set()
@@ -539,109 +499,48 @@ else:
     # === FUNCIONES DE REGISTRO ===
     def register():
         """Registra todas las clases del addon EN ORDEN CORRECTO"""
-        print("[ADDON] ==========================================")
-        print("[ADDON] Iniciando registro de Universal GTA Converter v4.0.1")
-        print(f"[ADDON] Compatible con Blender 5.0+ (actual: {bpy.app.version_string})")
-        
         # Registrar propiedades personalizadas
         register_custom_properties()
-        print("[ADDON] ✓ Propiedades personalizadas registradas")
+        
         # Registrar operador de ángulo de brazo
         try:
             from .operators.arm_angle import UNIVERSALGTA_OT_set_arm_angles
             bpy.utils.register_class(UNIVERSALGTA_OT_set_arm_angles)
-            print("[ADDON] ✓ Operador de ángulo de brazo registrado")
-        except Exception as e:
-            print(f"[ADDON] [ERROR] No se pudo registrar el operador de ángulo de brazo: {e}")
-        
-        # VALIDAR ORDEN DE REGISTRO DE PANELES
-        print("[ADDON] 🎯 Validando orden de paneles...")
-        panel_order_check = [
-            "UNIVERSALGTA_PT_main_panel",
-            "UNIVERSALGTA_PT_advanced_mapping_panel", 
-            "UNIVERSALGTA_PT_quick_actions_panel",
-            "UNIVERSALGTA_PT_utilities_panel",
-            "UNIVERSALGTA_PT_info_panel"
-        ]
-        print(f"[ADDON] ✓ Orden esperado: {' → '.join(panel_order_check)}")
+        except Exception:
+            pass
         
         if not CONVERSION_OPERATORS:
-            print("[ADDON] [ERROR] ERROR CRÍTICO: No hay operadores de conversión")
+            print("[ADDON] [ERROR] ERROR CRÍTICO: No hay operadores de conversión cargados.")
             return
         
         registered_count = 0
-        failed_count = 0
-        
-        print(f"[ADDON] Total de clases a registrar: {len(all_classes)}")
-        
-        for i, cls in enumerate(all_classes):
+        for cls in all_classes:
             try:
                 bpy.utils.register_class(cls)
                 registered_count += 1
-                print(f"[ADDON] ✓ [{i+1:2d}/{len(all_classes)}] {cls.__name__}")
             except Exception as e:
-                failed_count += 1
-                print(f"[ADDON] [ERROR] [{i+1:2d}/{len(all_classes)}] {cls.__name__}: Error: {e}")
+                print(f"[ADDON] [ERROR] Error registrando {cls.__name__}: {e}")
         
         # Registrar la propiedad principal en la escena
         if not hasattr(bpy.types.Scene, 'universal_gta_settings'):
             try:
                 bpy.types.Scene.universal_gta_settings = PointerProperty(type=UniversalGTASettings)
-                print("[ADDON] ✓ Propiedad universal_gta_settings registrada")
-            except Exception as e:
-                print(f"[ADDON] [ERROR] Error registrando propiedad: {e}")
-                failed_count += 1
-        else:
-            print("[ADDON] [INFO] universal_gta_settings ya estaba registrada")
+            except Exception:
+                pass
         
         # Registrar validadores
         try:
             register_validation()
-            print("[CONFIG] Validadores de nombres registrados")
-            print("[ADDON] ✓ Validadores registrados")
-        except Exception as e:
-            print(f"[ADDON] [WARNING] Error registrando validadores: {e}")
-        
-        print("[ADDON] ==========================================")
-        print(f"[ADDON] REGISTRO COMPLETADO: {registered_count} clases registradas")
-        if failed_count > 0:
-            print(f"[ADDON] [WARNING] {failed_count} errores de registro")
-        else:
-            print("[ADDON] [PARTY] REGISTRO PERFECTO - Sin errores!")
-        
-        print("[ADDON] ==========================================")
-        print("[ADDON] [NEW] CARACTERÍSTICAS v4.0.1:")
-        print("[ADDON] - [BRAIN] Smart Auto-Detect inteligente")
-        print("[ADDON] - [TARGET] Detección automática de rigs")
-        print("[ADDON] - [TOOL] Auto-correccion mejorada")
-        print("[ADDON] - [ART] Configuracion de materiales (#E7E7E7FF)")
-        print("[ADDON] - [LINK] Integracion DragonFF automatica")
-        print("[ADDON] - [PC] Compatible con Blender 5.0")
-        print("[ADDON] ==========================================")
-        print("[ADDON] MÓDULOS DISPONIBLES:")
-        print(f"[ADDON] - [OK] Configuración (config.py)")
-        print(f"[ADDON] - {'[OK]' if CONVERSION_OPERATORS else '[ERROR]'} Operadores de conversión (CORE)")
-        print(f"[ADDON] - {'[OK]' if RIG_PROFILES_AVAILABLE else '[WARNING]'} Sistema de perfiles de rigs")
-        print(f"[ADDON] - {'[OK]' if CONVERTER_AVAILABLE else '[WARNING]'} Conversor principal")
-        print(f"[ADDON] - {'[OK]' if EXTERNAL_POSE_AVAILABLE else '[WARNING]'} External pose caller")
-        print(f"[ADDON] - {'[OK]' if MAPPING_OPERATORS else '[WARNING]'} Operadores de mapeo")
-        print(f"[ADDON] - {'[OK]' if VALIDATION_OPERATORS else '[WARNING]'} Operadores de validación")
-        print(f"[ADDON] - {'[OK]' if MAIN_PANELS else '[WARNING]'} Paneles principales")
-        print(f"[ADDON] - {'[OK]' if CREDITS_PANELS else '[WARNING]'} Paneles de créditos")
-        print("[ADDON] ==========================================")
+        except Exception:
+            pass
         
         if registered_count > 0:
-            print("[ADDON] [TARGET] CÓMO USAR:")
-            print("[ADDON] 1. Abrir sidebar (N) en 3D Viewport")
-            print("[ADDON] 2. Ir a pestaña 'Universal GTA'")
-            print("[ADDON] 3. Seleccionar armatures en 'Setup'")
-            print("[ADDON] 4. Usar '[BRAIN] Smart Auto-Detect'")
-            print("[ADDON] 5. Hacer clic en '[ROCKET] Convert to GTA SA'")
-            print("[ADDON] ==========================================")
+            print("[ADDON] Universal GTA Converter v1.0 cargado correctamente.")
+
 
     def unregister():
         """Desregistra todas las clases del addon EN ORDEN INVERSO"""
-        print("[ADDON] Desregistrando Universal GTA Converter v4.0.1...")
+        print("[ADDON] Desregistrando Universal GTA Converter v1.0...")
         
         # Desregistrar previews de avatares
         try:
