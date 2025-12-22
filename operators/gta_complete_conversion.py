@@ -59,6 +59,18 @@ class UNIVERSALGTA_OT_complete_gta_conversion(Operator):
             # PASO 3: Renombrar UV maps
             self.process_uv_maps()
             
+            # PASO 3.5: Posicionar huesos de dedos (Mixamo Fix)
+            print("🖐️ Posicionando huesos de los dedos (Mixamo Fix)...")
+            try:
+                from ..gta_conversion_utils import GTAConversionUtils
+                utils = GTAConversionUtils(debug=True)
+                if settings.source_armature:
+                    utils.position_finger_bones_conservative(settings.source_armature)
+                else:
+                    print("⚠️ No hay source_armature para posicionar dedos")
+            except Exception as e:
+                print(f"⚠️ Error posicionando dedos: {e}")
+            
             # PASO 4: Guardar pose actual
             self.save_current_pose(settings.target_armature)
             

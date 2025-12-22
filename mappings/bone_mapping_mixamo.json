@@ -1,73 +1,446 @@
 {
-  "format_version": "2.0",
-  "description": "Universal GTA SA Converter Bone Mappings",
+  "format_version": "2.1",
+  "description": "Universal GTA SA Converter Bone Mappings (Fixed Order for Correct Constraints)",
   "mappings": [
-    {"index": 0, "source_bone": "mixamorig:Tail.001", "target_bone": " Pelvis", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 1, "source_bone": "mixamorig:Tail.002", "target_bone": " Pelvis", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 2, "source_bone": "mixamorig:Tail", "target_bone": " Pelvis", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 3, "source_bone": "mixamorig:Hips", "target_bone": " Pelvis", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 4, "source_bone": "mixamorig:Spine", "target_bone": " Spine", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 5, "source_bone": "mixamorig:Spine2", "target_bone": " Spine1", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 6, "source_bone": "mixamorig:Spine1", "target_bone": " Spine1", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 7, "source_bone": "mixamorig:Neck", "target_bone": " Neck", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 8, "source_bone": "mixamorig:Head", "target_bone": " Head", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 9, "source_bone": "mixamorig:LeftShoulder", "target_bone": "Bip01 L Clavicle", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 10, "source_bone": "mixamorig:LeftArm", "target_bone": " L UpperArm", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 11, "source_bone": "mixamorig:LeftForeArm", "target_bone": " L ForeArm", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 12, "source_bone": "mixamorig:LeftHandThumb1", "target_bone": " L Hand", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 13, "source_bone": "mixamorig:LeftHandThumb2", "target_bone": " L Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 14, "source_bone": "mixamorig:LeftHandThumb3", "target_bone": " L Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 15, "source_bone": "mixamorig:LeftHandThumb4", "target_bone": " L Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 16, "source_bone": "mixamorig:LeftHand", "target_bone": " L Hand", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 17, "source_bone": "mixamorig:LeftHandIndex1", "target_bone": " L Finger", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 18, "source_bone": "mixamorig:LeftHandIndex2", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 19, "source_bone": "mixamorig:LeftHandIndex3", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 20, "source_bone": "mixamorig:LeftHandIndex4", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 21, "source_bone": "mixamorig:LeftHandMiddle1", "target_bone": " L Finger", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 22, "source_bone": "mixamorig:LeftHandMiddle2", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 23, "source_bone": "mixamorig:LeftHandMiddle3", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 24, "source_bone": "mixamorig:LeftHandMiddle4", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 25, "source_bone": "mixamorig:LeftHandPinky1", "target_bone": " L Finger", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 26, "source_bone": "mixamorig:LeftHandPinky2", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 27, "source_bone": "mixamorig:LeftHandPinky3", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 28, "source_bone": "mixamorig:LeftHandPinky4", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 29, "source_bone": "mixamorig:LeftHandRing2", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 30, "source_bone": "mixamorig:LeftHandRing4", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 31, "source_bone": "mixamorig:LeftHandRing3", "target_bone": "L Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 32, "source_bone": "mixamorig:LeftHandRing1", "target_bone": " L Finger", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 33, "source_bone": "mixamorig:RightShoulder", "target_bone": "Bip01 R Clavicle", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 34, "source_bone": "mixamorig:RightArm", "target_bone": " R UpperArm", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 35, "source_bone": "mixamorig:RightForeArm", "target_bone": " R ForeArm", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 36, "source_bone": "mixamorig:RightHandThumb1", "target_bone": " R Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 37, "source_bone": "mixamorig:RightHandThumb2", "target_bone": " R Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 38, "source_bone": "mixamorig:RightHandThumb3", "target_bone": " R Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 39, "source_bone": "mixamorig:RightHandThumb4", "target_bone": " R Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 40, "source_bone": "mixamorig:RightHand", "target_bone": " R Hand", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 41, "source_bone": "mixamorig:RightHandIndex1", "target_bone": " R Finger", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 42, "source_bone": "mixamorig:RightHandIndex2", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 43, "source_bone": "mixamorig:RightHandIndex3", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 44, "source_bone": "mixamorig:RightHandIndex4", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 45, "source_bone": "mixamorig:RightHandMiddle1", "target_bone": " R Finger", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 46, "source_bone": "mixamorig:RightHandMiddle2", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 47, "source_bone": "mixamorig:RightHandMiddle3", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 48, "source_bone": "mixamorig:RightHandMiddle4", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 49, "source_bone": "mixamorig:RightHandPinky1", "target_bone": " R Finger", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 50, "source_bone": "mixamorig:RightHandPinky2", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 51, "source_bone": "mixamorig:RightHandPinky3", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 52, "source_bone": "mixamorig:RightHandPinky4", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 53, "source_bone": "mixamorig:RightHandRing2", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 54, "source_bone": "mixamorig:RightHandRing4", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 55, "source_bone": "mixamorig:RightHandRing3", "target_bone": "R Finger01", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 56, "source_bone": "mixamorig:RightHandRing1", "target_bone": " R Finger", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 57, "source_bone": "mixamorig:LeftButt", "target_bone": " L Thigh", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 58, "source_bone": "mixamorig:LeftUpLeg", "target_bone": " L Thigh", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 59, "source_bone": "mixamorig:LeftLeg", "target_bone": " L Calf", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 60, "source_bone": "mixamorig:LeftFoot", "target_bone": " L Foot", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 61, "source_bone": "mixamorig:LeftToeBase", "target_bone": " L Toe0", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 62, "source_bone": "mixamorig:RightButt", "target_bone": " R Thigh", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 63, "source_bone": "mixamorig:RightUpLeg", "target_bone": " R Thigh", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0},
-    {"index": 64, "source_bone": "mixamorig:RightLeg", "target_bone": " R Calf", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 65, "source_bone": "mixamorig:RightFoot", "target_bone": " R Foot", "enabled": true, "detection_method": "Manual", "confidence": 1.0},
-    {"index": 66, "source_bone": "mixamorig:RightToeBase", "target_bone": " R Toe0", "enabled": true, "detection_method": "Duplicated", "confidence": 1.0}
+    {
+      "index": 0,
+      "source_bone": "mixamorig:Hips",
+      "target_bone": " Pelvis",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 1,
+      "source_bone": "mixamorig:Spine",
+      "target_bone": " Spine",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 2,
+      "source_bone": "mixamorig:Spine2",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 3,
+      "source_bone": "mixamorig:Spine1",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 4,
+      "source_bone": "mixamorig:Neck",
+      "target_bone": " Neck",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 5,
+      "source_bone": "mixamorig:Head",
+      "target_bone": " Head",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 6,
+      "source_bone": "mixamorig:Jaw",
+      "target_bone": "Jaw",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 7,
+      "source_bone": "mixamorig:LeftShoulder",
+      "target_bone": "Bip01 L Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 8,
+      "source_bone": "mixamorig:LeftArm",
+      "target_bone": " L UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 9,
+      "source_bone": "mixamorig:LeftForeArm",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 10,
+      "source_bone": "mixamorig:LeftHandThumb1",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 11,
+      "source_bone": "mixamorig:LeftHandThumb2",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 12,
+      "source_bone": "mixamorig:LeftHandThumb3",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 13,
+      "source_bone": "mixamorig:LeftHand",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 14,
+      "source_bone": "mixamorig:LeftHandMiddle1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 15,
+      "source_bone": "mixamorig:LeftHandRing1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 16,
+      "source_bone": "mixamorig:LeftHandPinky1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 17,
+      "source_bone": "mixamorig:LeftHandIndex1",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 18,
+      "source_bone": "mixamorig:LeftHandIndex3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 19,
+      "source_bone": "mixamorig:LeftHandMiddle2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 20,
+      "source_bone": "mixamorig:LeftHandMiddle3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 21,
+      "source_bone": "mixamorig:LeftHandRing2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 22,
+      "source_bone": "mixamorig:LeftHandRing3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 23,
+      "source_bone": "mixamorig:LeftHandPinky2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 24,
+      "source_bone": "mixamorig:LeftHandPinky3",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 25,
+      "source_bone": "mixamorig:LeftHandIndex2",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 26,
+      "source_bone": "mixamorig:RightShoulder",
+      "target_bone": "Bip01 R Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 27,
+      "source_bone": "mixamorig:RightArm",
+      "target_bone": " R UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 28,
+      "source_bone": "mixamorig:RightForeArm",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 29,
+      "source_bone": "mixamorig:RightHandThumb1",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 30,
+      "source_bone": "mixamorig:RightHandThumb2",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 31,
+      "source_bone": "mixamorig:RightHandThumb3",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 32,
+      "source_bone": "mixamorig:RightHand",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 33,
+      "source_bone": "mixamorig:RightHandMiddle1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 34,
+      "source_bone": "mixamorig:RightHandRing1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 35,
+      "source_bone": "mixamorig:RightHandPinky1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 36,
+      "source_bone": "mixamorig:RightHandIndex1",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 37,
+      "source_bone": "mixamorig:RightHandIndex3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 38,
+      "source_bone": "mixamorig:RightHandMiddle2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 39,
+      "source_bone": "mixamorig:RightHandMiddle3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 40,
+      "source_bone": "mixamorig:RightHandRing2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 41,
+      "source_bone": "mixamorig:RightHandRing3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 42,
+      "source_bone": "mixamorig:RightHandPinky2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 43,
+      "source_bone": "mixamorig:RightHandPinky3",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 44,
+      "source_bone": "mixamorig:RightHandIndex2",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 45,
+      "source_bone": "mixamorig:LeftUpLeg",
+      "target_bone": " L Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 46,
+      "source_bone": "mixamorig:LeftLeg",
+      "target_bone": " L Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 47,
+      "source_bone": "mixamorig:LeftFoot",
+      "target_bone": " L Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 48,
+      "source_bone": "mixamorig:LeftToeBase",
+      "target_bone": " L Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 49,
+      "source_bone": "mixamorig:RightUpLeg",
+      "target_bone": " R Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 50,
+      "source_bone": "mixamorig:RightLeg",
+      "target_bone": " R Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 51,
+      "source_bone": "mixamorig:RightFoot",
+      "target_bone": " R Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 52,
+      "source_bone": "mixamorig:RightToeBase",
+      "target_bone": " R Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 53,
+      "source_bone": "mixamorig:LeftButt",
+      "target_bone": " L Thigh",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.8
+    },
+    {
+      "index": 54,
+      "source_bone": "mixamorig:RightButt",
+      "target_bone": " R Thigh",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 0.8
+    }
   ]
 }

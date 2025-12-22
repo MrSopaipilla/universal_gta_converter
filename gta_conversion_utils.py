@@ -9,6 +9,7 @@ robustez y sigue las mejores prácticas para el scripting en Blender.
 
 import bpy
 from typing import List, Optional, Set
+from mathutils import Vector
 
 class GTAConversionUtils:
     """
@@ -385,3 +386,127 @@ class GTAConversionUtils:
         
         self.log(f"✅ Modificador '{self.TARGET_ARMATURE_MODIFIER_NAME}' creado y vinculado a '{target_armature.name}'.")
         return True
+
+    # --- Métodos de Posicionamiento de Huesos (Adaptado de MixamoGTAConverter) ---
+
+    def position_finger_bones_conservative(self, armature_obj: bpy.types.Object) -> bool:
+        """Position finger bones close to reference positions with minimal displacement."""
+        if not armature_obj or armature_obj.type != 'ARMATURE':
+            return False
+        
+        self.log("Positioning finger bones conservatively near reference positions...")
+        
+        # Ensure we are in EDIT mode
+        original_mode = armature_obj.mode
+        bpy.context.view_layer.objects.active = armature_obj
+        bpy.ops.object.mode_set(mode='EDIT')
+        
+        bones_moved = 0
+        
+        # Get reference bones for positioning
+        left_hand = armature_obj.data.edit_bones.get('mixamorig:LeftHand')
+        right_hand = armature_obj.data.edit_bones.get('mixamorig:RightHand')
+        left_middle1 = armature_obj.data.edit_bones.get('mixamorig:LeftHandMiddle1')
+        right_middle1 = armature_obj.data.edit_bones.get('mixamorig:RightHandMiddle1')
+        
+        # Process left hand fingers
+        if left_hand and left_middle1:
+            bones_moved += self._position_hand_fingers_conservative('left', left_hand, left_middle1, armature_obj)
+        
+        # Process right hand fingers
+        if right_hand and right_middle1:
+            bones_moved += self._position_hand_fingers_conservative('right', right_hand, right_middle1, armature_obj)
+        
+        bpy.ops.object.mode_set(mode=original_mode)
+        self.log(f"Successfully repositioned {bones_moved} finger bones near reference positions")
+        return bones_moved > 0
+
+    def _position_hand_fingers_conservative(self, side: str, hand_bone, reference_bone, armature_obj) -> int:
+        """Position finger bones conservatively close to the reference bone."""
+        bones_moved = 0
+        side_prefix = 'mixamorig:LeftHand' if side == 'left' else 'mixamorig:RightHand'
+        
+        # Define finger types and their bones
+        finger_types = ['Index', 'Middle', 'Ring', 'Pinky', 'Thumb']
+        finger_bones_per_type = ['1', '2', '3']
+        
+        # Get reference position and direction
+        reference_pos = reference_bone.head.copy()
+        reference_tail = reference_bone.tail.copy()
+        reference_vector = reference_tail - reference_pos
+        reference_length = reference_vector.length
+        reference_direction = reference_vector.normalized()
+        
+        # Calculate hand direction
+        hand_vector = hand_bone.tail - hand_bone.head
+        hand_direction = hand_vector.normalized()
+        
+        # Create a small perpendicular offset for finger spacing (much smaller than before)
+        # Using a default Up vector if hand direction is too vertical
+        if abs(hand_direction.z) < 0.9:
+            perpendicular = Vector((-hand_direction.y, hand_direction.x, 0)).normalized()
+        else:
+            perpendicular = Vector((1, 0, 0))
+        
+        if side == 'right':
+            perpendicular = -perpendicular
+        
+        # Position each finger type with minimal offset from reference
+        for finger_index, finger_type in enumerate(finger_types):
+            finger_bones = []
+            
+            # Collect all bones for this finger type
+            for bone_num in finger_bones_per_type:
+                bone_name = f"{side_prefix}{finger_type}{bone_num}"
+                bone = armature_obj.data.edit_bones.get(bone_name)
+                if bone:
+                    finger_bones.append(bone)
+            
+            if not finger_bones:
+                continue
+            
+            # Sort bones by their number (just in case)
+            finger_bones.sort(key=lambda b: b.name[-1])
+            
+            # Calculate very small finger offset from reference position
+            if finger_type == 'Middle':
+                # Middle finger stays exactly at reference position
+                base_offset = Vector((0, 0, 0))
+            elif finger_type == 'Index':
+                # Index finger very close to middle
+                base_offset = perpendicular * (reference_length * 0.1)
+            elif finger_type == 'Ring':
+                # Ring finger very close to middle, other side
+                base_offset = perpendicular * (reference_length * -0.1)
+            elif finger_type == 'Pinky':
+                # Pinky slightly further but still close
+                base_offset = perpendicular * (reference_length * -0.2)
+            else:  # Thumb
+                # Thumb positioned closer to hand but still near reference area
+                thumb_direction = hand_direction.cross(perpendicular).normalized()
+                base_offset = thumb_direction * (reference_length * 0.15) + perpendicular * (reference_length * 0.1)
+            
+            # Position each bone in the finger chain
+            for i, bone in enumerate(finger_bones):
+                # Preserve original bone length and direction as much as possible
+                original_length = (bone.tail - bone.head).length
+                original_direction = (bone.tail - bone.head).normalized()
+                
+                # Small chain offset (much smaller than before)
+                chain_offset = reference_direction * (reference_length * 0.3 * i)
+                
+                # Set new position close to reference
+                bone.head = reference_pos + base_offset + chain_offset
+                
+                # Try to preserve original bone direction, but use reference direction if needed
+                if i == 0:
+                    bone.tail = bone.head + reference_direction * original_length
+                else:
+                    # For subsequent bones, blend between original and reference direction
+                    blended_direction = (original_direction + reference_direction).normalized()
+                    bone.tail = bone.head + blended_direction * original_length
+                
+                bones_moved += 1
+                self.log(f"Repositioned {side} {finger_type} bone: {bone.name} (close to reference)")
+        
+        return bones_moved

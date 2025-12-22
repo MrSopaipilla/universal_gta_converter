@@ -204,94 +204,6 @@ class UniversalGTAConverter:
             except:
                 pass
             return 0
-            
-            self.log(f"Aplicando constraints a: {target_armature.name}")
-            
-            # Activar armature y entrar en modo pose
-            bpy.context.view_layer.objects.active = target_armature
-            bpy.ops.object.mode_set(mode='POSE')
-            
-            # MAPEOS CORREGIDOS - Usando settings si están disponibles
-            constraint_mappings = {}
-            
-            if self.settings and hasattr(self.settings, 'bone_mappings'):
-                # CORREGIDO: Usar mapeos reales del usuario
-                for mapping in self.settings.bone_mappings:
-                    if mapping.enabled and mapping.source_bone and mapping.target_bone:
-                        # Verificar que ambos huesos existen
-                        if (mapping.target_bone in target_armature.pose.bones and 
-                            mapping.source_bone in target_armature.pose.bones):
-                            constraint_mappings[mapping.target_bone] = mapping.source_bone
-                            self.log(f"Mapping encontrado: {mapping.source_bone} -> {mapping.target_bone}")
-            
-            # Si no hay mapeos del usuario, usar mapeos básicos GTA SA
-            if not constraint_mappings:
-                constraint_mappings = {
-                    ' Spine1': ' Spine',  # FIXED - Con espacios correctos
-                    ' Neck': ' Spine1',
-                    ' Head': ' Neck',
-                    ' L UpperArm': 'Bip01 L Clavicle',
-                    ' L ForeArm': ' L UpperArm',
-                    ' L Hand': ' L ForeArm',
-                    ' R UpperArm': 'Bip01 R Clavicle',
-                    ' R ForeArm': ' R UpperArm',
-                    ' R Hand': ' R ForeArm',
-                    ' L Calf': ' L Thigh',
-                    ' L Foot': ' L Calf',
-                    ' L Toe0': ' L Foot',
-                    ' R Calf': ' R Thigh',
-                    ' R Foot': ' R Calf',
-                    ' R Toe0': ' R Foot',
-                    'L Finger01': ' L Finger',
-                    'R Finger01': ' R Finger',
-                }
-            
-            # Aplicar constraints
-            for target_bone_name, source_bone_name in constraint_mappings.items():
-                if (target_bone_name in target_armature.pose.bones and 
-                    source_bone_name in target_armature.pose.bones):
-                    
-                    target_bone = target_armature.pose.bones[target_bone_name]
-                    
-                    # Limpiar constraints existentes
-                    for constraint in list(target_bone.constraints):
-                        if constraint.name.startswith("GTA_SA_COPY_LOC"):
-                            target_bone.constraints.remove(constraint)
-                    
-                    try:
-                        # Crear constraint COPY_LOCATION
-                        constraint = target_bone.constraints.new(type='COPY_LOCATION')
-                        constraint.name = f"GTA_SA_COPY_LOC_{source_bone_name.replace(' ', '_')}"
-                        constraint.target = target_armature
-                        constraint.subtarget = source_bone_name
-                        constraint.use_x = True
-                        constraint.use_y = True
-                        constraint.use_z = True
-                        constraint.influence = 1.0
-                        constraint.target_space = 'WORLD'
-                        constraint.owner_space = 'WORLD'
-                        
-                        constraints_applied += 1
-                        self.log(f"Constraint aplicado: {source_bone_name} -> {target_bone_name}")
-                        
-                    except Exception as e:
-                        self.log(f"Error aplicando constraint {target_bone_name}: {e}", "ERROR")
-                        continue
-                else:
-                    self.log(f"Huesos no encontrados: {source_bone_name} -> {target_bone_name}", "WARNING")
-            
-            bpy.ops.object.mode_set(mode='OBJECT')
-            self.constraints_applied = constraints_applied
-            self.log(f"Constraints aplicados: {constraints_applied}")
-            return constraints_applied
-            
-        except Exception as e:
-            self.log(f"Error aplicando constraints: {e}", "ERROR")
-            try:
-                bpy.ops.object.mode_set(mode='OBJECT')
-            except:
-                pass
-            return 0
 
     def execute_base_conversion(self):
         """Ejecutar conversión base (mantiene compatibilidad)"""
@@ -300,8 +212,6 @@ class UniversalGTAConverter:
         self.processed_objects = 5  # Ejemplo
         return True
 
-# Para compatibilidad con versiones anteriores
-
     def cleanup_target_armature_parent_final(self, target_armature):
         """Método auxiliar para eliminar objeto padre del target_armature"""
         if not target_armature:
@@ -323,77 +233,6 @@ class UniversalGTAConverter:
         except Exception as e:
             self.log(f"Error en cleanup del objeto padre: {e}", "ERROR")
             return False
-
-
-    def cleanup_target_armature_parent_final(self, target_armature):
-        """Método auxiliar para eliminar objeto padre del target_armature"""
-        if not target_armature:
-            self.log("No target_armature especificado para limpieza de padre", "WARNING")
-            return False
-        
-        try:
-            from .gta_conversion_utils import GTAConversionUtils
-            utils = GTAConversionUtils(debug=self.debug)
-            
-            success = utils.cleanup_target_armature_parent(target_armature)
-            if success:
-                self.log("✅ Objeto padre del target_armature eliminado exitosamente")
-            else:
-                self.log("ℹ️ No se requirió eliminación de objeto padre")
-            
-            return success
-            
-        except Exception as e:
-            self.log(f"Error en cleanup del objeto padre: {e}", "ERROR")
-            return False
-
-
-    def cleanup_target_armature_parent_final(self, target_armature):
-        """Método auxiliar para eliminar objeto padre del target_armature"""
-        if not target_armature:
-            self.log("No target_armature especificado para limpieza de padre", "WARNING")
-            return False
-        
-        try:
-            from .gta_conversion_utils import GTAConversionUtils
-            utils = GTAConversionUtils(debug=self.debug)
-            
-            success = utils.cleanup_target_armature_parent(target_armature)
-            if success:
-                self.log("✅ Objeto padre del target_armature eliminado exitosamente")
-            else:
-                self.log("ℹ️ No se requirió eliminación de objeto padre")
-            
-            return success
-            
-        except Exception as e:
-            self.log(f"Error en cleanup del objeto padre: {e}", "ERROR")
-            return False
-
-
-    def cleanup_target_armature_parent_final(self, target_armature):
-        """Método auxiliar para eliminar objeto padre del target_armature"""
-        if not target_armature:
-            self.log("No target_armature especificado para limpieza de padre", "WARNING")
-            return False
-        
-        try:
-            from .gta_conversion_utils import GTAConversionUtils
-            utils = GTAConversionUtils(debug=self.debug)
-            
-            success = utils.cleanup_target_armature_parent(target_armature)
-            if success:
-                self.log("✅ Objeto padre del target_armature eliminado exitosamente")
-            else:
-                self.log("ℹ️ No se requirió eliminación de objeto padre")
-            
-            return success
-            
-        except Exception as e:
-            self.log(f"Error en cleanup del objeto padre: {e}", "ERROR")
-            return False
-
-def get_converter():
 
     def execute_complete_conversion(self):
         """NUEVO: Ejecutar conversión completa según especificaciones"""
@@ -412,11 +251,17 @@ def get_converter():
             
             self.log(f"Armature objetivo detectado: {target_armature.name}")
             
+            # Detectar armature source para dedos
+            source_armature = None
+            if self.settings and hasattr(self.settings, 'source_armature'):
+                source_armature = self.settings.source_armature
+
             # 2-9. Ejecutar todos los pasos secuenciales
             steps = [
                 ("Procesando UV Maps", lambda: utils.process_uv_maps(target_armature)),
                 ("Eliminando animaciones", utils.clear_all_animations),
                 ("Aplicando transformaciones", utils.apply_all_transforms),
+                ("Posicionando dedos", lambda: utils.position_finger_bones_conservative(source_armature) if source_armature else self.log("Saltando dedos, no source armature")),
                 ("Procesando shapekeys", lambda: utils.apply_and_remove_shapekeys(target_armature)),
                 ("Uniendo mallas", lambda: utils.join_all_meshes(target_armature)),
                 ("Configurando materiales", utils.configure_materials_gta),
@@ -447,149 +292,6 @@ def get_converter():
         except Exception as e:
             self.log(f"Error crítico en conversión completa: {e}", "ERROR")
             return False
-
-    """Obtener instancia del converter"""
-    return UniversalGTAConverter()
-
-
-    def execute_complete_conversion(self, use_complete_system=True):
-        """Ejecutar conversión usando el sistema completo"""
-        try:
-            if use_complete_system:
-                # Usar el nuevo sistema de conversión completa
-                import bpy
-                result = bpy.ops.universalgta.complete_gta_conversion()
-                
-                if result == {'FINISHED'}:
-                    self.log("Conversión completa ejecutada exitosamente")
-                    return True
-                else:
-                    self.log("Error en conversión completa, usando método tradicional", "WARNING")
-                    return self.execute_traditional_conversion()
-            else:
-                return self.execute_traditional_conversion()
-                
-        except Exception as e:
-            self.log(f"Error ejecutando conversión completa: {e}", "ERROR")
-            return self.execute_traditional_conversion()
-    
-    def execute_traditional_conversion(self):
-        """Método tradicional de conversión (fallback)"""
-        # Aquí va la lógica original del converter
-        self.log("Ejecutando conversión tradicional...")
-        return True
-
-
-    def execute_complete_conversion(self, use_complete_system=True):
-        """Ejecutar conversión usando el sistema completo"""
-        try:
-            if use_complete_system:
-                # Usar el nuevo sistema de conversión completa
-                import bpy
-                result = bpy.ops.universalgta.complete_gta_conversion()
-                
-                if result == {'FINISHED'}:
-                    self.log("Conversión completa ejecutada exitosamente")
-                    return True
-                else:
-                    self.log("Error en conversión completa, usando método tradicional", "WARNING")
-                    return self.execute_traditional_conversion()
-            else:
-                return self.execute_traditional_conversion()
-                
-        except Exception as e:
-            self.log(f"Error ejecutando conversión completa: {e}", "ERROR")
-            return self.execute_traditional_conversion()
-    
-    def execute_traditional_conversion(self):
-        """Método tradicional de conversión (fallback)"""
-        # Aquí va la lógica original del converter
-        self.log("Ejecutando conversión tradicional...")
-        return True
-
-
-    def execute_complete_conversion(self, use_complete_system=True):
-        """Ejecutar conversión usando el sistema completo"""
-        try:
-            if use_complete_system:
-                # Usar el nuevo sistema de conversión completa
-                import bpy
-                result = bpy.ops.universalgta.complete_gta_conversion()
-                
-                if result == {'FINISHED'}:
-                    self.log("Conversión completa ejecutada exitosamente")
-                    return True
-                else:
-                    self.log("Error en conversión completa, usando método tradicional", "WARNING")
-                    return self.execute_traditional_conversion()
-            else:
-                return self.execute_traditional_conversion()
-                
-        except Exception as e:
-            self.log(f"Error ejecutando conversión completa: {e}", "ERROR")
-            return self.execute_traditional_conversion()
-    
-    def execute_traditional_conversion(self):
-        """Método tradicional de conversión (fallback)"""
-        # Aquí va la lógica original del converter
-        self.log("Ejecutando conversión tradicional...")
-        return True
-
-
-    def execute_complete_conversion(self, use_complete_system=True):
-        """Ejecutar conversión usando el sistema completo"""
-        try:
-            if use_complete_system:
-                # Usar el nuevo sistema de conversión completa
-                import bpy
-                result = bpy.ops.universalgta.complete_gta_conversion()
-                
-                if result == {'FINISHED'}:
-                    self.log("Conversión completa ejecutada exitosamente")
-                    return True
-                else:
-                    self.log("Error en conversión completa, usando método tradicional", "WARNING")
-                    return self.execute_traditional_conversion()
-            else:
-                return self.execute_traditional_conversion()
-                
-        except Exception as e:
-            self.log(f"Error ejecutando conversión completa: {e}", "ERROR")
-            return self.execute_traditional_conversion()
-    
-    def execute_traditional_conversion(self):
-        """Método tradicional de conversión (fallback)"""
-        # Aquí va la lógica original del converter
-        self.log("Ejecutando conversión tradicional...")
-        return True
-
-
-    def execute_complete_conversion(self, use_complete_system=True):
-        """Ejecutar conversión usando el sistema completo"""
-        try:
-            if use_complete_system:
-                # Usar el nuevo sistema de conversión completa
-                import bpy
-                result = bpy.ops.universalgta.complete_gta_conversion()
-                
-                if result == {'FINISHED'}:
-                    self.log("Conversión completa ejecutada exitosamente")
-                    return True
-                else:
-                    self.log("Error en conversión completa, usando método tradicional", "WARNING")
-                    return self.execute_traditional_conversion()
-            else:
-                return self.execute_traditional_conversion()
-                
-        except Exception as e:
-            self.log(f"Error ejecutando conversión completa: {e}", "ERROR")
-            return self.execute_traditional_conversion()
-    
-    def execute_traditional_conversion(self):
-        """Método tradicional de conversión (fallback)"""
-        # Aquí va la lógica original del converter
-        self.log("Ejecutando conversión tradicional...")
-        return True
 
     def apply_constraints_with_mappings(self, source_armature, target_armature):
         """Aplicar constraints usando bone mappings - MEJORADO"""
@@ -684,3 +386,7 @@ def get_converter():
             except:
                 pass
             return 0
+
+def get_converter():
+    """Obtener instancia del converter"""
+    return UniversalGTAConverter()
