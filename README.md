@@ -1,4 +1,4 @@
-# Universal GTA SA Converter v1.0
+# Universal GTA SA Converter
 
 ## 📖 ¿Qué es este addon?
 
