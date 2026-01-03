@@ -17,11 +17,12 @@ class RigProfileSystem:
         return {
             "mixamo": self._get_mixamo_profile(),
             "source_sfm": self._get_source_sfm_profile(), 
-            "source_sfm_bip": self._get_source_sfm_bip_profile(),  # NUEVO: Para prefix bip_
+            "source_sfm_bip": self._get_source_sfm_bip_profile(),  
             "rigify": self._get_rigify_profile(),
             "accurig": self._get_accurig_profile(),
             "avatarsdk": self._get_avatarsdk_profile(),
             "valve_biped": self._get_valve_biped_profile(),
+            "valve_l4d": self._get_valve_l4d_profile(),  
         }
     
     def detect_rig_type(self, armature):
@@ -118,7 +119,24 @@ class RigProfileSystem:
                 final_confidence += bonus
                 print(f"[RIG_DETECT] Bonus bip_: +{bonus:.3f} por {bip_count} huesos bip_")
         
-        return min(final_confidence, 1.0)
+        # Contar helper bones característicos de L4D
+        hlp_count = sum(1 for bone in bone_names if 'hlp_' in bone.lower())
+        
+        # NUEVO: Bonus MUY ALTO para Valve L4D si tiene helper bones (hlp_*) característicos
+        if profile.get("name") == "Valve L4D":
+            if hlp_count >= 3:  # Si hay 3+ helper bones, es muy probable que sea L4D
+                bonus = min(0.5, 0.3 + (hlp_count / 30))  # Bonus alto hasta 0.5
+                final_confidence += bonus
+                print(f"[RIG_DETECT] Bonus L4D hlp_: +{bonus:.3f} por {hlp_count} helper bones")
+        
+        # NUEVO: Penalizar ValveBiped estándar si hay helper bones (indica que es L4D)
+        if profile.get("name") == "ValveBiped":
+            if hlp_count >= 3:  # Si hay helper bones, probablemente es L4D, no ValveBiped estándar
+                penalty = min(0.3, hlp_count / 30)  # Penalización hasta 0.3
+                final_confidence -= penalty
+                print(f"[RIG_DETECT] Penalización ValveBiped: -{penalty:.3f} por {hlp_count} helper bones (probablemente L4D)")
+        
+        return min(max(final_confidence, 0.0), 1.0)
     
     def apply_profile(self, source_armature, target_armature, profile_name):
         """
@@ -900,5 +918,118 @@ class RigProfileSystem:
                 'ValveBiped.Bip01_L_Forearm_Twist', 'ValveBiped.Bip01_R_Forearm_Twist',
                 'ValveBiped.Bip01_L_Finger2', 'ValveBiped.Bip01_L_Finger3', 'ValveBiped.Bip01_L_Finger4',
                 'ValveBiped.Bip01_R_Finger2', 'ValveBiped.Bip01_R_Finger3', 'ValveBiped.Bip01_R_Finger4',
+            ]
+        }
+    
+    # ============================================================================
+    # PERFIL VALVE LEFT 4 DEAD (L4D Survivors)
+    # ============================================================================
+    def _get_valve_l4d_profile(self):
+        """Perfil para ValveBiped L4D (Left 4 Dead survivors con helper bones hlp_*)"""
+        import os
+        import json
+
+        addon_dir = os.path.dirname(__file__)
+        mapping_path = os.path.join(addon_dir, "mappings", "valve_l4d_bone_mapping.json")
+
+        bone_mapping = {}
+        # Patrones específicos de L4D: incluye los helper bones característicos
+        detection_patterns = ["ValveBiped.", "ValveBiped.hlp_", "ValveBiped.Bip01_"]
+
+        try:
+            if os.path.exists(mapping_path):
+                with open(mapping_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    for item in data.get('mappings', []):
+                        src = item.get('source_bone')
+                        tgt = item.get('target_bone')
+                        if src and tgt:
+                            bone_mapping[src] = tgt
+                print(f"[RIG_PROFILES] Loaded {len(bone_mapping)} L4D mappings from {mapping_path}")
+            else:
+                print(f"[RIG_PROFILES] L4D mapping file not found: {mapping_path}")
+        except Exception as e:
+            print(f"[RIG_PROFILES] Error loading L4D mapping: {e}")
+
+        return {
+            "name": "Valve L4D",
+            "description": "Valve Left 4 Dead survivor rigs (with hlp_* helper bones)",
+            "detection_patterns": detection_patterns,
+            "confidence_threshold": 0.7,
+            "bone_mapping": bone_mapping,
+            
+            "weight_influences": [
+                # Helper bones para brazos
+                ['ValveBiped.Bip01_L_UpperArm', 'ValveBiped.hlp_l_shoulder'],
+                ['ValveBiped.Bip01_L_UpperArm', 'ValveBiped.Bip01_L_Bicep'],
+                ['ValveBiped.Bip01_L_Forearm', 'ValveBiped.hlp_l_elbow'],
+                ['ValveBiped.Bip01_L_Forearm', 'ValveBiped.hlp_l_ulna'],
+                ['ValveBiped.Bip01_L_Hand', 'ValveBiped.hlp_wrist'],
+                ['ValveBiped.Bip01_L_Clavicle', 'ValveBiped.hlp_l_trap'],
+                
+                ['ValveBiped.Bip01_R_UpperArm', 'ValveBiped.hlp_r_shoulder'],
+                ['ValveBiped.Bip01_R_UpperArm', 'ValveBiped.Bip01_R_Bicep'],
+                ['ValveBiped.Bip01_R_Forearm', 'ValveBiped.hlp_r_elbow'],
+                ['ValveBiped.Bip01_R_Forearm', 'ValveBiped.hlp_r_ulna'],
+                ['ValveBiped.Bip01_R_Hand', 'ValveBiped.hlp_r_wrist'],
+                ['ValveBiped.Bip01_R_Clavicle', 'ValveBiped.hlp_r_trap'],
+                
+                # Helper bones para piernas
+                ['ValveBiped.Bip01_L_Thigh', 'ValveBiped.hlp_l_quad'],
+                ['ValveBiped.Bip01_L_Calf', 'ValveBiped.hlp_l_knee'],
+                ['ValveBiped.Bip01_R_Thigh', 'ValveBiped.hlp_r_quad'],
+                ['ValveBiped.Bip01_R_Calf', 'ValveBiped.hlp_r_knee'],
+                
+                # Finger consolidation
+                ['ValveBiped.Bip01_L_Hand', 'ValveBiped.Bip01_L_Finger0'],
+                ['ValveBiped.Bip01_L_Finger1', 'ValveBiped.Bip01_L_Finger2'],
+                ['ValveBiped.Bip01_L_Finger1', 'ValveBiped.Bip01_L_Finger3'],
+                ['ValveBiped.Bip01_L_Finger1', 'ValveBiped.Bip01_L_Finger4'],
+                ['ValveBiped.Bip01_R_Hand', 'ValveBiped.Bip01_R_Finger0'],
+                ['ValveBiped.Bip01_R_Finger1', 'ValveBiped.Bip01_R_Finger2'],
+                ['ValveBiped.Bip01_R_Finger1', 'ValveBiped.Bip01_R_Finger3'],
+                ['ValveBiped.Bip01_R_Finger1', 'ValveBiped.Bip01_R_Finger4'],
+            ],
+            
+            "bones_to_delete": [
+                # Helper bones (después del mixing)
+                'ValveBiped.hlp_l_trap', 'ValveBiped.hlp_r_trap',
+                'ValveBiped.hlp_l_shoulder', 'ValveBiped.hlp_r_shoulder',
+                'ValveBiped.hlp_l_elbow', 'ValveBiped.hlp_r_elbow',
+                'ValveBiped.hlp_l_ulna', 'ValveBiped.hlp_r_ulna',
+                'ValveBiped.hlp_wrist', 'ValveBiped.hlp_r_wrist',
+                'ValveBiped.hlp_l_quad', 'ValveBiped.hlp_r_quad',
+                'ValveBiped.hlp_l_knee', 'ValveBiped.hlp_r_knee',
+                'ValveBiped.Bip01_L_Bicep', 'ValveBiped.Bip01_R_Bicep',
+                
+                # Finger extras
+                'ValveBiped.Bip01_L_Finger2', 'ValveBiped.Bip01_L_Finger3', 'ValveBiped.Bip01_L_Finger4',
+                'ValveBiped.Bip01_R_Finger2', 'ValveBiped.Bip01_R_Finger3', 'ValveBiped.Bip01_R_Finger4',
+                
+                # Attachment/weapon bones (no needed for GTA SA)
+                'ValveBiped.forward',
+                'ValveBiped.attachment_bandage_legL', 'ValveBiped.attachment_bandage_armL',
+                'ValveBiped.attachment_armL_T', 'ValveBiped.attachment_armR_T',
+                'ValveBiped.L_weapon_bone', 'ValveBiped.weapon_bone',
+                'ValveBiped.weapon_bone_Clip', 'ValveBiped.weapon_bone_extra',
+            ],
+            
+            "vertex_groups_to_delete": [
+                # Helper bones VGs
+                "ValveBiped.hlp_l_trap", "ValveBiped.hlp_r_trap",
+                "ValveBiped.hlp_l_shoulder", "ValveBiped.hlp_r_shoulder",
+                "ValveBiped.hlp_l_elbow", "ValveBiped.hlp_r_elbow",
+                "ValveBiped.hlp_l_ulna", "ValveBiped.hlp_r_ulna",
+                "ValveBiped.hlp_wrist", "ValveBiped.hlp_r_wrist",
+                "ValveBiped.hlp_l_quad", "ValveBiped.hlp_r_quad",
+                "ValveBiped.hlp_l_knee", "ValveBiped.hlp_r_knee",
+                "ValveBiped.Bip01_L_Bicep", "ValveBiped.Bip01_R_Bicep",
+                
+                # Attachment/weapon VGs
+                "ValveBiped.forward",
+                "ValveBiped.attachment_bandage_legL", "ValveBiped.attachment_bandage_armL",
+                "ValveBiped.attachment_armL_T", "ValveBiped.attachment_armR_T",
+                "ValveBiped.L_weapon_bone", "ValveBiped.weapon_bone",
+                "ValveBiped.weapon_bone_Clip", "ValveBiped.weapon_bone_extra",
             ]
         }

@@ -1006,6 +1006,7 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
             mapping_dir = os.path.join(addon_dir, 'mappings')
             mapping_files = {
                 'valve': os.path.join(mapping_dir, 'valve_bone_mapping.json'),
+                'valve_l4d': os.path.join(mapping_dir, 'valve_l4d_bone_mapping.json'),  # NEW: Left 4 Dead
                 'mixamo': os.path.join(mapping_dir, 'bone_mapping_mixamo.json'),
                 'mixamo_clean': os.path.join(mapping_dir, 'bone_mapping_mixamo_clean.json'),
                 'sfm': os.path.join(mapping_dir, 'bone_mapping_SFM.json'),
@@ -1075,9 +1076,19 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
             # MEJORADO: Umbral más permisivo y detección especial para Mixamo
             print(f"[SMART_DETECT] Mejor score: {best_score:.2%} (tipo: {best_type})")
             
+            # Detección especial para L4D: buscar helper bones característicos (hlp_)
+            l4d_helper_count = sum(1 for bone in source_bones if 'hlp_' in bone.lower())
+            l4d_detected = l4d_helper_count >= 3  # Si hay 3+ helper bones, es L4D
+            
             # Detección especial para Mixamo: buscar patrones mixamorig en source bones
             mixamo_detected = any('mixamorig' in bone.lower() for bone in source_bones)
-            if mixamo_detected and 'mixamo' in mapping_files:
+            
+            if l4d_detected and 'valve_l4d' in mapping_files:
+                print(f"[SMART_DETECT] Detectados {l4d_helper_count} helper bones (hlp_*) en source armature - Es L4D!")
+                mapping_file = mapping_files['valve_l4d']
+                best_type = 'valve_l4d'
+                print(f"[SMART_DETECT] Forzando uso de mapping Valve L4D")
+            elif mixamo_detected and 'mixamo' in mapping_files:
                 print(f"[SMART_DETECT] Detectados huesos Mixamo en source armature")
                 mapping_file = mapping_files['mixamo']
                 print(f"[SMART_DETECT] Forzando uso de mapping Mixamo")
