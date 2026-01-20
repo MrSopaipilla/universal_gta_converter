@@ -1,12 +1,12 @@
 """
-Universal GTA SA Converter v1.0
+Universal GTA SA Converter v1.2
 
 """
 
 bl_info = {
     "name": "Universal to GTA SA Converter",
     "author": "YoshiMaincra + Cursor AI",
-    "version": (1, 0, 0),
+    "version": (1, 2, 0),
     "blender": (4, 5, 0),
     "location": "View3D > Sidebar > Tool > Universal GTA",
     "description": "Convierte armatures personalizados a GTA SA con Smart Auto-Detect inteligente (Mixamo, Source/SFM, etc.), sistema de auto-corrección mejorado y herramientas avanzadas. Compatible con Blender 4.5",
@@ -116,6 +116,18 @@ if not CONFIG_AVAILABLE:
         print("[ADDON] [ERROR] No se puede descargar el addon sin config.py")
         pass
 else:
+    # === PASO 1.5: IMPORTAR SISTEMAS DE MAPEO AVANZADOS ===
+    try:
+        from . import improved_bone_mapping_system
+        IMPROVED_MAPPING_AVAILABLE = True
+    except ImportError:
+        IMPROVED_MAPPING_AVAILABLE = False
+    
+    try:
+        from . import hierarchical_bone_consolidator
+        HIERARCHICAL_CONSOLIDATOR_AVAILABLE = True
+    except ImportError:
+        HIERARCHICAL_CONSOLIDATOR_AVAILABLE = False
     # === PASO 2: IMPORTAR SISTEMA DE PERFILES ===
     try:
         from .rig_profiles import RigProfileSystem
@@ -491,6 +503,27 @@ else:
         all_classes.append(UNIVERSALGTA_OT_adjust_skin_height)
     except Exception:
         pass
+    
+    # Importar operadores de sistemas avanzados de mapping
+    if IMPROVED_MAPPING_AVAILABLE:
+        try:
+            from .improved_bone_mapping_system import (
+                UNIVERSALGTA_OT_load_cached_mapping,
+                UNIVERSALGTA_OT_save_current_mapping_to_cache
+            )
+            all_classes.extend([
+                UNIVERSALGTA_OT_load_cached_mapping,
+                UNIVERSALGTA_OT_save_current_mapping_to_cache
+            ])
+        except Exception:
+            pass
+    
+    if HIERARCHICAL_CONSOLIDATOR_AVAILABLE:
+        try:
+            from .hierarchical_bone_consolidator import UNIVERSALGTA_OT_consolidate_bone_mappings
+            all_classes.append(UNIVERSALGTA_OT_consolidate_bone_mappings)
+        except Exception:
+            pass
 
     # Eliminar duplicados de clases
     seen = set()
@@ -534,13 +567,26 @@ else:
         except Exception:
             pass
         
+        # Registrar sistemas avanzados de mapping
+        if IMPROVED_MAPPING_AVAILABLE:
+            try:
+                improved_bone_mapping_system.register()
+            except Exception:
+                pass
+        
+        if HIERARCHICAL_CONSOLIDATOR_AVAILABLE:
+            try:
+                hierarchical_bone_consolidator.register()
+            except Exception:
+                pass
+        
         if registered_count > 0:
-            print("[ADDON] Universal GTA Converter v1.0 cargado correctamente.")
+            print("[ADDON] Universal GTA Converter v1.2 cargado correctamente.")
 
 
     def unregister():
         """Desregistra todas las clases del addon EN ORDEN INVERSO"""
-        print("[ADDON] Desregistrando Universal GTA Converter v1.0...")
+        print("[ADDON] Desregistrando Universal GTA Converter v1.2...")
         
         # Desregistrar previews de avatares
         try:
@@ -574,8 +620,21 @@ else:
                     print(f"[ADDON] [ERROR] Error desregistrando {cls.__name__}: {e}")
                     failed_count += 1
         
+        # Desregistrar sistemas avanzados de mapping
+        if HIERARCHICAL_CONSOLIDATOR_AVAILABLE:
+            try:
+                hierarchical_bone_consolidator.unregister()
+            except Exception:
+                pass
+        
+        if IMPROVED_MAPPING_AVAILABLE:
+            try:
+                improved_bone_mapping_system.unregister()
+            except Exception:
+                pass
+        
         if failed_count == 0:
-            print("[ADDON] [OK] Universal GTA Converter v1.0 desregistrado correctamente")
+            print("[ADDON] [OK] Universal GTA Converter v1.2 desregistrado correctamente")
         else:
             print(f"[ADDON] [WARNING] Desregistrado con {failed_count} errores menores")
 

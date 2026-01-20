@@ -1,4 +1,4 @@
-"""Panel principal para Universal GTA SA Converter v1.0.
+"""Panel principal para Universal GTA SA Converter v1.2.
 Implementa la interfaz gráfica principal y los paneles secundarios del addon.
 """
 
@@ -129,7 +129,7 @@ def get_blender5_icon(icon_name):
 
 class UNIVERSALGTA_PT_MainPanel(Panel):
     """Panel principal con Quick Workflow"""
-    bl_label = "Universal GTA Converter v1.0"
+    bl_label = "Universal GTA Converter v1.2"
     bl_idname = "UNIVERSALGTA_PT_main_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -141,7 +141,7 @@ class UNIVERSALGTA_PT_MainPanel(Panel):
         
         info_box = layout.box()
         info_box.label(text="Universal GTA SA Converter", icon=get_blender5_icon('ARMATURE_DATA'))
-        info_box.label(text="v1.0", icon=get_blender5_icon('INFO'))
+        info_box.label(text="v1.2", icon=get_blender5_icon('INFO'))
         
         layout.separator()
         setup_box = layout.box()
@@ -200,6 +200,23 @@ class UNIVERSALGTA_PT_AdvancedMappingPanel(Panel):
                        text="Load", icon=get_blender5_icon('FILE_FOLDER'))
         io_row.operator("universalgta.save_mapping", 
                        text="Save", icon=get_blender5_icon('FILE_TICK'))
+        
+        layout.separator()
+        consolidate_box = layout.box()
+        consolidate_box.label(text="🔄 Hierarchical Consolidation", icon=get_blender5_icon('AUTO'))
+        
+        info_col = consolidate_box.column()
+        info_col.scale_y = 0.75
+        info_col.label(text="Analiza la ESTRUCTURA del rig")
+        info_col.label(text="• Hereda de los huesos padres")
+        info_col.label(text="• Detecta cadenas lineales")
+        info_col.label(text="• Funciona con CUALQUIER nombre de hueso")
+        
+        consolidate_row = consolidate_box.row()
+        consolidate_row.scale_y = 1.3
+        consolidate_row.operator("universalgta.consolidate_bone_mappings", 
+                                text="🔄 Consolidate by Hierarchy", 
+                                icon=get_blender5_icon('AUTO'))
         
         layout.separator()
         self.draw_mapping_operations(layout, context, settings)
@@ -503,7 +520,7 @@ class UNIVERSALGTA_PT_InfoPanel(Panel):
     def draw(self, context):
         layout = self.layout
         info_box = layout.box()
-        info_box.label(text="Universal GTA Converter v1.0", icon=get_blender5_icon('INFO'))
+        info_box.label(text="Universal GTA Converter v1.2", icon=get_blender5_icon('INFO'))
         info_col = info_box.column()
         info_col.scale_y = 0.8
         info_col.label(text="🧠 Smart Auto-Detect for:")
