@@ -62,6 +62,16 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         if not settings.source_armature or not settings.target_armature:
             self.report({'ERROR'}, "Selecciona source y target armature")
             return {'CANCELLED'}
+
+        # --- AUTO POSE START ---
+        # Aplicar pose personalizada automáticamente al inicio
+        print("🧘 Aplicando Custom Pose Automática...")
+        try:
+            bpy.ops.universalgta.apply_custom_pose()
+            print("✅ Custom Pose aplicada correctamemte.")
+        except Exception as e:
+            print(f"⚠️ No se pudo aplicar Custom Pose (Puede que no sea necesaria o falló): {e}")
+        # --- AUTO POSE END ---
             
         # --- MMD CLEANUP START ---
         # Limpiar jerarquía MMD antes de validar o procesar nada
@@ -160,6 +170,9 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             
             print("⚡ PASO 12: Aplicando y bakeando pose...")
             self.apply_pose_and_cleanup_ultimate()
+            
+            print("🦴 PASO 12.5: Corrección de columna (Spine Fix)...")
+            self.fix_spine_separation()
             
             print("🦴 PASO 13: Actualizando vertex groups...")
             self.update_vertex_groups_ultimate(settings)
@@ -1117,6 +1130,71 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             
         return True
 
+    def fix_spine_separation(self) -> bool:
+        """Corregir separación excesiva entre Spine y Spine1 después de aplicar pose"""
+        print("🦴 Corrigiendo separación de columna (Spine Fix)...")
+        
+        if not self.target_armature:
+            return False
+            
+        bpy.context.view_layer.objects.active = self.target_armature
+        bpy.ops.object.mode_set(mode='EDIT')
+        
+        spine_name = " Spine"
+        spine1_name = " Spine1"
+        
+        eb = self.target_armature.data.edit_bones
+        
+        if spine_name in eb and spine1_name in eb:
+            spine = eb[spine_name]
+            spine1 = eb[spine1_name]
+            
+            # Calcular distancia
+            dist = (spine1.head - spine.tail).length
+            print(f"  Distancia actual Spine->Spine1: {dist:.4f}m")
+            
+            # Umbral de corrección aumentado para respetar gaps naturales (style GTA)
+            # Limit 0.15m (15cm). Si la distancia es menor, se considera correcta/intencional.
+            limit = 0.15
+            
+            if dist > limit:
+                print(f"  ⚠️ Separación excesiva detectada. Re-alineando Spine1 verticalmente...")
+                
+                # NUEVA LÓGICA: Centrar "Arriba" (Vertical Stacking)
+                # En lugar de ir al tail (que puede estar al frente), alineamos X/Y con el head del Spine
+                # y limitamos la altura Z.
+                
+                current_head = spine1.head.copy()
+                target_head = current_head.copy()
+                
+                # 1. Alineación Horizontal (X/Y) -> Centrado con Spine Head
+                target_head.x = spine.head.x
+                target_head.y = spine.head.y
+                
+                # 2. Control de Altura (Z)
+                # Mantenemos la altura Z original de Spine1, pero si está muy lejos, la bajamos.
+                z_dist = current_head.z - spine.head.z
+                max_height = 0.05  # Bajado a 5cm (agresivo)
+                
+                if z_dist > max_height:
+                    target_head.z = spine.head.z + max_height
+                elif z_dist < 0: # Si está por debajo, ponerlo justo encima
+                    target_head.z = spine.head.z + 0.05
+                    
+                # Calcular el movimiento necesario
+                move_vec = target_head - current_head
+                
+                # Aplicar movimiento SOLO a Spine1
+                spine1.head += move_vec
+                spine1.tail += move_vec
+                
+                print("  ✅ Columna re-alineada verticalmente (Centrada arriba).")
+            else:
+                print("  ✅ Distancia correcta. No se requiere corrección.")
+                
+        bpy.ops.object.mode_set(mode='OBJECT')
+        return True
+
     def get_child_meshes(self, parent_obj) -> List:
         """Obtener mallas hijo de un objeto (Mixamo)"""
         return [child for child in bpy.data.objects 
@@ -1213,12 +1291,13 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
             mapping_dir = os.path.join(addon_dir, 'mappings')
             mapping_files = {
                 'valve': os.path.join(mapping_dir, 'valve_bone_mapping.json'),
-                'valve_l4d': os.path.join(mapping_dir, 'valve_l4d_bone_mapping.json'),  # NEW: Left 4 Dead
+                'valve_l4d': os.path.join(mapping_dir, 'valve_l4d_bone_mapping.json'),
                 'mixamo': os.path.join(mapping_dir, 'bone_mapping_mixamo.json'),
                 'mixamo_clean': os.path.join(mapping_dir, 'bone_mapping_mixamo_clean.json'),
                 'sfm': os.path.join(mapping_dir, 'bone_mapping_SFM.json'),
                 'accurig': os.path.join(mapping_dir, 'accurig_bone_mapping.json'),
                 'rigify': os.path.join(mapping_dir, 'rigify_mapping.json'),
+                'mmd': os.path.join(mapping_dir, 'mmd_bone_mapping.json'),
                 'avatarsdk': os.path.join(mapping_dir, 'avatarsdk_bone_mapping.json'),
             }
             empty_mapping_file = os.path.join(mapping_dir, 'empty_gta_sa_mapping.json')

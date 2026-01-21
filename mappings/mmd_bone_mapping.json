@@ -1,0 +1,470 @@
+{
+  "format_version": "2.0",
+  "description": "Universal GTA SA Converter Bone Mappings",
+  "mappings": [
+    {
+      "index": 0,
+      "source_bone": "腰",
+      "target_bone": " Pelvis",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 1,
+      "source_bone": "下半身",
+      "target_bone": " Pelvis",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 2,
+      "source_bone": "上半身2",
+      "target_bone": " Spine1",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 3,
+      "source_bone": "上半身",
+      "target_bone": " Spine",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 4,
+      "source_bone": "首",
+      "target_bone": " Neck",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 5,
+      "source_bone": "頭",
+      "target_bone": " Head",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 6,
+      "source_bone": "肩.L",
+      "target_bone": "Bip01 L Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 7,
+      "source_bone": "腕.L",
+      "target_bone": " L UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 8,
+      "source_bone": "ひじ.L",
+      "target_bone": " L ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 9,
+      "source_bone": "親指０.L",
+      "target_bone": " L Hand",
+      "enabled": false,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 10,
+      "source_bone": "親指１.L",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 11,
+      "source_bone": "親指２.L",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 12,
+      "source_bone": "手首.L",
+      "target_bone": " L Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 13,
+      "source_bone": "薬指１.L",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 14,
+      "source_bone": "小指１.L",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 15,
+      "source_bone": "人指１.L",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 16,
+      "source_bone": "中指１.L",
+      "target_bone": " L Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 17,
+      "source_bone": "人指３.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 18,
+      "source_bone": "薬指２.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 19,
+      "source_bone": "薬指３.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 20,
+      "source_bone": "小指２.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 21,
+      "source_bone": "小指３.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 22,
+      "source_bone": "人指２.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 23,
+      "source_bone": "中指３.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 24,
+      "source_bone": "中指２.L",
+      "target_bone": "L Finger01",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 25,
+      "source_bone": "肩.R",
+      "target_bone": "Bip01 R Clavicle",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 26,
+      "source_bone": "腕.R",
+      "target_bone": " R UpperArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 27,
+      "source_bone": "ひじ.R",
+      "target_bone": " R ForeArm",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 28,
+      "source_bone": "親指０.R",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 29,
+      "source_bone": "親指１.R",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 30,
+      "source_bone": "親指２.R",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 31,
+      "source_bone": "手首.R",
+      "target_bone": " R Hand",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 32,
+      "source_bone": "薬指１.R",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 33,
+      "source_bone": "小指１.R",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 34,
+      "source_bone": "人指１.R",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 35,
+      "source_bone": "中指１.R",
+      "target_bone": " R Finger",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 36,
+      "source_bone": "人指３.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 37,
+      "source_bone": "薬指２.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 38,
+      "source_bone": "薬指３.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 39,
+      "source_bone": "小指２.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 40,
+      "source_bone": "小指３.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 41,
+      "source_bone": "人指２.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 42,
+      "source_bone": "中指３.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Merge",
+      "confidence": 1.0
+    },
+    {
+      "index": 43,
+      "source_bone": "中指２.R",
+      "target_bone": "R Finger01",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 44,
+      "source_bone": "足D.L",
+      "target_bone": " L Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 45,
+      "source_bone": "足.R",
+      "target_bone": " R Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 46,
+      "source_bone": "足.L",
+      "target_bone": " L Thigh",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 47,
+      "source_bone": "ひざD.L",
+      "target_bone": " L Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 48,
+      "source_bone": "ひざ.L",
+      "target_bone": " L Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 49,
+      "source_bone": "足首D.L",
+      "target_bone": " L Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 50,
+      "source_bone": "足首.L",
+      "target_bone": " L Foot",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 51,
+      "source_bone": "足先EX.L",
+      "target_bone": " L Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 52,
+      "source_bone": "足D.R",
+      "target_bone": " R Thigh",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 53,
+      "source_bone": "ひざD.R",
+      "target_bone": " R Calf",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 54,
+      "source_bone": "ひざ.R",
+      "target_bone": " R Calf",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 55,
+      "source_bone": "足首D.R",
+      "target_bone": " R Foot",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    },
+    {
+      "index": 56,
+      "source_bone": "足首.R",
+      "target_bone": " R Foot",
+      "enabled": true,
+      "detection_method": "Duplicated",
+      "confidence": 1.0
+    },
+    {
+      "index": 57,
+      "source_bone": "足先EX.R",
+      "target_bone": " R Toe0",
+      "enabled": true,
+      "detection_method": "Manual",
+      "confidence": 1.0
+    }
+  ]
+}
