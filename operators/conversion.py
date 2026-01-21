@@ -965,6 +965,49 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
     bl_label = "Smart Auto Detect"
     bl_description = "Detección inteligente automática DEFINITIVA"
     
+    def correct_source_bone_case(self, settings) -> int:
+        """Corrige el case de los source_bones para que coincidan exactamente con los huesos reales del armature.
+        
+        Esto soluciona el problema donde el mapping puede tener 'bip_UpperArm_r' pero el hueso real
+        se llama 'bip_upperArm_R'. El sistema detecta correctamente (case-insensitive) pero muestra
+        el nombre del JSON en lugar del nombre real del hueso.
+        
+        Returns:
+            int: Cantidad de source_bones corregidos
+        """
+        if not settings.source_armature:
+            return 0
+        
+        # Crear diccionario de mapeo: lowercase -> nombre real del hueso
+        bone_name_map = {}
+        
+        # Incluir tanto data.bones como pose.bones para máxima compatibilidad
+        for bone in settings.source_armature.data.bones:
+            bone_name_map[bone.name.lower()] = bone.name
+        
+        for bone in settings.source_armature.pose.bones:
+            bone_name_map[bone.name.lower()] = bone.name
+        
+        # Corregir cada source_bone en los mappings
+        corrected_count = 0
+        for mapping in settings.bone_mappings:
+            if not mapping.source_bone:
+                continue
+            
+            source_lower = mapping.source_bone.lower()
+            
+            # Si existe un hueso real con este nombre (case-insensitive), corregir el case
+            if source_lower in bone_name_map:
+                real_bone_name = bone_name_map[source_lower]
+                
+                # Solo corregir si el case es diferente
+                if mapping.source_bone != real_bone_name:
+                    print(f"  [CASE_FIX] '{mapping.source_bone}' -> '{real_bone_name}'")
+                    mapping.source_bone = real_bone_name
+                    corrected_count += 1
+        
+        return corrected_count
+    
     def execute(self, context):
         """Smart Auto Detect: compara los huesos del armature con los mappings predefinidos y carga el más similar (>70%) o el vacío"""
         import os, json
@@ -1115,6 +1158,12 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
                             m.enabled = entry.get('enabled', True)
                             m.detection_method = entry.get('detection_method', 'Manual')
                             m.confidence = entry.get('confidence', 1.0)
+                        
+                        # 🔧 CORRECCIÓN DE CASE: Ajustar source_bones al case real del armature
+                        if settings.source_armature:
+                            corrected_count = self.correct_source_bone_case(settings)
+                            print(f"[SMART_DETECT] {corrected_count} source_bones corregidos al case real del armature")
+                        
                         loaded = True
                         print(f"✅ Mapping cargado desde {mapping_file} con {len(data['mappings'])} elementos")
                         total_detected += len(data['mappings'])
