@@ -4,10 +4,10 @@ import re
 from typing import List
 
 class UNIVERSALGTA_OT_execute_conversion(Operator):
-    """Convertidor GTA SA Definitivo - Basado en flujo probado + mejoras desarrolladas"""
+    """Convertidor GTA SA Definitivo"""
     bl_idname = "universalgta.execute_conversion"
     bl_label = "Convert to GTA SA (Ultimate)"
-    bl_description = "Conversión definitiva a GTA SA con flujo probado"
+    bl_description = "Conversión definitiva a GTA SA"
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
@@ -62,6 +62,13 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         if not settings.source_armature or not settings.target_armature:
             self.report({'ERROR'}, "Selecciona source y target armature")
             return {'CANCELLED'}
+            
+        # --- MMD CLEANUP START ---
+        # Limpiar jerarquía MMD antes de validar o procesar nada
+        # (Desbloquear transforms, quitar Empty padre, borrar rigidbodies/joints)
+        self.source_armature = settings.source_armature
+        self.clean_mmd_hierarchy()
+        # --- MMD CLEANUP END ---
         
         try:
             print("=" * 70)
@@ -697,6 +704,14 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         merged_obj = bpy.context.active_object
         merged_obj.name = "Mesh"
         merged_obj.data.name = "Mesh"
+        
+        # START FIX: Make single user to avoid modifiers error
+        if merged_obj.data.users > 1:
+            print(f"⚠️ La malla es multi-user ({merged_obj.data.users}). Haciendo única...")
+            merged_obj.data = merged_obj.data.copy()
+            merged_obj.data.name = "Mesh"
+        # END FIX
+        
         self.merged_mesh = merged_obj
         
         print(f"✅ {len(child_meshes)} mallas unidas en 'Mesh'")
@@ -710,6 +725,22 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             return False
         
         bpy.context.view_layer.objects.active = self.merged_mesh
+        
+        # --- FIXED: FORCE SINGLE USER ---
+        # Force single user regardless of what blender says about user count
+        # This prevents "multi-user" errors when applying modifiers
+        try:
+             bpy.ops.object.make_single_user(type='SELECTED_OBJECTS', object=True, obdata=True)
+             print("✅ Objeto forzado a ser usuario único (make_single_user operator)")
+        except Exception:
+             # Fallback: manual copy if operator fails
+             try:
+                 print("⚠️ Fallback: Copiando data manualmente para single user...")
+                 self.merged_mesh.data = self.merged_mesh.data.copy()
+                 self.merged_mesh.data.name = "Mesh"
+             except Exception as e:
+                 print(f"⚠️ Error al forzar single user: {e}")
+        # ---------------------------------
         
         # Aplicar shapekeys
         if self.merged_mesh.data.shape_keys:
@@ -920,6 +951,20 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         bpy.ops.object.select_all(action='DESELECT')
         self.merged_mesh.select_set(True)
         self.target_armature.select_set(True)
+        
+        # --- FIXED: FORCE SINGLE USER AGAIN ---
+        # Ensure single user before applying transforms
+        bpy.context.view_layer.objects.active = self.merged_mesh
+        try:
+             bpy.ops.object.make_single_user(type='SELECTED_OBJECTS', object=True, obdata=True)
+        except Exception:
+             pass
+        # --------------------------------------
+
+        # Asegurar que el armature target también tenga transformaciones aplicadas si es necesario
+        # (Aunque usualmente ya debería tenerlas)
+        
+        bpy.context.view_layer.objects.active = self.merged_mesh
         bpy.context.view_layer.objects.active = self.merged_mesh
         
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
@@ -946,6 +991,60 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             except:
                 print("⚠️ Error removiendo source armature")
         
+        # --- NEW: Delete all collections but keep content (HYPER AGGRESSIVE) ---
+        print("🧹 Aplanando jerarquía (MÉTODO DEFINITIVO)...")
+        try:
+            master_col = bpy.context.scene.collection
+            
+            # 1. Asegurar que Mesh y Armature estén en la Master Collection
+            desired_objects = [self.merged_mesh, self.target_armature]
+            for obj in desired_objects:
+                if obj and obj.name not in master_col.objects:
+                    try:
+                        master_col.objects.link(obj)
+                        print(f"  ✅ {obj.name} movido a Master Collection")
+                    except Exception as e:
+                        print(f"  ⚠️ Error moviendo {obj.name}: {e}")
+            
+            # 2. Desvincular objetos de TODAS las otras colecciones
+            # Iteramos sobre todos los objetos de la escena para asegurar limpieza total
+            for obj in bpy.data.objects:
+                if not obj: continue
+                
+                # Para nuestros objetos clave, o cualquier objeto que ya esté en master
+                # forzamos su salida de otras colecciones
+                if obj in desired_objects or obj.name in master_col.objects:
+                    for col in list(obj.users_collection):
+                        if col != master_col:
+                            try:
+                                col.objects.unlink(obj)
+                            except Exception as e:
+                                pass
+
+            # 3. Desvincular colecciones hijas de la Scene Collection (Visual)
+            # Esto quita las "Carpetas" de la vista inmediatamente
+            for child_col in list(master_col.children):
+                try:
+                    master_col.children.unlink(child_col)
+                except Exception as e:
+                     print(f"  ⚠️ Error desvinculando colección {child_col.name}: {e}")
+
+            # 4. Eliminar todas las colecciones de la base de datos
+            # Ahora que están desvinculadas y vacías, no deberían resistirse
+            for col in list(bpy.data.collections):
+                if col != master_col:
+                    try:
+                        bpy.data.collections.remove(col, do_unlink=True)
+                        print(f"  🗑️ Colección purgada: {col.name}")
+                    except Exception as e:
+                        print(f"  ⚠️ No se pudo purgar {col.name}: {e}")
+            
+            print("✅ Jerarquía completamente aplanada.")
+                    
+        except Exception as e:
+            print(f"⚠️ Error fatal gestionando colecciones: {e}")
+        # ----------------------------------------------------
+
         # Limpiar selecciones
         bpy.ops.object.select_all(action='DESELECT')
         bpy.context.view_layer.objects.active = None
@@ -953,6 +1052,71 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         print("✅ Escena limpiada")
         return True
     
+    
+    def clean_mmd_hierarchy(self) -> bool:
+        """Limpiar jerarquía MMD: Desbloquear transforms, eliminar Empty padre y basura (rigidbodies/joints)"""
+        print("🧹 Limpiando jerarquía MMD...")
+        
+        if not self.source_armature:
+            return False
+            
+        # 1. Desbloquear transformaciones del Armature
+        print(f"🔓 Desbloqueando transformaciones de '{self.source_armature.name}'...")
+        self.source_armature.lock_location = (False, False, False)
+        self.source_armature.lock_rotation = (False, False, False)
+        self.source_armature.lock_scale = (False, False, False)
+        
+        # 2. Manejar el Empty padre
+        parent = self.source_armature.parent
+        if parent and parent.type == 'EMPTY':
+            print(f"🗑️ Empty padre detectado: '{parent.name}'. Separando armature...")
+            
+            # Guardamos referencia a objetos "basura" (hermanos del armature bajo el empty)
+            trash_objects = []
+            for child in parent.children:
+                if child != self.source_armature:
+                    trash_objects.append(child)
+            
+            # Desemparentar Armature manteniendo transformación
+            # Importante: Usar matriz world para mantener posición visual
+            matrix_world = self.source_armature.matrix_world.copy()
+            self.source_armature.parent = None
+            self.source_armature.matrix_world = matrix_world
+            
+            # Desseleccionar todo y seleccionar armature para asegurar limpieza
+            bpy.ops.object.select_all(action='DESELECT')
+            self.source_armature.select_set(True)
+            bpy.context.view_layer.objects.active = self.source_armature
+            
+            # Eliminar la basura
+            print(f"🗑️ Eliminando Empty '{parent.name}' y objetos hermanos ({len(trash_objects)})...")
+            
+            # Función auxiliar para borrar recursivamente
+            def delete_object_recursive(obj):
+                children = list(obj.children)
+                for child in children:
+                    delete_object_recursive(child)
+                try:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                except:
+                    pass
+
+            for trash in trash_objects:
+                delete_object_recursive(trash)
+                
+            # Eliminar el Empty padre
+            try:
+                bpy.data.objects.remove(parent, do_unlink=True)
+                print(f"✅ Empty padre eliminado")
+            except Exception as e:
+                print(f"⚠️ No se pudo eliminar el Empty padre: {e}")
+                
+            print("✅ Jerarquía MMD limpiada. Armature aislado y desbloqueado.")
+        else:
+            print("ℹ️ No se detectó jerarquía MMD estándar (Empty padre). Solo se desbloquearon transforms.")
+            
+        return True
+
     def get_child_meshes(self, parent_obj) -> List:
         """Obtener mallas hijo de un objeto (Mixamo)"""
         return [child for child in bpy.data.objects 
