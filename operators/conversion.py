@@ -1299,6 +1299,7 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
                 'rigify': os.path.join(mapping_dir, 'rigify_mapping.json'),
                 'mmd': os.path.join(mapping_dir, 'mmd_bone_mapping.json'),
                 'avatarsdk': os.path.join(mapping_dir, 'avatarsdk_bone_mapping.json'),
+                'goldsrc': os.path.join(mapping_dir, 'goldsrc_mapping.json'),
             }
             empty_mapping_file = os.path.join(mapping_dir, 'empty_gta_sa_mapping.json')
 
@@ -1414,8 +1415,23 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
                         print(f"[SMART_DETECT] El archivo {mapping_file} no contiene 'mappings'.")
             else:
                 print(f"[SMART_DETECT] El archivo de mapping no existe: {mapping_file}")
+            # Definir nombres legibles para el reporte
+            display_names = {
+                'valve': 'Valve Biped Source',
+                'valve_l4d': 'Valve L4D',
+                'mixamo': 'Mixamo',
+                'mixamo_clean': 'Mixamo Clean',
+                'sfm': 'Source/SFM',
+                'accurig': 'AccuRig',
+                'rigify': 'Rigify',
+                'mmd': 'MikuMikuDance',
+                'avatarsdk': 'AvatarSDK',
+                'goldsrc': 'Gold Source',
+            }
+
             if loaded:
-                self.report({'INFO'}, f"✅ Smart Auto Detect: {total_detected} elementos detectados (preset: {best_type or 'empty'})")
+                readable_type = display_names.get(best_type, best_type or 'empty')
+                self.report({'INFO'}, f"✅ Smart Auto Detect: {total_detected} elementos detectados (preset: {readable_type})")
                 print(f"[SMART_DETECT] Asignación a settings.bone_mappings completada. Total: {len(settings.bone_mappings)}")
                 return {'FINISHED'}
             else:

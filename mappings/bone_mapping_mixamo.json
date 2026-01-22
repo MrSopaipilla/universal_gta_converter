@@ -1,6 +1,6 @@
 {
   "format_version": "2.1",
-  "description": "Universal GTA SA Converter Bone Mappings (Fixed Order for Correct Constraints)",
+  "description": "Mixamo Rig to GTA SA",
   "mappings": [
     {
       "index": 0,

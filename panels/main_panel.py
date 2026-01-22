@@ -524,7 +524,7 @@ class UNIVERSALGTA_PT_InfoPanel(Panel):
         info_col = info_box.column()
         info_col.scale_y = 0.8
         info_col.label(text="🧠 Smart Auto-Detect for:")
-        info_col.label(text="• Mixamo, Source/SFM, ValveBiped, AvatarSDK")
+        info_col.label(text="• Mixamo, Source/SFM, ValveBiped, AvatarSDK, Gold Source")
 
         layout.separator()
         credits_box = layout.box()
