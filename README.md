@@ -63,7 +63,7 @@ Un mapping (mapeo) es una conexión entre dos huesos:
 
 ## 📚 Mappings Predefinidos del Addon
 
-El addon incluye **8 perfiles de mapping predefinidos** que cubren los sistemas de animación más comunes. Cuando usas la función "Smart Auto-Detect", el addon intenta reconocer automáticamente qué tipo de personaje tienes y carga el mapping más adecuado.
+El addon incluye **11 perfiles de mapping predefinidos** que cubren los sistemas de animación más comunes. Cuando usas la función "Smart Auto-Detect", el addon intenta reconocer automáticamente qué tipo de personaje tienes y carga el mapping más adecuado.
 
 ### 🎭 Perfiles Disponibles:
 
@@ -164,7 +164,46 @@ El addon incluye **8 perfiles de mapping predefinidos** que cubren los sistemas 
 
 ---
 
-#### 8. **Empty (Vacío)** (`empty_gta_sa_mapping.json`)
+#### 8. **GoldSrc (Half-Life 1 / Counter-Strike 1.6)** (`goldsrc_mapping.json`)
+**¿Qué es GoldSrc?** Es el motor original de Valve usado para juegos clásicos como Half-Life 1 y CS 1.6. Sus modelos usan nombres como `Bip01 Pelvis`, `Bip01 L UpperArm`, etc.
+
+**Características:**
+- Estructura Bip01 de la vieja escuela
+- Nombres de huesos con espacios o sufijos numéricos simples
+- Jerarquía optimizada para motores de finales de los 90
+- Compatible con modelos clásicos de GoldSrc
+
+**Cuándo usarlo:** Si estás portando modelos de Half-Life 1, Day of Defeat o Counter-Strike 1.6.
+
+---
+
+#### 9. **MMD (MikuMikuDance)** (`mmd_bone_mapping.json`)
+**¿Qué es MMD?** Un software de animación japonés extremadamente popular. Sus modelos utilizan nombres de huesos en **japonés** (ej: `腰`, `上半身`, `腕.L`).
+
+**Características:**
+- Soporte nativo para nombres de huesos en japonés
+- Manejo de huesos "D" y huesos auxiliares típicos de modelos de anime
+- Mapeo complejo de dedos y extremidades
+- Ideal para convertir modelos descargados de comunidades de MMD (como BowlRoll)
+
+**Cuándo usarlo:** Cuando tengas un modelo que use la nomenclatura estándar de MMD en japonés.
+
+---
+
+#### 10. **Valve Left 4 Dead (L4D)** (`valve_l4d_bone_mapping.json`)
+**¿Qué es?** Una evolución del sistema ValveBiped específica para los juegos Left 4 Dead 1 y 2. Incluye huesos de ayuda ("helper bones") y una estructura ligeramente diferente al ValveBiped estándar.
+
+**Características:**
+- Soporte para `ValveBiped.hlp_` (huesos de ayuda)
+- Mapeos optimizados para las deformaciones de los personajes de L4D
+- Maneja nombres como `ValveBiped.Bip01_L_Bicep` y otros específicos
+- Mayor fidelidad en la conversión de modelos de L4D
+
+**Cuándo usarlo:** Si importas modelos directamente de Left 4 Dead 1 o 2.
+
+---
+
+#### 11. **Empty (Vacío)** (`empty_gta_sa_mapping.json`)
 **¿Qué es?** Un mapping completamente vacío, sin ningún mapeo predefinido. Útil cuando quieres crear todos los mappings manualmente desde cero.
 
 **Características:**
@@ -203,6 +242,33 @@ Cuando haces clic en **"🧠 Smart Auto-Detect"**, el addon:
 3. **Guarda tus mappings personalizados**: Si modificas un mapping predefinido, puedes guardarlo usando "Save Mapping" para usarlo después.
 
 4. **Orden importa**: Incluso los mappings predefinidos respetan el orden correcto mencionado en la sección de "Orden del Mapeo", especialmente para twist bones.
+
+---
+
+## 🔝 Consolidación Jerárquica (Consolidate by Hierarchy)
+
+### 🧠 ¿Qué es la Consolidación Jerárquica?
+
+Es una de las funciones más potentes del addon. A diferencia del "Smart Auto-Detect" que busca nombres de huesos, la **Consolidación Jerárquica** analiza la **forma y estructura del esqueleto**, no los nombres.
+
+### 🎯 ¿Para qué sirve?
+
+Sirve para completar automáticamente los mappings que faltan, **mapeando huesos twist, jingle bones y huesos extra** de forma automática. Es especialmente útil en modelos que usan idiomas extraños, nombres aleatorios o estructuras que no encajan en los perfiles estándar.
+
+### 🛠️ ¿Cómo funciona?
+
+El algoritmo usa reglas de herencia basadas en la posición del hueso en el árbol jerárquico:
+
+1.  **Huesos de Cadenas Lineales (Linear Chains):** Si tienes un hueso mapeado (ej: `Brazo`) seguido de una cadena lineal (`Brazo.001`, `Brazo.002`), el extra hereda automáticamente el mapping del padre.
+2.  **Huesos Hermanos (Siblings):** Útil para manos y pies. Si mapeas un dedo, los dedos hermanos pueden heredar ese mapping si están en la misma posición relativa.
+3.  **Huesos Hoja (Leaf Bones):** Los huesos finales que no tienen hijos suelen ser huesos de punta o accesorios; estos heredan del padre más cercano.
+4.  **Independencia de Nombres:** Funciona perfectamente con modelos chinos, japoneses, rusos o con nombres de huesos sin sentido, siempre que la estructura del rig sea humana.
+
+### 💡 Tips de Consolidación:
+
+- **Ejecútalo DESPUÉS del Smart Auto-Detect**: Primero carga los mappings principales y luego usa la consolidación para "rellenar los huecos".
+- **Nuevos mappings arriba**: El addon coloca los mappings consolidados **al principio de la lista** (arriba del todo). Esto es porque suelen ser huesos auxiliares que, según nuestra "Regla de Oro", deben procesarse antes que los huesos principales.
+- **Validación visual**: Al terminar, verás en la lista de mappings que el método de detección dice "Inherited from..." con un nivel de confianza basado en la distancia jerárquica.
 
 ---
 
@@ -440,6 +506,6 @@ Para más información, sugerencias o reportar bugs, contacta a través del cana
 
 ---
 
-**Versión**: 1.0  
+**Versión**: 1.2  
 **Compatibilidad**: Blender 4.5+ y 5.0+  
 
