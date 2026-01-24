@@ -114,7 +114,7 @@ class UniversalGTASettings(PropertyGroup):
     clean_materials: BoolProperty(
         name="Limpiar materiales",
         description="Simplificación estricta del material: extrae la textura difusa existente y limpia el árbol de nodos. NO bakea, NO genera texturas nuevas",
-        default=True
+        default=False
     )
     debug_mode: BoolProperty(name="Debug Mode", default=False)
     auto_detect_mode: BoolProperty(name="Auto Detect", default=True)
