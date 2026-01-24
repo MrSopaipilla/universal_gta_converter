@@ -96,14 +96,25 @@ class UniversalGTASettings(PropertyGroup):
     # Opciones de conversion
     keep_vertex_colors: BoolProperty(name="Mantener Vertex Colors", default=False)
     rasterize_textures: BoolProperty(
-        name="Rasterizar texturas",
-        description="Si está activado, hornea/rasteriza materiales complejos durante la conversión; si no, solo limpia/simplifica sin crear nuevas texturas",
+        name="Rasterizar texturas difusas (Bake)",
+        description="Bakea la textura difusa y reemplaza el material por la versión rasterizada. Solo se ejecuta si está activado",
         default=False
+    )
+    bake_resolution: EnumProperty(
+        name="Resolución de Bake",
+        description="Resolución de la textura bakeada",
+        items=[
+            ('256', '256x256', ''),
+            ('512', '512x512', ''),
+            ('1024', '1024x1024', ''),
+            ('2048', '2048x2048', ''),
+        ],
+        default='512'
     )
     clean_materials: BoolProperty(
         name="Limpiar materiales",
-        description="Si está activado, simplifica materiales. No bakea; solo rasteriza colores directos a 256x256 y deja intactos los que tengan Image Texture directa en Base Color",
-        default=False
+        description="Simplificación estricta del material: extrae la textura difusa existente y limpia el árbol de nodos. NO bakea, NO genera texturas nuevas",
+        default=True
     )
     debug_mode: BoolProperty(name="Debug Mode", default=False)
     auto_detect_mode: BoolProperty(name="Auto Detect", default=True)

@@ -438,56 +438,175 @@ def apply_hsv_transform(base_color, hue, saturation, value):
         return base_color
 
 
+def _is_image_basically_white_or_empty(image):
+    """Checks if an image is completely white, transparent, or empty."""
+    try:
+        if not image.pixels or len(image.pixels) == 0:
+            return True
+        
+        # Samplear el centro y algunas esquinas para ser rápido
+        width, height = image.size
+        # Indices de sampleo: centro y esquinas
+        indices = [
+            0, # esq inf izq
+            (width - 1) * 4, # esq inf der
+            (height - 1) * width * 4, # esq sup izq
+            (width * height - 1) * 4, # esq sup der
+            ((height // 2) * width + (width // 2)) * 4 # centro
+        ]
+        
+        is_all_white = True
+        is_all_transparent = True
+        
+        for idx in indices:
+            if idx < len(image.pixels) - 4:
+                r = image.pixels[idx]
+                g = image.pixels[idx+1]
+                b = image.pixels[idx+2]
+                a = image.pixels[idx+3]
+                
+                # Check transparencia (si tiene algo opaco, no es empty)
+                if a > 0.05:
+                    is_all_transparent = False
+                
+                # Check blanco (si algo no es blanco puro, no es white)
+                if r < 0.95 or g < 0.95 or b < 0.95:
+                    is_all_white = False
+
+        if is_all_transparent: return True # Vacio
+        if is_all_white: return True # Blanco puro (fallo típico de bake)
+        
+        return False
+    except:
+        return True # Asumir fallo si error
+
 def perform_advanced_baking(material, resolution=None):
     """
-    AVANZADO: Sistema de baking profesional con evaluación completa
-    Crea bake real del material considerando toda la cadena de nodos
+    AVANZADO: Bake usando estrategia 'EMIT' pura (Guia Manual).
+    Conecta Color/MixColor -> Emission -> Output.
     """
     try:
-        print(f"🔥 INICIANDO BAKING AVANZADO: {material.name}")
+        print(f"🔥 INICIANDO BAKING (EMIT MANUAL): {material.name}")
         
-        # Detectar resolución automáticamente si no se especifica
         if resolution is None:
             resolution = get_original_texture_resolution(material)
-        
-        # Evaluar color visual real del material
-        final_color = evaluate_material_visual_color(material)
-        
-        # Crear imagen de baking con color evaluado
-        baked_name = f"{material.name}_advanced_baked"
-        
-        # Remover imagen existente
-        if baked_name in bpy.data.images:
-            bpy.data.images.remove(bpy.data.images[baked_name])
-        
-        # Crear nueva imagen
-        baked_image = bpy.data.images.new(baked_name, width=resolution, height=resolution)
-        
-        # Llenar con color evaluado
-        total_pixels = resolution * resolution
-        pixel_data = []
-        
-        for i in range(total_pixels):
-            pixel_data.extend(final_color[:4])
-        
-        baked_image.pixels = pixel_data
-        baked_image.pack()
-        baked_image.use_fake_user = True
-        
-        print(f"✅ Baking completado: {baked_name} ({resolution}x{resolution})")
-        print(f"   Color final: RGB({final_color[0]:.3f}, {final_color[1]:.3f}, {final_color[2]:.3f})")
-        
-        return baked_image
-        
+
+        obj, slot_index = _find_object_with_material(material)
+        if not obj: return None
+
+        # Guardar estado
+        original_visibility = {}
+        for o in bpy.data.objects:
+            original_visibility[o.name] = o.hide_render
+        original_auto_smooth = False
+        if hasattr(obj.data, "use_auto_smooth"):
+            original_auto_smooth = obj.data.use_auto_smooth
+
+        try:
+            # Configurar Escena
+            if bpy.context.scene.render.engine != 'CYCLES':
+                bpy.context.scene.render.engine = 'CYCLES'
+            bpy.context.scene.cycles.device = 'CPU'
+            bpy.context.scene.cycles.samples = 1
+            bpy.context.scene.cycles.max_bounces = 0
+
+            # Aislar Objeto
+            if bpy.context.object and bpy.context.object.mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+            for o in bpy.data.objects: o.hide_render = True
+            obj.hide_render = False
+            if hasattr(obj.data, "use_auto_smooth"):
+                obj.data.use_auto_smooth = False
+
+            bpy.ops.object.select_all(action='DESELECT')
+            bpy.context.view_layer.objects.active = obj
+            obj.select_set(True)
+
+            # Sync UVs
+            if getattr(obj.data, 'uv_layers', None):
+                uv_layers = obj.data.uv_layers
+                # Fix API Error: active_render -> render
+                if uv_layers.render and uv_layers.active != uv_layers.render:
+                    uv_layers.active = uv_layers.render
+
+            # SETUP NODOS (EMISSION STRATEGY)
+            nodes = material.node_tree.nodes
+            links = material.node_tree.links
+            principled = _find_principled(material)
+            output_node = _get_output_node(material)
+
+            # Crear Imagen Target
+            baked_name = f"{material.name}_r_d"
+            if baked_name in bpy.data.images:
+                bpy.data.images.remove(bpy.data.images[baked_name])
+            baked_image = bpy.data.images.new(baked_name, width=resolution, height=resolution, alpha=True)
+
+            # Nodo Target
+            for n in nodes: n.select = False
+            target_node = nodes.new('ShaderNodeTexImage')
+            target_node.image = baked_image
+            target_node.select = True
+            nodes.active = target_node
+
+            # Nodo Emission
+            emission = nodes.new('ShaderNodeEmission')
+            emission.location = (principled.location.x + 200, principled.location.y + 200)
+            
+            # Conexión Inteligente (Mix Shader support simple)
+            # Si el Principled tiene algo en Base Color, lo usamos.
+            base_socket = principled.inputs.get('Base Color')
+            input_source = None
+            if base_socket and base_socket.is_linked:
+                input_source = base_socket.links[0].from_socket
+                links.new(input_source, emission.inputs['Color'])
+            else:
+                default_col = base_socket.default_value if base_socket else [1,1,1,1]
+                emission.inputs['Color'].default_value = default_col
+            
+            # Conectar a Output
+            final_surface = output_node.inputs['Surface']
+            orig_link_source = None
+            if final_surface.is_linked:
+                orig_link_source = final_surface.links[0].from_socket
+            
+            links.new(emission.outputs['Emission'], final_surface)
+
+            # BAKE
+            print(f"   ⏳ Bakeando {resolution}x{resolution} (EMIT)...")
+            bpy.context.scene.render.bake.use_selected_to_active = False
+            bpy.context.scene.render.bake.use_cage = False
+            bpy.context.scene.render.bake.margin = 0
+            bpy.context.scene.render.bake.use_clear = True
+            bpy.context.scene.render.bake.target = 'IMAGE_TEXTURES'
+            
+            bpy.ops.object.bake(type='EMIT')
+            
+            # Restaurar Nodos
+            nodes.remove(emission)
+            nodes.remove(target_node)
+            if orig_link_source:
+                links.new(orig_link_source, final_surface)
+            
+            baked_image.pack()
+            baked_image.use_fake_user = True
+            
+            return baked_image
+
+        finally:
+            # Restaurar Global
+            for n, h in original_visibility.items():
+                if n in bpy.data.objects: bpy.data.objects[n].hide_render = h
+            if obj and hasattr(obj.data, "use_auto_smooth"):
+                obj.data.use_auto_smooth = original_auto_smooth
     except Exception as e:
-        print(f"❌ Error en baking avanzado para {material.name}: {e}")
+        print(f"❌ Error Bake: {e}")
         return None
 
 
 def replace_material_with_baked(material, baked_image):
     """
     AVANZADO: Reemplazar material complejo con textura baked
-    Conserva resultado visual pero simplifica nodos
+    Conserva Alpha original si existe
     """
     try:
         if not material.use_nodes:
@@ -496,35 +615,67 @@ def replace_material_with_baked(material, baked_image):
         nodes = material.node_tree.nodes
         links = material.node_tree.links
         
-        # Buscar Principled BSDF
-        principled = None
-        for node in nodes:
-            if node.type == 'BSDF_PRINCIPLED':
-                principled = node
-                break
+        principled = _find_principled(material)
+        output_node = _get_output_node(material)
+        if not principled: return False
         
-        if not principled:
-            return False
+        # Detectar conexión Alpha antes de borrar
+        alpha_socket = principled.inputs.get('Alpha')
+        alpha_source_socket = None
+        alpha_source_node = None
         
-        # Limpiar nodos existentes (excepto Principled y Output)
-        nodes_to_remove = []
-        for node in nodes:
-            if node.type not in ['BSDF_PRINCIPLED', 'OUTPUT_MATERIAL']:
-                nodes_to_remove.append(node)
+        nodes_to_keep = {principled, output_node}
         
-        for node in nodes_to_remove:
-            nodes.remove(node)
+        if alpha_socket and alpha_socket.is_linked:
+            alpha_link = alpha_socket.links[0]
+            alpha_source_socket = alpha_link.from_socket
+            alpha_source_node = alpha_link.from_node
+            
+            # Si el nodo de origen es una imagen o mapping, intentar preservarlo
+            # (Un análisis profundo preservaría toda la cadena, aquí hacemos best-effort)
+            nodes_to_keep.add(alpha_source_node)
+            
+            # Si tiene mapping atras, guardarlo tambien
+            if hasattr(alpha_source_node, 'inputs'):
+                for inp in alpha_source_node.inputs:
+                    if inp.is_linked:
+                        nodes_to_keep.add(inp.links[0].from_node)
+
+        # Validarlo con el usuario: quiere "clean strict"
+        # Si preservamos nodos basura, fallamos el propósito.
+        # Pero si el Alpha es vital...
+        # Vamos a reconectar el Alpha solo si sobrevivió a la purga o si es externo.
+        # Mejor estrategia: NO borrar los nodos que alimentan el Alpha.
+        # O borrar todo y que el usuario se arregle?
+        # El requerimiento es "Limpiar materiales", pero "Rasterizar difuso visible".
+        # Si el alpha no estaba bakeado, se perderá si borramos todo.
+        # Preservamos lo marcado en nodes_to_keep.
+
+        # Eliminar nodos no deseados
+        nodes_to_remove = [n for n in nodes if n not in nodes_to_keep]
+        for n in nodes_to_remove:
+            nodes.remove(n)
         
-        # Crear nuevo nodo Image Texture con la textura baked
+        # Crear nodo imagen baked
         image_node = nodes.new(type='ShaderNodeTexImage')
         image_node.image = baked_image
-        image_node.location = (-400, 300)
-        image_node.label = "Advanced Baked"
+        image_node.location = (principled.location.x - 300, principled.location.y)
+        image_node.label = "Rasterized Diffuse"
         
-        # Conectar a Base Color
-        base_color_input = principled.inputs['Base Color']
-        links.new(image_node.outputs['Color'], base_color_input)
-        
+        # Conectar Color
+        base_color = principled.inputs.get('Base Color')
+        if base_color:
+             # Limpiar primero
+            while base_color.is_linked: links.remove(base_color.links[0])
+            links.new(image_node.outputs['Color'], base_color)
+            
+        # El Alpha ya debería estar conectado si preservamos los nodos y enlaces.
+        # Si se rompió el enlace (porque borramos nodos intermedios que no trackeamos), intentamos reconectar
+        # si alpha_source_node sigue vivo.
+        if alpha_source_socket and alpha_source_node in nodes.keys(): # check invalid ref
+             if alpha_socket and not alpha_socket.is_linked:
+                 links.new(alpha_source_socket, alpha_socket)
+
         print(f"✅ Material reemplazado con baked: {material.name}")
         return True
         
@@ -534,62 +685,11 @@ def replace_material_with_baked(material, baked_image):
 
 
 def has_alpha_texture_connected(material):
-    """Detectar si material tiene texturas Alpha conectadas (excepción)"""
-    try:
-        if not material or not material.use_nodes:
-            return False
-        
-        nodes = material.node_tree.nodes
-        
-        # Buscar Principled BSDF
-        principled = None
-        for node in nodes:
-            if node.type == 'BSDF_PRINCIPLED':
-                principled = node
-                break
-        
-        if not principled or 'Alpha' not in principled.inputs:
-            return False
-        
-        alpha_input = principled.inputs['Alpha']
-        if not alpha_input.is_linked:
-            return False
-        
-        # Verificar si hay Image Texture en la cadena Alpha
-        def find_image_texture_recursive(socket, visited=None):
-            if visited is None:
-                visited = set()
-            
-            if socket in visited:
-                return False
-            visited.add(socket)
-            
-            if not socket.is_linked:
-                return False
-            
-            connected_node = socket.links[0].from_node
-            
-            if connected_node.type == 'TEX_IMAGE':
-                return True
-            
-            # Buscar recursivamente en inputs del nodo conectado
-            for input_socket in connected_node.inputs:
-                if input_socket.is_linked:
-                    if find_image_texture_recursive(input_socket, visited):
-                        return True
-            
-            return False
-        
-        has_alpha = find_image_texture_recursive(alpha_input)
-        
-        if has_alpha:
-            print(f"🚫 EXCEPCIÓN ALPHA detectada en {material.name}")
-        
-        return has_alpha
-        
-    except Exception as e:
-        print(f"❌ Error detectando Alpha en {material.name}: {e}")
-        return False
+    """
+    Verifica si el material tiene Alpha conectado usando la lógica unificada
+    de revisión de píxeles (check_real_pixel_transparency).
+    """
+    return check_real_pixel_transparency(material)
 
 
 # ========================================================================================
@@ -988,11 +1088,65 @@ def _bake_visual_to_image(material, principled, target_name, width, height):
         return None
 
 
+def check_real_pixel_transparency(material):
+    """
+    Verifica si el material tiene transparencia basándose ÚNICAMENTE en la textura
+    conectada a Base Color.
+    - Si la textura Base tiene píxeles transparentes -> True (Skip Bake).
+    - Si la textura Base es opaca (o no hay textura) -> False (Force Bake).
+    Se ignora lo que esté conectado al socket Alpha del nodo.
+    """
+    try:
+        principled = _find_principled(material)
+        if not principled: return False
+        
+        # 1. Buscamos la imagen source en Base Color
+        base_socket = principled.inputs.get('Base Color')
+        if not base_socket or not base_socket.is_linked:
+            return False # Procedural/Color solido -> Considerar Opaco para que se bakee
+            
+        # Rastreo simple del nodo conectado
+        node = base_socket.links[0].from_node
+        
+        # Si no es imagen (ej: Mix, Ramp), asumimos opaco/bakeable
+        if node.type != 'TEX_IMAGE' or not node.image:
+            return False 
+            
+        img = node.image
+        
+        # 2. Check rápido por metadatos
+        if img.alpha_mode == 'NONE':
+            return False # Es opaca
+            
+        # 3. Check de píxeles (sampling)
+        # Si tiene canal alpha (depth 32), chequeamos valores
+        if len(img.pixels) > 0 and img.channels == 4:
+             w, h = img.size
+             # Samplear esquinas y centro
+             indices = [0, (w-1)*4, (w*h-w)*4, (w*h-1)*4, ((h//2)*w + w//2)*4]
+             
+             # Si la imagen es pequeña, sampleamos todo el alpha channel (saltando de 4 en 4)
+             if w*h < 10000:
+                 for i in range(3, len(img.pixels), 4):
+                     if img.pixels[i] < 0.99: return True
+             else:
+                 # Sampleo disperso para imágenes grandes
+                 for idx in indices:
+                     if idx+3 < len(img.pixels):
+                         if img.pixels[idx+3] < 0.99: return True
+                         
+             return False # Alpha channel parece todo blanco
+        
+        return False # No channels alpha detectados
+    except:
+        return False
+
+
 def execute_pre_conversion_rasterization():
     """Aplica la regla solicitada durante la conversión:
     - Material simple: se omite.
-    - Material complejo con TEX_IMAGE en la cadena: dejar solo la imagen más cercana a `Base Color`.
-    - Si no hay imagen en la cadena: crear textura 512x512 y conectarla.
+    - Material complejo: BAKE (Estrategia Diffuse/Emit).
+    - Preservación de Alpha: Si tiene alpha REAL (pixeles), el bake lo debe capturar.
     Devuelve (procesados, total_materiales).
     """
     processed = 0
@@ -1000,138 +1154,106 @@ def execute_pre_conversion_rasterization():
     try:
         materials = [m for m in bpy.data.materials if m and m.use_nodes]
         total = len(materials)
-        # Respetar toggles globales: si ambos están desactivados, no hacer nada
-        try:
-            settings = bpy.context.scene.universal_gta_settings
-            global_do_rasterize = bool(getattr(settings, 'rasterize_textures', False))
-            global_do_clean = bool(getattr(settings, 'clean_materials', True))
-        except Exception:
-            global_do_rasterize = False
-            global_do_clean = True
+        
+        # Respetar toggles globales
+        settings = getattr(bpy.context.scene, 'universal_gta_settings', None)
+        global_do_rasterize = bool(getattr(settings, 'rasterize_textures', False)) if settings else False
+        global_do_clean = bool(getattr(settings, 'clean_materials', True)) if settings else True
+
         if not global_do_rasterize and not global_do_clean:
-            print("🛑 Pre-rasterización omitida: 'Rasterizar texturas' y 'Limpiar materiales' desactivados")
-            print(f"📊 Resultado: procesados={processed} / total={total}")
+            print("🛑 Pre-rasterización omitida")
             return processed, total
+            
         print("\n" + "="*60)
-        print("🧠 PRE-RASTERIZACIÓN (simplificar materiales complejos)")
+        print("🧠 PRE-RASTERIZACIÓN ROBUSTA (Universal GTA)")
         print("="*60)
+        
         for mat in materials:
             try:
                 principled = _find_principled(mat)
-                if principled is None:
-                    print(f"⚠️ {mat.name}: sin Principled, omitido")
-                    continue
+                if principled is None: continue
 
-                # Marcar si inicialmente era complejo (más de 3 nodos o Normal Map)
-                initially_complex = False
-                try:
-                    node_types = {getattr(n, 'type', None) for n in mat.node_tree.nodes}
-                    if len(mat.node_tree.nodes) > 3 or 'NORMAL_MAP' in node_types:
-                        initially_complex = True
-                except Exception:
-                    pass
-
-                # Antes de cualquier limpieza, si el material es complejo, crear baked/duplicado
-                # Regla de rasterización (sin bake): solo para materiales SIN Image Texture directa
-                try:
-                    do_rasterize = getattr(bpy.context.scene.universal_gta_settings, 'rasterize_textures', False)
-                except Exception:
-                    do_rasterize = False
-                if do_rasterize:
-                    base_input_chk = principled.inputs.get('Base Color')
-                    has_direct_image = bool(base_input_chk and base_input_chk.is_linked and base_input_chk.links[0].from_node.type == 'TEX_IMAGE')
-                    if not has_direct_image:
-                        try:
-                            image_name = f"{mat.name}_d"
-                            if image_name in bpy.data.images:
-                                bpy.data.images.remove(bpy.data.images[image_name])
-                            new_image = bpy.data.images.new(image_name, width=256, height=256, alpha=True)
-                            # Obtener color directo (o gris por defecto)
-                            color = [0.906, 0.906, 0.906, 1.0]
-                            if base_input_chk and not base_input_chk.is_linked:
-                                try:
-                                    color = list(base_input_chk.default_value)
-                                except Exception:
-                                    pass
-                            new_image.pixels = color * (256 * 256)
-                            new_image.pack()
-                            new_image.use_fake_user = True
-                            # Reconstruir material minimal con esta textura (sin alpha externa)
-                            _rebuild_material_with_image(mat, principled, new_image, alpha_image=None)
-                            processed += 1
-                            print(f"🧩 {mat.name}: rasterizado color directo 256x256 -> {image_name}")
-                            continue
-                        except Exception:
-                            pass
-
-                # Material simple -> omitir
+                # 1. Simple -> Salir
                 if _material_is_simple(mat, principled):
-                    print(f"ℹ️ {mat.name}: material simple (sin cambios)")
+                    print(f"ℹ️ {mat.name}: Simple (SKIP)")
                     continue
 
-                # Simplificación condicional según clean_materials
-                try:
-                    do_clean = getattr(bpy.context.scene.universal_gta_settings, 'clean_materials', True)
-                except Exception:
-                    do_clean = True
-                if do_clean:
-                    # Regla: si NO tiene Image Texture directa en Base Color y NO está bakeando, rasterizar color directo 256x256
-                    base_input = principled.inputs.get('Base Color')
-                    direct_image = bool(base_input and base_input.is_linked and base_input.links[0].from_node.type == 'TEX_IMAGE')
-                    # Si ya hay Image Texture directa, no tocar
-                    if direct_image:
-                        print(f"ℹ️ {mat.name}: Image Texture directa detectada, no se limpia")
+                # 2. Análisis
+                base_input = principled.inputs.get('Base Color')
+                has_direct_image = bool(base_input and base_input.is_linked and base_input.links[0].from_node.type == 'TEX_IMAGE')
+                
+                # Check Alpha INTELIGENTE (Pixeles reales)
+                has_real_alpha = check_real_pixel_transparency(mat)
+
+                # 3. DECISIÓN: ¿BAKE O CLEAN?
+                should_bake = False
+                
+                # --- REGLA: SI TIENE ALPHA REAL -> PROHIBIDO BAKEAR ---
+                if has_real_alpha:
+                     print(f"ℹ️ {mat.name}: Transparencia Real detectada -> Solo Limpieza")
+                     if global_do_clean:
+                         if _simplify_to_nearest_image(mat, principled):
+                             processed += 1
+                     continue
+
+                # A) Si YA tiene imagen directa (y es opaca)
+                if has_direct_image:
+                    if global_do_clean:
+                        print(f"ℹ️ {mat.name}: Tiene imagen directa (Opaca). Limpieza.")
+                        if _simplify_to_nearest_image(mat, principled):
+                            processed += 1
                         continue
-                    # Si no tiene Image Texture directa, simplificar a la más cercana si existe; de lo contrario, dejar como está
-                    simplified = _simplify_to_nearest_image(mat, principled)
-                    if simplified:
+                    else:
+                        continue
+                
+                # B) Si NO tiene imagen directa (procedural/mix) -> BAKE
+                if global_do_rasterize:
+                    should_bake = True
+                
+                # 4. EJECUCIÓN
+                if should_bake:
+                    print(f"⚡ {mat.name}: Requiere BAKE MANUAL (Opaco/Procedural)")
+                    resolution = get_original_texture_resolution(mat)
+                    baked_img = perform_advanced_baking(mat, resolution)
+                    if baked_img and replace_material_with_baked(mat, baked_img):
                         processed += 1
-                        print(f"🧹 {mat.name}: simplificado a Image Texture más cercana + Alpha")
-                        continue
+                        print(f"✅ {mat.name}: Rasterizado Exitosamente")
+                    else:
+                        print(f"❌ {mat.name}: Falló el Bake")
 
-                # Si no hay imagen en la cadena y está permitido rasterizar, crear textura 512 y conectar
-                if do_rasterize:
-                    img_name = f"{mat.name}_d"
-                    if img_name in bpy.data.images:
-                        bpy.data.images.remove(bpy.data.images[img_name])
-                    new_img = bpy.data.images.new(img_name, width=512, height=512, alpha=True)
+            except Exception as e:
+                print(f"❌ {mat.name}: Error procesando: {e}")
 
-                    # Color base actual (o gris GTA si no existe)
-                    base_socket = principled.inputs.get('Base Color')
-                    color = [0.906, 0.906, 0.906, 1.0]
-                    if base_socket is not None and not base_socket.is_linked:
-                        try:
-                            color = list(base_socket.default_value)
-                        except Exception:
-                            pass
-                    pixels = color * (512 * 512)
-                    new_img.pixels = pixels
-                    new_img.pack()
-                    new_img.use_fake_user = True
-
-                    nodes = mat.node_tree.nodes
-                    links = mat.node_tree.links
-                    # Limpiar excepto Principled y Output
-                    keep = {principled}
-                    for n in nodes:
-                        if getattr(n, 'type', None) == 'OUTPUT_MATERIAL':
-                            keep.add(n)
-                    for n in [n for n in nodes if n not in keep]:
-                        nodes.remove(n)
-
-                    tex = nodes.new(type='ShaderNodeTexImage')
-                    tex.image = new_img
-                    tex.location = (-300, 0)
-                    links.new(tex.outputs['Color'], principled.inputs['Base Color'])
-                    _connect_alpha_if_available(mat, tex, principled)
-
-                    processed += 1
-                    print(f"🧱 {mat.name}: rasterizado fallback 512x512 conectado a Base Color/Alpha")
-            except Exception:
-                # Continuar con el siguiente material
-                print(f"❌ {mat.name}: error al procesar, continuando")
     except Exception:
         print("❌ Error global en pre-rasterización")
+
+    # --- Renombrar Nodos (Label = Image Name) [Scripts Usuario] ---
+    print("🏷️ Actualizando etiquetas de nodos de imagen (Scope: Selected Objects)...")
+    try:
+        processed_mats_labels = set()
+        # Usamos selected_objects porque son los que estamos convirtiendo
+        objects_to_check = list(bpy.context.selected_objects)
+        
+        # Si no hay seleccionados (raro en este punto), fallback a todos los objetos visibles/mesh
+        if not objects_to_check:
+             objects_to_check = [o for o in bpy.data.objects if o.type == 'MESH' and not o.hide_viewport]
+
+        for obj in objects_to_check:
+            if obj.type == 'MESH':
+                for slot in obj.material_slots:
+                    if slot.material:
+                        mat = slot.material
+                        if mat in processed_mats_labels: continue
+                        processed_mats_labels.add(mat)
+                        
+                        if mat.use_nodes and mat.node_tree:
+                            for node in mat.node_tree.nodes:
+                                if node.type == 'TEX_IMAGE' and node.image:
+                                    node.label = node.image.name
+                                    # print(f"   🏷️ {mat.name} -> {node.image.name}")
+    except Exception as e:
+        print(f"⚠️ Error menor actualizando etiquetas: {e}")
+
     print(f"📊 Resultado: procesados={processed} / total={total}")
     return processed, total
 
@@ -1474,114 +1596,28 @@ class UNIVERSALGTA_OT_manual_smart_baking(Operator):
     
     def execute(self, context):
         try:
-            # 1. VERIFICAR OBJETO ACTIVO
-            target_obj = self._verify_and_select_object(context)
-            if not target_obj:
-                self.report({'ERROR'}, "No se encontró objeto mesh válido")
-                return {'CANCELLED'}
+            print("🔥 Manual Smart Baking (Vía Unified Rasterization)...")
+            from .texture_export import execute_pre_conversion_rasterization
             
-            print(f"🎯 Objeto seleccionado: {target_obj.name}")
+            # Ejecutar la lógica unificada robusta
+            processed, total = execute_pre_conversion_rasterization()
             
-            # 2. PROCESAR MATERIALES DEL OBJETO
-            processed_materials = 0
-            for slot in target_obj.material_slots:
-                if slot.material and slot.material.use_nodes:
-                    success = self._process_material_smart_baking(slot.material, context)
-                    if success:
-                        processed_materials += 1
-            
-            if processed_materials > 0:
-                self.report({'INFO'}, f"✅ Smart baking aplicado a {processed_materials} materiales en {target_obj.name}")
+            if processed > 0:
+                self.report({'INFO'}, f"✅ Baking unificado aplicado a {processed}/{total} materiales")
                 return {'FINISHED'}
             else:
-                self.report({'WARNING'}, "No se procesaron materiales")
-                return {'CANCELLED'}
+                self.report({'WARNING'}, f"Proceso finalizado (0/{total} modificados)")
+                return {'FINISHED'}
                 
         except Exception as e:
-            self.report({'ERROR'}, f"Error en smart baking: {e}")
+            self.report({'ERROR'}, f"Error en smart baking wrapper: {e}")
             return {'CANCELLED'}
-    
+
     def _verify_and_select_object(self, context):
-        """Verifica y selecciona objeto según especificaciones"""
-        mesh_objects = [obj for obj in context.scene.objects if obj.type == 'MESH']
-        
-        if len(mesh_objects) == 0:
-            return None
-        elif len(mesh_objects) == 1:
-            # Solo hay un objeto mesh, seleccionarlo automáticamente
-            obj = mesh_objects[0]
-            context.view_layer.objects.active = obj
-            obj.select_set(True)
-            return obj
-        else:
-            # Varios objetos, buscar uno que se llame "Mesh"
-            for obj in mesh_objects:
-                if obj.name == "Mesh":
-                    context.view_layer.objects.active = obj
-                    obj.select_set(True)
-                    return obj
-            
-            # Si no hay "Mesh", usar el activo actual si es mesh
-            if context.active_object and context.active_object.type == 'MESH':
-                return context.active_object
-            
-            # Como último recurso, usar el primero
-            obj = mesh_objects[0]
-            context.view_layer.objects.active = obj
-            obj.select_set(True)
-            return obj
-    
+        return None # Obsoleto
+
     def _process_material_smart_baking(self, material, context):
-        """Procesa material según casos específicos de las especificaciones"""
-        try:
-            print(f"🔄 Procesando material: {material.name}")
-            
-            nodes = material.node_tree.nodes
-            links = material.node_tree.links
-            
-            # Buscar nodos importantes
-            material_output = None
-            principled_bsdf = None
-            image_texture_nodes = []
-            
-            for node in nodes:
-                if node.type == 'OUTPUT_MATERIAL':
-                    material_output = node
-                elif node.type == 'BSDF_PRINCIPLED':
-                    principled_bsdf = node
-                elif node.type == 'TEX_IMAGE':
-                    image_texture_nodes.append(node)
-            
-            if not principled_bsdf or not material_output:
-                print(f"⚠️ Material {material.name} no tiene BSDF o Output, saltando")
-                return False
-            
-            # Verificar caso específico: Image Texture conectado a Base Color
-            base_color_input = principled_bsdf.inputs.get('Base Color')
-            alpha_input = principled_bsdf.inputs.get('Alpha')
-            
-            # CASO 1: Base Color con Image Texture
-            if self._has_image_texture_in_base_color(base_color_input):
-                print(f"📖 CASO 1: {material.name} tiene Image Texture en Base Color")
-                
-                # Verificar excepción: Image Texture también conectado a Alpha
-                if self._is_image_texture_connected_to_alpha(alpha_input, image_texture_nodes):
-                    print(f"⚠️ EXCEPCIÓN: {material.name} tiene Image Texture también en Alpha - SOLO LIMPIEZA")
-                    self._clean_nodes_preserve_image_texture(material, principled_bsdf, material_output)
-                    return True
-                else:
-                    # Limpiar nodos y hacer bake normal
-                    self._clean_nodes_preserve_image_texture(material, principled_bsdf, material_output)
-                    return self._perform_smart_bake(material, context)
-            
-            # CASO 2: No hay Image Texture, solo color directo (RVA)
-            else:
-                print(f"🎨 CASO 2: {material.name} tiene solo color directo")
-                return self._rasterize_direct_color(material, principled_bsdf, base_color_input, alpha_input)
-            
-        except Exception as e:
-            print(f"❌ Error procesando material {material.name}: {e}")
-            return False
+        return False # Obsoleto
     
     def _has_image_texture_in_base_color(self, base_color_input):
         """Verifica si hay Image Texture conectado al Base Color"""
@@ -1726,95 +1762,162 @@ class UNIVERSALGTA_OT_manual_smart_baking(Operator):
         return [1.0, 1.0, 1.0, 1.0]
     
     def _perform_smart_bake(self, material, context):
-        """Realiza bake real del material después de limpieza"""
+        """Realiza bake real del material usando EMISSION (Bake más robusto)"""
         try:
-            # Verificar que tengamos un objeto activo con UV
+            # Configurar motor de render (Cycles es necesario para Bake)
+            if context.scene.render.engine != 'CYCLES':
+                context.scene.render.engine = 'CYCLES'
+            
+            # Ajustes de performance para bake
+            context.scene.cycles.device = 'CPU'
+            context.scene.cycles.samples = 1
+            context.scene.cycles.preview_samples = 1
+            context.scene.cycles.max_bounces = 0
+            
+            # Obtener resolución de configuración
+            settings = getattr(context.scene, 'universal_gta_settings', None)
+            res_str = getattr(settings, 'bake_resolution', '512')
+            resolution = int(res_str)
+            
+            # Validar objeto
             active_obj = context.active_object
             if not active_obj or not active_obj.data.uv_layers:
-                print(f"⚠️ Objeto sin UV layers, creando bake directo para {material.name}")
+                print(f"⚠️ Objeto sin UVs, usando bake directo para {material.name}")
                 return self._create_direct_bake(material)
             
-            # Crear imagen para bake
-            bake_name = f"{material.name}_d_f"
+            # === ASEGURAR CONTEXTO DE BAKE ===
+            # 1. Modo Objeto
+            if bpy.context.object.mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+            # 2. Selección explícita
+            bpy.ops.object.select_all(action='DESELECT')
+            active_obj.select_set(True)
+            context.view_layer.objects.active = active_obj
             
-            # Remover imagen existente
+            # 3. Sincronizar UVs
+            uv_layers = active_obj.data.uv_layers
+            render_uv = uv_layers.active_render
+            if render_uv and uv_layers.active != render_uv:
+                uv_layers.active = render_uv
+            
+            # Setup Imagen
+            bake_name = f"{material.name}_rasterized"
             if bake_name in bpy.data.images:
                 bpy.data.images.remove(bpy.data.images[bake_name])
             
-            # Crear imagen de bake
-            bake_image = bpy.data.images.new(bake_name, width=512, height=512, alpha=True)
+            bake_image = bpy.data.images.new(bake_name, width=resolution, height=resolution, alpha=True)
             
-            # Crear nodo temporal para bake
             nodes = material.node_tree.nodes
-            temp_node = nodes.new(type='ShaderNodeTexImage')
-            temp_node.image = bake_image
-            temp_node.select = True
-            nodes.active = temp_node
+            links = material.node_tree.links
             
-            # Realizar bake
-            bpy.context.scene.render.engine = 'CYCLES'
-            bpy.context.scene.cycles.device = 'CPU'  # Más compatible
-            bpy.context.scene.render.bake.use_pass_direct = False
-            bpy.context.scene.render.bake.use_pass_indirect = False
-            bpy.context.scene.render.bake.use_pass_color = True
+            # Identificar nodos clave
+            principled = None
+            output_node = None
+            for n in nodes:
+                if n.type == 'BSDF_PRINCIPLED':
+                    principled = n
+                elif n.type == 'OUTPUT_MATERIAL':
+                    output_node = n
             
-            bpy.ops.object.bake(type='DIFFUSE')
+            if not principled or not output_node:
+                return False
+                
+            # === ESTRATEGIA EMISSION BAKE ===
+            emission = nodes.new('ShaderNodeEmission')
+            emission.location = (principled.location.x + 200, principled.location.y + 200)
             
-            # Eliminar nodo temporal
-            nodes.remove(temp_node)
+            # Preservar Alpha Link
+            original_alpha_link_node = None
+            original_alpha_link_socket = None
+            if principled.inputs['Alpha'].is_linked:
+                lnk = principled.inputs['Alpha'].links[0]
+                original_alpha_link_node = lnk.from_node
+                original_alpha_link_socket = lnk.from_socket
             
-            # Crear nodo final y conectar
-            final_node = nodes.new(type='ShaderNodeTexImage')
-            final_node.image = bake_image
-            final_node.location = (-300, 0)
+            # Conectar BaseColor a Emission
+            if principled.inputs['Base Color'].is_linked:
+                source_link = principled.inputs['Base Color'].links[0]
+                links.new(source_link.from_socket, emission.inputs['Color'])
+            else:
+                emission.inputs['Color'].default_value = principled.inputs['Base Color'].default_value
+
+            # Conectar Emission -> Output
+            links.new(emission.outputs['Emission'], output_node.inputs['Surface'])
             
-            # Buscar BSDF
-            principled_bsdf = None
-            for node in nodes:
-                if node.type == 'BSDF_PRINCIPLED':
-                    principled_bsdf = node
-                    break
+            # Nodo de imagen Target (CLEAN SELECTION)
+            # Deseleccionar todos los nodos primero para evitar confusión en BAKE
+            for n in nodes:
+                n.select = False
+                
+            target_tex_node = nodes.new('ShaderNodeTexImage')
+            target_tex_node.image = bake_image
+            target_tex_node.select = True
+            nodes.active = target_tex_node
             
-            if principled_bsdf:
-                links = material.node_tree.links
-                links.new(final_node.outputs['Color'], principled_bsdf.inputs['Base Color'])
-                links.new(final_node.outputs['Alpha'], principled_bsdf.inputs['Alpha'])
+            # EJECUTAR BAKE
+            print(f"🔥 Bakeando EMIT: {material.name} ({resolution}px)...")
+            try:
+                bpy.ops.object.bake(type='EMIT')
+                print("✅ Bake finalizado exitosamente.")
+            except Exception as e:
+                print(f"❌ Error crítico en bake: {e}")
+                # Solo fallback si realmente falló el bake
+                # Si falla, limpiamos y usamos fallback
+                nodes.remove(emission)
+                nodes.remove(target_tex_node)
+                self._create_direct_bake(material)
+                return False
             
-            # Empacar imagen
+            # === RESTAURACIÓN ===
+            nodes.remove(emission)
+            
+            links.new(target_tex_node.outputs['Color'], principled.inputs['Base Color'])
+            target_tex_node.location = (principled.location.x - 300, principled.location.y)
+            target_tex_node.label = "Rasterized Diffuse"
+            
+            if original_alpha_link_node and original_alpha_link_socket:
+                links.new(original_alpha_link_socket, principled.inputs['Alpha'])
+            
+            links.new(principled.outputs['BSDF'], output_node.inputs['Surface'])
+            
             bake_image.pack()
             bake_image.use_fake_user = True
             
-            print(f"✅ Bake completado: {material.name} -> {bake_name}")
             return True
             
         except Exception as e:
-            print(f"❌ Error en bake de {material.name}: {e}")
-            # Fallback a bake directo
-            return self._create_direct_bake(material)
+            print(f"❌ Error general en Smart Bake: {e}")
+            self._create_direct_bake(material)
+            return False
     
     def _create_direct_bake(self, material):
         """Crea bake directo cuando el bake normal falla"""
         try:
-            # Similar a rasterize pero con nombre _d_f
+            # Recuperar resolución (aunque sea fallback)
+            settings = getattr(bpy.context.scene, 'universal_gta_settings', None)
+            res_str = getattr(settings, 'bake_resolution', '512')
+            resolution = int(res_str)
+
             bake_name = f"{material.name}_d_f"
             
             if bake_name in bpy.data.images:
                 bpy.data.images.remove(bpy.data.images[bake_name])
             
             # Crear imagen con color promedio del material
-            bake_image = bpy.data.images.new(bake_name, width=512, height=512, alpha=True)
+            bake_image = bpy.data.images.new(bake_name, width=resolution, height=resolution, alpha=True)
             
             # Color por defecto: gris GTA (#E7E7E7FF)
             default_color = [0.906, 0.906, 0.906, 1.0]  # #E7E7E7 en RGB
             
-            pixel_count = 512 * 512
+            pixel_count = resolution * resolution
             pixels = default_color * pixel_count
             bake_image.pixels = pixels
             
             bake_image.pack()
             bake_image.use_fake_user = True
             
-            print(f"✅ Bake directo creado: {material.name} -> {bake_name}")
+            print(f"✅ Bake directo creado: {material.name} -> {bake_name} ({resolution}x{resolution})")
             return True
             
         except Exception as e:

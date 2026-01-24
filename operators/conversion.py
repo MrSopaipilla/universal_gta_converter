@@ -112,40 +112,29 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
                 print(f"⚠️ Error en rasterización pre-conversión: {e}")
                 # No fallar la conversión por errores de rasterización
 
+            # === CHECK 2: RASTERIZAR TEXTURAS (BAKE DIFUSO) ===
             if bool(getattr(settings, 'rasterize_textures', False)):
-                print("🧩 PASO 3.6: Rasterizando colores sólidos a texturas 256x256...")
+                print("🔥 PASO 4: RASTERIZAR TEXTURAS (Bake Difuso)...")
                 try:
+                    # 1. Rasterizar colores sólidos (pre-pass)
+                    print("  🧩 Sub-paso: Rasterizando colores sólidos...")
                     created_images = self.rasterize_solid_base_color_to_texture(size=256)
-                    print(f"✅ Colores sólidos rasterizados: {created_images} imágenes creadas")
+                    
+                    # 2. Ejecutar Smart Baking (Lógica principal de bake)
+                    print("  🔥 Sub-paso: Ejecutando Smart Baking...")
+                    bpy.ops.universalgta.manual_smart_baking()
+                    print("✅ Rasterización y Baking completados")
                 except Exception as e:
-                    print(f"⚠️ Error rasterizando colores sólidos: {e}")
+                    print(f"⚠️ Error en Rasterización/Bake: {e}")
             else:
-                print("⏭️ Paso 3.6 omitido (Rasterizar texturas desactivado)")
+                print("⏭️ Paso 4 omitido (Rasterizar texturas desactivado)")
 
-            
+            # === CHECK 1: LIMPIAR MATERIALES (ESTRICTO) ===
             if bool(getattr(settings, 'clean_materials', True)):
-                print("🎨 PASO 4: Optimizando materiales...")
-                self.optimize_materials_ultimate()
+                print("ARTIST PASO 5: LIMPIEZA ESTRICTA DE MATERIALES...")
+                self.perform_strict_material_cleanup()
             else:
-                print("⏭️ Paso 4 omitido (Limpiar materiales desactivado)")
-            
-
-            if bool(getattr(settings, 'clean_materials', True)):
-                print("🔥 PASO 4.5: Aplicando Smart Baking inteligente...")
-                try:
-                    result = bpy.ops.universalgta.manual_smart_baking()
-                    if result == {'FINISHED'}:
-                        print("✅ Smart Baking aplicado exitosamente")
-                    elif result == {'CANCELLED'}:
-                        print("⚠️ Smart Baking cancelado - continuando conversión")
-                    else:
-                        print("⚠️ Smart Baking completado con advertencias")
-                except Exception as e:
-                    print(f"❌ Error en Smart Baking: {e}")
-                    print("⚠️ Continuando conversión sin Smart Baking")
-                    # No fallar la conversión por errores de baking
-            else:
-                print("⏭️ Paso 4.5 omitido (Limpiar materiales desactivado)")
+                print("⏭️ Paso 5 omitido (Limpiar materiales desactivado)")
 
             print("💾 PASO 5: Guardando pose...")
             self.save_current_pose()
@@ -483,32 +472,154 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         print(f"✅ {renamed_count} texturas renombradas")
         return True
     
-    def optimize_materials_ultimate(self) -> bool:
-        """Optimizar materiales para GTA SA (Mixamo + Universal)"""
-        print("🎨 Optimizando materiales para GTA SA...")
+    def perform_strict_material_cleanup(self) -> bool:
+        """Limpieza ESTRICTA de materiales (Check 1) - VERSIÓN ROBUSTA
+        - Busca el Image Texture más probable (incluso si no está conectado al Principled).
+        - Fuerza la estructura: Image -> Principled -> Output.
+        - Elimina TODO lo demás.
+        """
+        print("🧼 Iniciando Limpieza Estricta de Materiales (Robusta)...")
         materials_processed = 0
         
         for material in bpy.data.materials:
-            if material and material.use_nodes:
-                nodes = material.node_tree.nodes
+            if not material or not material.use_nodes:
+                continue
                 
+            try:
+                tree = material.node_tree
+                nodes = tree.nodes
+                links = tree.links
+                
+                # 1. Buscar o Crear Principled y Output
+                principled = None
+                output_node = None
+                
+                # Buscar existentes
                 for node in nodes:
                     if node.type == 'BSDF_PRINCIPLED':
-                        # Configurar IOR = 0 (Universal)
-                        if len(node.inputs) > 13:
-                            node.inputs[13].default_value = 0.0
+                        principled = node
+                    elif node.type == 'OUTPUT_MATERIAL':
+                        output_node = node
                         
-                        # Configurar Base Color = #F4F4F4FF (Universal)
-                        if len(node.inputs) > 0:
-                            node.inputs[0].default_value = (0.956, 0.956, 0.956, 1.0)
+                # Si no existen, crearlos
+                if not principled:
+                    principled = nodes.new('ShaderNodeBsdfPrincipled')
+                    principled.location = (0, 300)
+                
+                if not output_node:
+                    output_node = nodes.new('ShaderNodeOutputMaterial')
+                    output_node.location = (300, 300)
+                
+                # 2. Encontrar la Textura Difusa ("The Chosen One")
+                found_image_node = None
+                
+                # Estrategia A: Conectada al Principled Base Color (Ideal)
+                if not found_image_node:
+                    base_input = principled.inputs.get('Base Color')
+                    if base_input and base_input.is_linked:
+                        node = base_input.links[0].from_node
+                        if node.type == 'TEX_IMAGE':
+                            found_image_node = node
+                        else:
+                            # BFS corto para buscar imagen
+                            queue = [node]
+                            visited = {node}
+                            while queue:
+                                curr = queue.pop(0)
+                                if curr.type == 'TEX_IMAGE':
+                                    found_image_node = curr
+                                    break
+                                for inp in curr.inputs:
+                                    if inp.is_linked:
+                                        nxt = inp.links[0].from_node
+                                        if nxt not in visited:
+                                            visited.add(nxt)
+                                            queue.append(nxt)
+
+                # Estrategia B: Buscar en el Output (por si es MMDShaderDev -> Output)
+                if not found_image_node and output_node.inputs[0].is_linked:
+                    shader_node = output_node.inputs[0].links[0].from_node
+                    if shader_node != principled:
+                        # Buscar imagen conectada a este shader misterioso
+                        queue = [shader_node]
+                        visited = {shader_node}
+                        while queue:
+                            curr = queue.pop(0)
+                            if curr.type == 'TEX_IMAGE':
+                                found_image_node = curr
+                                break
+                            # Limite de profundidad para no volvernos locos
+                            if len(visited) > 10: 
+                                continue
+                                
+                            for inp in curr.inputs:
+                                if inp.is_linked:
+                                    nxt = inp.links[0].from_node
+                                    if nxt not in visited:
+                                        visited.add(nxt)
+                                        queue.append(nxt)
+
+                # Estrategia C: Fuerza bruta (Cualquier Image Texture en el árbol)
+                if not found_image_node:
+                    # Preferir una que tenga "diff", "col", "base" en el nombre
+                    candidates = [n for n in nodes if n.type == 'TEX_IMAGE']
+                    if candidates:
+                        # Simple heurística: primera encontrada
+                        found_image_node = candidates[0]
+                
+                # 3. Referencia de imagen
+                image_ref = found_image_node.image if (found_image_node and found_image_node.image) else None
+                
+                # 4. LIMPIEZA NUCLEAR (Eliminar todo menos Principled y Output)
+                nodes_to_remove = []
+                for n in nodes:
+                    if n != principled and n != output_node:
+                        nodes_to_remove.append(n)
                         
-                        # Configurar Specular (Mixamo)
-                        if 'Specular IOR Level' in node.inputs:
-                            node.inputs['Specular IOR Level'].default_value = 0
+                for n in nodes_to_remove:
+                    nodes.remove(n)
+                
+                # 5. RECONSTRUCCIÓN
+                # Conectar Principled -> Output
+                links.new(principled.outputs[0], output_node.inputs[0])
+                
+                if image_ref:
+                    # Crear nuevo nodo de imagen limpio
+                    new_tex = nodes.new('ShaderNodeTexImage')
+                    new_tex.image = image_ref
+                    new_tex.location = (principled.location.x - 300, principled.location.y)
+                    new_tex.label = "Difuso (Clean)"
+                    
+                    # Conectar Color -> Base Color
+                    if 'Base Color' in principled.inputs:
+                        links.new(new_tex.outputs['Color'], principled.inputs['Base Color'])
                         
-                        materials_processed += 1
-        
-        print(f"✅ {materials_processed} materiales optimizados")
+                    # Conectar Alpha -> Alpha
+                    if 'Alpha' in principled.inputs:
+                        links.new(new_tex.outputs['Alpha'], principled.inputs['Alpha'])
+                else:
+                    # Si no hay imagen, poner gris GTA standard
+                    if 'Base Color' in principled.inputs:
+                        principled.inputs['Base Color'].default_value = (0.906, 0.906, 0.906, 1.0)
+
+                # Ajustes finales del Principled
+                if 'Specular IOR Level' in principled.inputs:
+                    principled.inputs['Specular IOR Level'].default_value = 0.0
+                elif 'Specular' in principled.inputs:
+                    principled.inputs['Specular'].default_value = 0.0
+                
+                if 'Roughness' in principled.inputs:
+                    principled.inputs['Roughness'].default_value = 1.0
+                
+                if 'Metallic' in principled.inputs:
+                    principled.inputs['Metallic'].default_value = 0.0
+
+                materials_processed += 1
+                
+            except Exception as e:
+                print(f"⚠️ Error limpiando material {material.name}: {e}")
+                
+        print(f"✅ Limpieza estricta ROBUSTA completada en {materials_processed} materiales")
         return True
 
     def rasterize_solid_base_color_to_texture(self, size: int = 256) -> int:
