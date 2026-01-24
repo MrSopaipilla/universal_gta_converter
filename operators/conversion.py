@@ -619,6 +619,16 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             except Exception as e:
                 print(f"⚠️ Error limpiando material {material.name}: {e}")
                 
+        # --- User Request: Renombrar etiquetas de nodos al finalizar limpieza ---
+        print("🏷️ Actualizando etiquetas de nodos de imagen (Post-Limpieza)...")
+        for mat in bpy.data.materials:
+            try:
+                if mat.use_nodes:
+                    for n in mat.node_tree.nodes:
+                        if n.type == 'TEX_IMAGE' and n.image:
+                            n.label = n.image.name
+            except: pass
+
         print(f"✅ Limpieza estricta ROBUSTA completada en {materials_processed} materiales")
         return True
 
