@@ -588,10 +588,44 @@ def perform_advanced_baking(material, resolution=None):
             
             print(f"   🔌 Principled desconectado temporalmente")
             
-            # === CREAR SETUP LIMPIO PARA BAKE (SOPORTE ALPHA Y MMD) ===
+            # === GESTIÓN DE UV AVANZADA (PRE-BAKE) ===
+            print(f"   🗺️ Preparando UVs: Re-proyección y Pack...")
             
-            # Activar Transparecia en Film para capturar alpha
-            bpy.context.scene.render.film_transparent = True
+            # 1. Identificar y Preservar Source UV
+            original_uv_layer = obj.data.uv_layers.active
+            if not original_uv_layer and obj.data.uv_layers:
+                original_uv_layer = obj.data.uv_layers[0]
+            
+            if not original_uv_layer:
+                 # Si no hay UVs, crear uno base
+                 original_uv_layer = obj.data.uv_layers.new(name='original_uv_src')
+            else:
+                 original_uv_layer.name = 'original_uv_src'
+            
+            # 2. Crear Target UV (bake_temp)
+            # Duplicamos el original para mantener la topologia básica, luego empacamos
+            bake_temp_layer = obj.data.uv_layers.new(name='bake_temp')
+            
+            # Configurar source como Render (para que la textura original se lea bien)
+            original_uv_layer.active_render = True
+            
+            # Configurar target como Activo (para que el Bake escriba aquí)
+            obj.data.uv_layers.active = bake_temp_layer
+            
+            # 3. Pack Islands en Target (Corrección 0-1)
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.mesh.select_all(action='SELECT')
+            try:
+                # Pack: No rotar (preservar orientación visual), Margen pequeño
+                bpy.ops.uv.pack_islands(rotate=False, margin=0.001)
+                print("   ✅ UV Pack completado en 'bake_temp'")
+            except Exception as e:
+                print(f"⚠️ Error en Pack UV: {e}")
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            # === CREAR SETUP DE NODOS ===
+            # (El UV que se usa para mostrar en Viewport es 'bake_temp' ahora, 
+            # pero el Render usará 'original_uv_src' para los inputs gracias a active_render)
 
             # Crear Imagen Target
             baked_name = f"{material.name}_b_d"
@@ -641,50 +675,80 @@ def perform_advanced_baking(material, resolution=None):
                          # Si es valor fijo, lo seteamos en el mix shader directamente abajo
                          pass 
 
-                # ESTRATEGIA 2: Búsqueda Recursiva de Imagen en Grupos (MMD, etc.)
+                # ESTRATEGIA 2: Búsqueda Recursiva Inteligente (Soporte MMD/Reroutes)
                 else:
-                    print(f"   🕵️ Shader Complejo/Grupo: Buscando textura recursivamente...")
+                    print(f"   🕵️ Shader Complejo ({active_shader.type}): Buscando textura con prioridad...")
                     
-                    # Función auxiliar para buscar imagen
                     def find_image_input(node, depth=0):
-                        if depth > 3: return None
-                        for input_socket in node.inputs:
-                            if input_socket.is_linked:
-                                from_node = input_socket.links[0].from_node
-                                if from_node.type == 'TEX_IMAGE':
-                                    return from_node
-                                elif from_node.type == 'GROUP':
-                                    res = find_image_input(from_node, depth+1)
-                                    if res: return res
+                        if depth > 10: return None
+                        
+                        linked_inputs = [inp for inp in node.inputs if inp.is_linked]
+                        priority_keys = ['base', 'diff', 'col', 'tex', 'albedo', 'img']
+                        avoid_keys = ['norm', 'spec', 'rough', 'disp', 'bump', 'alpha', 'fac']
+
+                        # Paso 1: Buscar TEX_IMAGE directo en inputs PRIORITARIOS
+                        for inp in linked_inputs:
+                            name = inp.name.lower()
+                            # Si es un input "de color"
+                            if any(k in name for k in priority_keys) and not any(k in name for k in avoid_keys):
+                                src = inp.links[0].from_node
+                                if src.type == 'TEX_IMAGE':
+                                    print(f"      ✅ Match directo prioritario: Input '{inp.name}' -> {src.name}")
+                                    return src
+                        
+                        # Paso 2: Buscar en inputs NO prohibidos
+                        for inp in linked_inputs:
+                            name = inp.name.lower()
+                            if not any(k in name for k in avoid_keys):
+                                src = inp.links[0].from_node
+                                if src.type == 'TEX_IMAGE':
+                                    print(f"      ✅ Match directo standard: Input '{inp.name}' -> {src.name}")
+                                    return src
+
+                        # Paso 3: Recursión (Nodos intermedios, Reroutes, Grupos)
+                        for inp in linked_inputs:
+                            src = inp.links[0].from_node
+                            if src.type in ['GROUP', 'REROUTE', 'BSDF_PRINCIPLED', 'MIX_SHADER', 'ADD_SHADER']:
+                                res = find_image_input(src, depth+1)
+                                if res: return res
+                        
+                        # Paso 4: Desesperación (Cualquier imagen)
+                        for inp in linked_inputs:
+                            src = inp.links[0].from_node
+                            if src.type == 'TEX_IMAGE':
+                                print(f"      ⚠️ Match de desesperación (ignoring name): Input '{inp.name}' -> {src.name}")
+                                return src
+                                
                         return None
 
-                    # Buscar imagen principal
                     found_tex_node = find_image_input(active_shader)
                     
                     if found_tex_node:
-                        print(f"   ✅ Textura encontrada en red de nodos: {found_tex_node.name} (Image: {found_tex_node.image.name if found_tex_node.image else 'None'})")
+                        print(f"   🎯 Textura seleccionada: {found_tex_node.name} (Img: {found_tex_node.image.name if found_tex_node.image else 'None'})")
                         if 'Color' in found_tex_node.outputs:
                             source_color_socket = found_tex_node.outputs['Color']
                         if 'Alpha' in found_tex_node.outputs:
                             source_alpha_socket = found_tex_node.outputs['Alpha']
                     else:
-                        print("   ⚠️ No se encontró textura conectada explícitamente. Intentando fallback por nombres...")
-                        # Fallback por nombres (el código anterior, por si acaso)
-                        for name in ['Base Tex', 'Base Color', 'Diffuse', 'Color', 'Albedo']:
+                        print("   ❌ No se encontró ninguna textura rastreando inputs.")
+                        # Intentar fallback por nombres directos en el shader activo (último recurso)
+                        for name in ['Base Tex', 'Base Color', 'Diffuse', 'Color']:
                             if name in active_shader.inputs and active_shader.inputs[name].is_linked:
                                 source_color_socket = active_shader.inputs[name].links[0].from_socket
                                 break
             
-            # Fallback global: Saved Color
+            # Fallback global
             if not source_color_socket and not emission.inputs['Color'].is_linked:
-                 if saved_image: 
-                     # Re-crear nodo imagen si teníamos la referencia pero no el link
+                 if saved_image:
                      tmp_img = nodes.new('ShaderNodeTexImage')
                      tmp_img.image = saved_image
                      source_color_socket = tmp_img.outputs['Color']
                      source_alpha_socket = tmp_img.outputs['Alpha']
                  elif saved_color:
                       emission.inputs['Color'].default_value = saved_color
+                 else:
+                      print("   ⚠️ FALLBACK CRÍTICO: Usando MAGENTA por falta de datos.")
+                      emission.inputs['Color'].default_value = (1, 0, 1, 1) # Magenta Debug
 
             # Conexiones Finales
             if source_color_socket:
@@ -1570,6 +1634,14 @@ def execute_pre_conversion_rasterization():
                         # Mix/Ramp/Noise -> Complejo
                         else:
                             is_procedural_complex = True
+                    else:
+                        # Si Principled no tiene nada conectado, ¿quizás el Output usa otro shader? (Caso MMD)
+                        output_node = _get_output_node(mat)
+                        if output_node and output_node.inputs['Surface'].is_linked:
+                            shader_node = output_node.inputs['Surface'].links[0].from_node
+                            if shader_node != principled:
+                                is_procedural_complex = True
+                                print(f"   🕵️ Shader alternativo detectado ({shader_node.name}) -> COMPLEJO (MMD?)")
                     
                     if not is_procedural_complex:
                         print(f"🎨 {mat.name}: Color sólido/simple -> Rasterizar")
@@ -1602,13 +1674,38 @@ def execute_pre_conversion_rasterization():
                     resolution = target_res
                     
                     print(f"   📏 Usando resolución: {resolution}x{resolution}")
+                    # 5. Ejecutar Bake
+                    baked_img = perform_advanced_baking(mat, resolution=target_res)
                     
-                    baked_img = perform_advanced_baking(mat, resolution)
-                    if baked_img and replace_material_with_baked(mat, baked_img):
-                        processed += 1
-                        print(f"✅ {mat.name}: Rasterizado Exitosamente")
+                    if baked_img:
+                        # 6. Reemplazar Material
+                        if replace_material_with_baked(mat, baked_img):
+                            processed += 1
+                            print(f"✅ {mat.name}: Rasterizado Exitosamente")
+                            
+                            # === LIMPIEZA FINAL DE UVs (CONSOLIDACIÓN) ===
+                            # Ahora que el material usa la textura bakeada (mapeada a bake_temp),
+                            # podemos borrar los UVs originales y renombrar bake_temp a Float2.
+                            found_obj_tuple = _find_object_with_material(mat)
+                            if found_obj_tuple:
+                                target_obj = found_obj_tuple[0]
+                                
+                                # Borrar todo lo que no sea 'bake_temp'
+                                # (Esto elimina 'original_uv_src' y cualquier otro residuo)
+                                uv_layers = target_obj.data.uv_layers
+                                to_remove = [uv for uv in uv_layers if uv.name != 'bake_temp']
+                                for uv in to_remove:
+                                    uv_layers.remove(uv)
+                                
+                                # Renombrar bake_temp -> Float2
+                                if 'bake_temp' in uv_layers:
+                                    uv_layers['bake_temp'].name = 'Float2'
+                                    
+                                print(f"   🧹 UV Cleanup: UVs unificados a 'Float2' en objeto '{target_obj.name}'")
+                        else:
+                             print(f"❌ Fallo al reemplazar material {mat.name}")
                     else:
-                         print(f"❌ {mat.name}: Falló el Bake (Intentando fallback a limpieza)")
+                         print(f"❌ Fallo al generar imagen bakeada para {mat.name} (Intentando fallback a limpieza)")
                          # Si falla el bake, intentar al menos limpiar si tiene imagen
                          if has_direct_image:
                              _simplify_to_nearest_image(mat, principled)
