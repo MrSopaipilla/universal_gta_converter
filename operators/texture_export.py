@@ -15,6 +15,8 @@ from bpy_extras.io_utils import ExportHelper
 from mathutils import Color, Vector
 from mathutils import Color, Vector
 import array # Para manipulación eficiente de pixels
+import random # Z-Fight Jitter
+import random # Para Jitter Z-Fight
 
 
 FORMAT_EXTENSION_MAP = {
@@ -638,11 +640,17 @@ def perform_advanced_baking(material, resolution=None):
                 bpy.ops.object.material_slot_select()
                 
                 try:
-                    # Scale=True, Rotate=False, Margin=0.001
+                    # Anti Z-Fighting Micro-Displacement
+                    # Desplaza infinitesimalmente las caras (según normales) para evitar que coincidan con otras superficies.
+                    offset = random.uniform(-0.00002, 0.00002)
+                    bpy.ops.transform.shrink_fatten(value=offset)
+                    print(f"   🤏 Z-Fight Fix: Offset {offset:.7f} aplicado a '{material.name}'")
+                    
+                    # Configuración estricta del usuario: Scale=ON, Rotate=OFF, Margin=0.001
                     bpy.ops.uv.pack_islands(rotate=False, scale=True, margin=0.001)
                     print(f"   ✅ Float2: Pack completado para material '{material.name}'")
                 except Exception as e:
-                     print(f"⚠️ Pack Warning: {e}")
+                     print(f"⚠️ Pack/Offset Warning: {e}")
             
             bpy.ops.object.mode_set(mode='OBJECT')
             
@@ -1075,12 +1083,19 @@ def replace_material_with_baked(material, baked_image):
             while alpha_socket_in.is_linked: links.remove(alpha_socket_in.links[0])
             links.new(image_node.outputs['Alpha'], alpha_socket_in)
             
-        # Configurar transparencia real en el material para Blender (Tramado solicitado)
+        # Configurar transparencia real en el material para Blender (Hash Mode)
+        # Volvemos a HASHED tras intentos fallidos con BLEND Overlap.
         material.blend_method = 'HASHED'
-        material.shadow_method = 'HASHED' # Sombra tramada también
+        material.shadow_method = 'HASHED'
         material.use_screen_refraction = False
         
-        print(f"✅ Material '{material.name}' reemplazado con textura RGBA bakeada (Hashed).")
+        # Micro-Displacement (Jitter) ya aplicado en geometría para mitigar Z-Fighting
+        
+        # Limpieza estándar
+        try: material.show_transparent_back = False
+        except: pass
+        
+        print(f"✅ Material '{material.name}' reemplazado con textura RGBA bakeada (Hashed Mode).")
         return True
         
     except Exception as e:
