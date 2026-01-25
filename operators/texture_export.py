@@ -482,28 +482,80 @@ def _is_image_basically_white_or_empty(image):
 
 def perform_advanced_baking(material, resolution=None):
     """
-    AVANZADO: Bake usando estrategia 'EMIT' pura (Guia Manual).
-    Conecta Color/MixColor -> Emission -> Output.
+    Bake usando estrategia SimpleBake SIMPLIFICADA.
+    
+    Estrategia segura (sin backup/restore complejo):
+    1. Guardar referencia a imagen/color de Base Color
+    2. Desconectar Principled del Output (pero mantenerlo)
+    3. Crear Emission con la imagen/color guardado
+    4. Conectar Emission al Output
+    5. Bakear EMIT
+    6. Eliminar Emission
+    7. Reconectar Principled al Output
     """
     try:
-        print(f"🔥 INICIANDO BAKING (EMIT MANUAL): {material.name}")
+        print(f"🔥 INICIANDO BAKING (SimpleBake Simplified): {material.name}")
         
         if resolution is None:
             resolution = get_original_texture_resolution(material)
 
         obj, slot_index = _find_object_with_material(material)
-        if not obj: return None
+        if not obj: 
+            print(f"❌ No se encontró objeto con material {material.name}")
+            return None
 
-        # Guardar estado
+        nodes = material.node_tree.nodes
+        links = material.node_tree.links
+        
+        principled = _find_principled(material)
+        output_node = _get_output_node(material)
+        
+        if not principled or not output_node:
+            print(f"❌ Material {material.name} no tiene Principled BSDF o Output")
+            return None
+        
+        # Guardar qué está en Base Color ANTES de modificar
+        base_color_socket = principled.inputs.get('Base Color')
+        saved_image = None
+        saved_color = None
+        
+        if base_color_socket:
+            if base_color_socket.is_linked:
+                source_node = base_color_socket.links[0].from_node
+                if source_node.type == 'TEX_IMAGE' and source_node.image:
+                    saved_image = source_node.image
+                    print(f"   💾 Guardando referencia a imagen: {saved_image.name}")
+            else:
+                saved_color = tuple(base_color_socket.default_value)
+                # Check si el color es muy oscuro (casi negro)
+                if len(saved_color) >= 3 and (saved_color[0] + saved_color[1] + saved_color[2]) < 0.1:
+                    print(f"   ⚠️ Base Color muy oscuro ({saved_color[:3]}), usando blanco")
+                    saved_color = (0.8, 0.8, 0.8, 1.0)
+                else:
+                    print(f"   💾 Guardando color: {saved_color[:3]}")
+        
+        # Guardar conexión original del Output
+        original_output_connection = None
+        if output_node.inputs['Surface'].is_linked:
+            original_output_connection = output_node.inputs['Surface'].links[0].from_socket
+        
+        # === PREPARACIÓN DE ESCENA ===
         original_visibility = {}
         for o in bpy.data.objects:
             original_visibility[o.name] = o.hide_render
+        
         original_auto_smooth = False
         if hasattr(obj.data, "use_auto_smooth"):
             original_auto_smooth = obj.data.use_auto_smooth
 
+        baked_image = None
+        emission = None
+        target_node = None
+        source_node = None
+        rgb_node = None
+        
         try:
-            # Configurar Escena
+            # Configurar Cycles
             if bpy.context.scene.render.engine != 'CYCLES':
                 bpy.context.scene.render.engine = 'CYCLES'
             bpy.context.scene.cycles.device = 'CPU'
@@ -513,7 +565,8 @@ def perform_advanced_baking(material, resolution=None):
             # Aislar Objeto
             if bpy.context.object and bpy.context.object.mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode='OBJECT')
-            for o in bpy.data.objects: o.hide_render = True
+            for o in bpy.data.objects: 
+                o.hide_render = True
             obj.hide_render = False
             if hasattr(obj.data, "use_auto_smooth"):
                 obj.data.use_auto_smooth = False
@@ -522,84 +575,106 @@ def perform_advanced_baking(material, resolution=None):
             bpy.context.view_layer.objects.active = obj
             obj.select_set(True)
 
-            # Sync UVs
-            if getattr(obj.data, 'uv_layers', None):
-                uv_layers = obj.data.uv_layers
-                # Fix API Error: active_render -> render
-                if uv_layers.render and uv_layers.active != uv_layers.render:
-                    uv_layers.active = uv_layers.render
-
-            # SETUP NODOS (EMISSION STRATEGY)
-            nodes = material.node_tree.nodes
-            links = material.node_tree.links
-            principled = _find_principled(material)
-            output_node = _get_output_node(material)
-
+            # === DESCONECTAR PRINCIPLED DEL OUTPUT ===
+            # (Pero NO eliminarlo, solo desconectarlo temporalmente)
+            if original_output_connection:
+                link_to_remove = None
+                for link in links:
+                    if link.to_socket == output_node.inputs['Surface']:
+                        link_to_remove = link
+                        break
+                if link_to_remove:
+                    links.remove(link_to_remove)
+            
+            print(f"   🔌 Principled desconectado temporalmente")
+            
+            # === CREAR SETUP LIMPIO PARA BAKE ===
+            
             # Crear Imagen Target
-            baked_name = f"{material.name}_r_d"
+            baked_name = f"{material.name}_b_d"
             if baked_name in bpy.data.images:
                 bpy.data.images.remove(bpy.data.images[baked_name])
             baked_image = bpy.data.images.new(baked_name, width=resolution, height=resolution, alpha=True)
 
             # Nodo Target
-            for n in nodes: n.select = False
             target_node = nodes.new('ShaderNodeTexImage')
             target_node.image = baked_image
             target_node.select = True
+            target_node.location = (output_node.location.x - 600, output_node.location.y - 300)
             nodes.active = target_node
 
-            # Nodo Emission
+            # === CONFIGURAR EMISION PARA BAKE (Preservando Nodos) ===
+            
+            # Crear Emission
             emission = nodes.new('ShaderNodeEmission')
-            emission.location = (principled.location.x + 200, principled.location.y + 200)
+            emission.location = (output_node.location.x - 200, output_node.location.y)
+            emission.label = "SimpleBake_Emission"
             
-            # Conexión Inteligente (Mix Shader support simple)
-            # Si el Principled tiene algo en Base Color, lo usamos.
-            base_socket = principled.inputs.get('Base Color')
-            input_source = None
-            if base_socket and base_socket.is_linked:
-                input_source = base_socket.links[0].from_socket
-                links.new(input_source, emission.inputs['Color'])
+            # Conectar lo que estaba en Base Color al Emission
+            # (Esto preserva Mix nodes, Math nodes, y toda la cadena compleja)
+            if base_color_socket and base_color_socket.is_linked:
+                # Obtener el socket de salida del nodo origen
+                source_socket_out = base_color_socket.links[0].from_socket
+                # Conectar al Emission
+                links.new(source_socket_out, emission.inputs['Color'])
+                print(f"   🔗 Setup: Cadena de Nodos Compleja -> Emission -> Output")
+            elif saved_color:
+                # Si no había nada conectado, usar el color guardado
+                emission.inputs['Color'].default_value = saved_color
+                print(f"   🔗 Setup: Color Sólido {saved_color[:3]} -> Emission -> Output")
             else:
-                default_col = base_socket.default_value if base_socket else [1,1,1,1]
-                emission.inputs['Color'].default_value = default_col
+                 emission.inputs['Color'].default_value = (1, 1, 1, 1)
             
-            # Conectar a Output
-            final_surface = output_node.inputs['Surface']
-            orig_link_source = None
-            if final_surface.is_linked:
-                orig_link_source = final_surface.links[0].from_socket
-            
-            links.new(emission.outputs['Emission'], final_surface)
+            # Conectar Emission al Output
+            links.new(emission.outputs['Emission'], output_node.inputs['Surface'])
 
-            # BAKE
-            print(f"   ⏳ Bakeando {resolution}x{resolution} (EMIT)...")
+            # === BAKE CON TIPO EMIT ===
+            print(f"   ⏳ Bakeando {resolution}x{resolution} (EMIT - Preservando Nodos)...")
             bpy.context.scene.render.bake.use_selected_to_active = False
             bpy.context.scene.render.bake.use_cage = False
-            bpy.context.scene.render.bake.margin = 0
+            bpy.context.scene.render.bake.margin = 16 # Margen para evitar bordes negros
             bpy.context.scene.render.bake.use_clear = True
             bpy.context.scene.render.bake.target = 'IMAGE_TEXTURES'
             
             bpy.ops.object.bake(type='EMIT')
             
-            # Restaurar Nodos
-            nodes.remove(emission)
-            nodes.remove(target_node)
-            if orig_link_source:
-                links.new(orig_link_source, final_surface)
-            
             baked_image.pack()
             baked_image.use_fake_user = True
             
-            return baked_image
+            print(f"   ✅ Bake completado: {baked_name}")
 
         finally:
-            # Restaurar Global
+            # === LIMPIEZA Y RESTAURACIÓN ===
+            # Eliminar nodos temporales
+            if emission and emission.name in nodes:
+                nodes.remove(emission)
+            if target_node and target_node.name in nodes:
+                nodes.remove(target_node)
+            # source_node y rgb_node ya no se crean en esta version
+            
+            # Reconectar Principled al Output
+            if original_output_connection:
+                try:
+                    # Verificar si el socket sigue valido
+                    if original_output_connection.node.name in nodes:
+                         links.new(original_output_connection, output_node.inputs['Surface'])
+                         print(f"   🔌 Principled reconectado")
+                except:
+                    pass
+            
+            # Restaurar visibilidad y auto-smooth
             for n, h in original_visibility.items():
-                if n in bpy.data.objects: bpy.data.objects[n].hide_render = h
+                if n in bpy.data.objects: 
+                    bpy.data.objects[n].hide_render = h
             if obj and hasattr(obj.data, "use_auto_smooth"):
                 obj.data.use_auto_smooth = original_auto_smooth
+        
+        return baked_image
+                
     except Exception as e:
         print(f"❌ Error Bake: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -660,7 +735,7 @@ def replace_material_with_baked(material, baked_image):
         image_node = nodes.new(type='ShaderNodeTexImage')
         image_node.image = baked_image
         image_node.location = (principled.location.x - 300, principled.location.y)
-        image_node.label = "Rasterized Diffuse"
+        image_node.label = baked_image.name
         
         # Conectar Color
         base_color = principled.inputs.get('Base Color')
@@ -825,41 +900,100 @@ def _connect_alpha_if_available(material, image_node, principled):
 
 
 def _simplify_to_nearest_image(material, principled) -> bool:
-    """Mantiene solo la TEX_IMAGE más cercana al Base Color y conecta Color/Alpha.
+    """Mantiene solo la TEX_IMAGE o COLOR más cercano al Base Color.
+    Preserva el color RVA si no hay imagen.
     Devuelve True si se simplificó algo.
     """
     try:
-        image_node, chain_nodes = _trace_nearest_image_to_base_color(principled)
-        if image_node is None:
-            return False
-
         nodes = material.node_tree.nodes
         links = material.node_tree.links
+        
+        # 1. Intentar buscar imagen
+        image_node, chain_nodes = _trace_nearest_image_to_base_color(principled)
+        
+        # --- PROTECCIÓN RVA (COLOR TINT) ---
+        # Si hay nodos de mezcla de color en la cadena, NO limpiar, para preservar el tinte.
+        if chain_nodes:
+            # Lista de tipos de nodos que modifican color y debemos preservar
+            color_modifiers = {
+                'ShaderNodeMixRGB', 'ShaderNodeMix', # Blender 3.4+ usa ShaderNodeMix para color
+                'ShaderNodeHueSaturation', 'ShaderNodeRGBCurves', 
+                'ShaderNodeBrightContrast', 'ShaderNodeGamma', 
+                'ShaderNodeInvert'
+            }
+            
+            for node in chain_nodes:
+                if node.type in ['MIX_RGB', 'CURVE_RGB', 'HUE_SATURATION', 'BRIGHTCONTRAST', 'GAMMA', 'INVERT'] or \
+                   node.bl_idname in color_modifiers:
+                    print(f"🎨 {material.name}: Tinte/Color RVA detectado (nodo {node.name}) -> Limpieza cancelada")
+                    return False
+        # -----------------------------------
+        
+        target_node = None
+        
+        if image_node:
+            target_node = image_node
+            # Conectar imagen
+            base_input = principled.inputs.get('Base Color')
+            if base_input:
+                while base_input.is_linked: links.remove(base_input.links[0])
+                links.new(image_node.outputs.get('Color'), base_input)
+            # Conectar Alpha
+            _connect_alpha_if_available(material, image_node, principled)
+            
+        else:
+            # 2. Si no hay imagen, buscar Color solido (RGB/Value)
+            base_input = principled.inputs.get('Base Color')
+            preserved_color_val = None
+            
+            if base_input and base_input.is_linked:
+                # Ver qué hay conectado
+                linked_node = base_input.links[0].from_node
+                if linked_node.type in ['RGB', 'VALUE']:
+                    target_node = linked_node
+                    # Ya está conectado, no hace falta tocar links
+                else:
+                    # Es algo complejo sin imagen (Mix, etc.)
+                    # ¿Debemos colapsarlo? El usuario pidió no quitar color RVA.
+                    # Si borramos el Mix, perdemos el color.
+                    # Mejor estrategia: Si es complejo y no hay imagen, NO TOCAR.
+                    # O capturar el color base si es simple.
+                    return False
+            else:
+                 # No hay nada conectado, es color directo en el socket.
+                 # Preservar este valor (al borrar otros nodos no afecta, pero ok)
+                 pass
 
-        # Conectar color directamente al Principled
-        base_input = principled.inputs.get('Base Color')
-        if base_input:
-            # Limpiar enlaces existentes del Base Color
-            while base_input.is_linked:
-                links.remove(base_input.links[0])
-            links.new(image_node.outputs.get('Color'), base_input)
-
-        # Conectar alpha si procede (sustituye cualquier conexión existente)
-        _connect_alpha_if_available(material, image_node, principled)
-
-        # Eliminar todo lo que no sea Principled, Output o el image_node encontrado
-        to_keep = {principled, image_node}
-        for n in nodes:
-            if getattr(n, 'type', None) == 'OUTPUT_MATERIAL':
+        # 3. Limpieza de nodos basura
+        # Mantener Principled, Output y el target_node (si existe)
+        to_keep = {principled}
+        
+        # Buscar output node activo
+        for n in nodes: 
+            if n.type == 'OUTPUT_MATERIAL' and n.is_active_output:
                 to_keep.add(n)
+                break
+        
+        if target_node:
+            to_keep.add(target_node)
+            
+        # Eliminar todo lo demás
         remove_list = [n for n in nodes if n not in to_keep]
+        
+        # Solo borrar si realmente vamos a limpiar algo sustancial
+        if not remove_list:
+            return False
+            
         for n in remove_list:
-            nodes.remove(n)
+            try:
+                nodes.remove(n)
+            except: pass
 
         print(f"🧹 {material.name}: limpieza realizada (nodos eliminados={len(remove_list)})")
 
         return True
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Error limpiando {material.name}: {e}")
         return False
 
 
@@ -1098,11 +1232,13 @@ def check_real_pixel_transparency(material):
     """
     try:
         principled = _find_principled(material)
-        if not principled: return False
+        if not principled: 
+            return False
         
         # 1. Buscamos la imagen source en Base Color
         base_socket = principled.inputs.get('Base Color')
         if not base_socket or not base_socket.is_linked:
+            print(f"   [ALPHA_CHECK] {material.name}: No Base Color linked -> OPACO")
             return False # Procedural/Color solido -> Considerar Opaco para que se bakee
             
         # Rastreo simple del nodo conectado
@@ -1110,35 +1246,129 @@ def check_real_pixel_transparency(material):
         
         # Si no es imagen (ej: Mix, Ramp), asumimos opaco/bakeable
         if node.type != 'TEX_IMAGE' or not node.image:
+            print(f"   [ALPHA_CHECK] {material.name}: No es TEX_IMAGE -> OPACO")
             return False 
             
         img = node.image
+        print(f"   [ALPHA_CHECK] {material.name}: Imagen '{img.name}', alpha_mode={img.alpha_mode}, channels={img.channels}")
         
         # 2. Check rápido por metadatos
         if img.alpha_mode == 'NONE':
+            print(f"   [ALPHA_CHECK] {material.name}: alpha_mode=NONE -> OPACO")
             return False # Es opaca
             
         # 3. Check de píxeles (sampling)
         # Si tiene canal alpha (depth 32), chequeamos valores
-        if len(img.pixels) > 0 and img.channels == 4:
-             w, h = img.size
-             # Samplear esquinas y centro
-             indices = [0, (w-1)*4, (w*h-w)*4, (w*h-1)*4, ((h//2)*w + w//2)*4]
-             
-             # Si la imagen es pequeña, sampleamos todo el alpha channel (saltando de 4 en 4)
-             if w*h < 10000:
-                 for i in range(3, len(img.pixels), 4):
-                     if img.pixels[i] < 0.99: return True
-             else:
-                 # Sampleo disperso para imágenes grandes
-                 for idx in indices:
-                     if idx+3 < len(img.pixels):
-                         if img.pixels[idx+3] < 0.99: return True
-                         
-             return False # Alpha channel parece todo blanco
+        if img.channels != 4:
+            print(f"   [ALPHA_CHECK] {material.name}: channels != 4 -> OPACO")
+            return False
+            
+        # Intentar acceder a píxeles
+        try:
+            if len(img.pixels) == 0:
+                print(f"   [ALPHA_CHECK] {material.name}: pixels vacío -> OPACO (asumiendo packed/no-loaded)")
+                return False
+        except:
+            print(f"   [ALPHA_CHECK] {material.name}: No se puede acceder a pixels -> OPACO")
+            return False
+            
+        w, h = img.size
+        total_pixels = w * h
         
-        return False # No channels alpha detectados
-    except:
+        # Si la imagen es pequeña, sampleamos todo el alpha channel
+        if total_pixels < 10000:
+            transparent_count = 0
+            for i in range(3, len(img.pixels), 4):
+                if img.pixels[i] < 0.99: 
+                    transparent_count += 1
+            
+            if transparent_count > 0:
+                print(f"   [ALPHA_CHECK] {material.name}: {transparent_count}/{total_pixels} píxeles transparentes -> TRANSPARENTE")
+                return True
+            else:
+                print(f"   [ALPHA_CHECK] {material.name}: 0/{total_pixels} píxeles transparentes -> OPACO")
+                return False
+        else:
+            # Sampleo disperso para imágenes grandes
+            indices = [0, (w-1)*4, (w*h-w)*4, (w*h-1)*4, ((h//2)*w + w//2)*4]
+            for idx in indices:
+                if idx+3 < len(img.pixels):
+                    if img.pixels[idx+3] < 0.99:
+                        print(f"   [ALPHA_CHECK] {material.name}: Encontrado pixel transparente en sample -> TRANSPARENTE")
+                        return True
+            
+            print(f"   [ALPHA_CHECK] {material.name}: Samples opacos -> OPACO")
+            return False
+        
+    except Exception as e:
+        print(f"   [ALPHA_CHECK] {material.name}: Exception {e} -> OPACO (fallback)")
+        return False
+
+def _rasterize_direct_color(material, principled, base_socket, alpha_socket=None):
+    """
+    Crea una textura sólida 256x256 del color base y la conecta.
+    Simplifica el material a Imagen -> Principled -> Output.
+    """
+    try:
+        # Obtener color base
+        color = (1.0, 1.0, 1.0, 1.0)
+        if base_socket:
+            # Si hay un nodo conectado (RGB, Value), intentar obtener su valor
+            if base_socket.is_linked:
+                node = base_socket.links[0].from_node
+                if node.type == 'RGB':
+                    color = tuple(node.outputs[0].default_value)
+                elif node.type == 'VALUE':
+                    val = node.outputs[0].default_value
+                    color = (val, val, val, 1.0)
+            else:
+                color = tuple(base_socket.default_value)
+                
+        # Crear imagen solida
+        img_name = f"{material.name}_b_d"
+        if img_name in bpy.data.images:
+            bpy.data.images.remove(bpy.data.images[img_name])
+            
+        # Obtener resolución de settings
+        size = 256 # Default
+        try:
+            settings = bpy.context.scene.universal_gta_settings
+            if hasattr(settings, 'bake_resolution'):
+                 res_str = settings.bake_resolution
+                 if res_str and res_str.isdigit():
+                     size = int(res_str)
+        except:
+             pass
+            
+        # Generar imagen
+        image = bpy.data.images.new(img_name, width=size, height=size, alpha=True)
+        
+        # Llenar píxeles
+        pixels = [color[0], color[1], color[2], color[3]] * (size * size)
+        image.pixels = pixels
+        image.pack()
+        
+        # Conectar
+        nodes = material.node_tree.nodes
+        links = material.node_tree.links
+        
+        tex_node = nodes.new('ShaderNodeTexImage')
+        tex_node.image = image
+        tex_node.label = img_name
+        tex_node.location = (principled.location.x - 300, principled.location.y)
+        
+        # Conectar a Base Color
+        if 'Base Color' in principled.inputs:
+             links.new(tex_node.outputs['Color'], principled.inputs['Base Color'])
+            
+        # Conectar Alpha si es necesario
+        if alpha_socket:
+            links.new(tex_node.outputs['Alpha'], alpha_socket)
+            
+        print(f"   🎨 Creada textura sólida {size}x{size}: {img_name}")
+        return True
+    except Exception as e:
+        print(f"❌ Error rasterizando color sólido: {e}")
         return False
 
 
@@ -1147,22 +1377,28 @@ def execute_pre_conversion_rasterization():
     - Material simple: se omite.
     - Material complejo: BAKE (Estrategia Diffuse/Emit).
     - Preservación de Alpha: Si tiene alpha REAL (pixeles), el bake lo debe capturar.
-    Devuelve (procesados, total_materiales).
+    Devuelve (processed, total_materials).
     """
     processed = 0
     total = 0
     try:
+        settings = getattr(bpy.context.scene, 'universal_gta_settings', None)
         materials = [m for m in bpy.data.materials if m and m.use_nodes]
         total = len(materials)
         
-        # Respetar toggles globales
-        settings = getattr(bpy.context.scene, 'universal_gta_settings', None)
-        global_do_rasterize = bool(getattr(settings, 'rasterize_textures', False)) if settings else False
-        global_do_clean = bool(getattr(settings, 'clean_materials', True)) if settings else True
+        # Leer Modo desde Enum
+        mode = getattr(settings, 'material_process_mode', 'CLEAN')
+        
+        if mode == 'NONE':
+            print("⏭️ Rasterización abortada (Modo NONE)")
+            return 0, 0
+            
+        # Configuración de flags
+        global_do_clean = (mode in ['CLEAN', 'BAKE'])
+        global_do_rasterize = (mode == 'BAKE')
 
-        if not global_do_rasterize and not global_do_clean:
-            print("🛑 Pre-rasterización omitida")
-            return processed, total
+        print(f"🔥 Ejecutando Rasterización/Limpieza (Modo: {mode})...")
+        print(f"   Clean={global_do_clean}, Rasterize={global_do_rasterize}")
             
         print("\n" + "="*60)
         print("🧠 PRE-RASTERIZACIÓN ROBUSTA (Universal GTA)")
@@ -1173,9 +1409,14 @@ def execute_pre_conversion_rasterization():
                 principled = _find_principled(mat)
                 if principled is None: continue
 
-                # 1. Simple -> Salir
+                # 1. Simple -> Limpiar (no saltar)
                 if _material_is_simple(mat, principled):
-                    print(f"ℹ️ {mat.name}: Simple (SKIP)")
+                    if global_do_clean:
+                        print(f"🧹 {mat.name}: Simple -> Limpieza")
+                        if _simplify_to_nearest_image(mat, principled):
+                            processed += 1
+                    else:
+                        print(f"ℹ️ {mat.name}: Simple (SKIP - clean desactivado)")
                     continue
 
                 # 2. Análisis
@@ -1198,28 +1439,88 @@ def execute_pre_conversion_rasterization():
 
                 # A) Si YA tiene imagen directa (y es opaca)
                 if has_direct_image:
-                    if global_do_clean:
-                        print(f"ℹ️ {mat.name}: Tiene imagen directa (Opaca). Limpieza.")
+                    should_check_bake = False
+                    
+                    # 1. Prioridad: BAKE si es complejo (solo si rasterize actvado)
+                    if global_do_rasterize:
+                        node_count = len(mat.node_tree.nodes)
+                        # Umbral: 6 nodos (Coord+Map+Img+BSDF+Out = 5 -> Simple)
+                        if node_count > 6:
+                            print(f"⚡ {mat.name}: Imagen directa + Nodos complejos ({node_count} > 6) -> BAKE")
+                            should_bake = True
+                        else:
+                            should_check_bake = False # Es simple
+                            
+                    # 2. Si NO se va a bakear (porque es simple o rasterize=False), intentar Limpiar
+                    if not should_bake and global_do_clean:
+                        print(f"🧹 {mat.name}: Tiene imagen directa (Simple) -> Limpieza")
                         if _simplify_to_nearest_image(mat, principled):
                             processed += 1
                         continue
+                    
+                    # Si decidimos bakear, salimos del if y el flag should_bake hará el trabajo abajo
+                    if should_bake:
+                        pass # Continua al bloque de ejecucion
                     else:
                         continue
                 
-                # B) Si NO tiene imagen directa (procedural/mix) -> BAKE
-                if global_do_rasterize:
-                    should_bake = True
+                # B) Si NO tiene imagen directa -> Decidir entre Rasterizar o Bakear
+                if not has_direct_image and global_do_rasterize:
+                    # Verificar qué hay conectado a Base Color
+                    base_socket = principled.inputs.get('Base Color')
+                    
+                    is_procedural_complex = False
+                    if base_socket and base_socket.is_linked:
+                        input_node = base_socket.links[0].from_node
+                        # Color/Valor -> Simple
+                        if input_node.type in ['RGB', 'VALUE']:
+                            is_procedural_complex = False
+                        # Imagen -> Complejo (si llegamos acá sin has_direct_image es raro, pero posible si pasa por un Mix)
+                        # Mix/Ramp/Noise -> Complejo
+                        else:
+                            is_procedural_complex = True
+                    
+                    if not is_procedural_complex:
+                        print(f"🎨 {mat.name}: Color sólido/simple -> Rasterizar")
+                        if _rasterize_direct_color(mat, principled, base_socket, principled.inputs.get('Alpha')):
+                            processed += 1
+                        continue
+                    else:
+                        # Material procedural complejo real -> Bakear
+                        should_bake = True
                 
                 # 4. EJECUCIÓN
                 if should_bake:
-                    print(f"⚡ {mat.name}: Requiere BAKE MANUAL (Opaco/Procedural)")
-                    resolution = get_original_texture_resolution(mat)
+                    print(f"⚡ {mat.name}: Requiere BAKE MANUAL (Procedural Complejo)")
+                    
+                    # Obtener resolución de settings
+                    target_res = 512 # Default seguro
+                    try:
+                        settings = bpy.context.scene.universal_gta_settings
+                        if hasattr(settings, 'bake_resolution'):
+                            res_str = settings.bake_resolution
+                            # bake_resolution suele ser string '512', '1024', etc
+                            if res_str and res_str.isdigit():
+                                target_res = int(res_str)
+                    except:
+                        pass
+                    
+                    # Opcional: Si el usuario quiere 'Auto', usar get_original (pero asumo que quiere forzar)
+                    # Si target_res es muy bajo, quizás fallback a get_original?
+                    # Pero el usuario dijo "no respeta la resolucion dada por settings". Así que fuerza settings.
+                    resolution = target_res
+                    
+                    print(f"   📏 Usando resolución: {resolution}x{resolution}")
+                    
                     baked_img = perform_advanced_baking(mat, resolution)
                     if baked_img and replace_material_with_baked(mat, baked_img):
                         processed += 1
                         print(f"✅ {mat.name}: Rasterizado Exitosamente")
                     else:
-                        print(f"❌ {mat.name}: Falló el Bake")
+                         print(f"❌ {mat.name}: Falló el Bake (Intentando fallback a limpieza)")
+                         # Si falla el bake, intentar al menos limpiar si tiene imagen
+                         if has_direct_image:
+                             _simplify_to_nearest_image(mat, principled)
 
             except Exception as e:
                 print(f"❌ {mat.name}: Error procesando: {e}")

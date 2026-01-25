@@ -9,6 +9,51 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
     bl_label = "Convert to GTA SA (Ultimate)"
     bl_description = "Conversión definitiva a GTA SA"
     bl_options = {'REGISTER', 'UNDO'}
+
+    def remove_extra_uv_maps(self):
+        """Mantiene solo el UV map activo, elimina el resto para TODOS los objetos seleccionados."""
+        # Detectar objetos a procesar (Activo + Seleccionados)
+        target_objects = set(bpy.context.selected_objects)
+        if bpy.context.active_object:
+            target_objects.add(bpy.context.active_object)
+        
+        objects_to_process = [o for o in target_objects if o.type == 'MESH']
+        
+        if not objects_to_process:
+             print("⚠️ No hay objetos mesh seleccionados para limpiar UV maps.")
+             return
+
+        print(f"🧹 Iniciando limpieza de UV maps en {len(objects_to_process)} objetos...")
+        for obj in objects_to_process:
+            uv_layers = obj.data.uv_layers
+            if len(uv_layers) > 1:
+                # Encontrar cuál dejar vivo. Prioridad: Activo render, Activo select, Primero
+                survivor_name = None
+                
+                # Intentar obtener el activo
+                active_index = uv_layers.active_index
+                if active_index < len(uv_layers):
+                    survivor_name = uv_layers[active_index].name
+                
+                # Fallback
+                if not survivor_name and len(uv_layers) > 0:
+                     survivor_name = uv_layers[0].name
+                
+                if not survivor_name: continue
+
+                # Eliminar los otros
+                to_remove_names = [uv.name for uv in uv_layers if uv.name != survivor_name]
+                
+                if to_remove_names:
+                    print(f"   🧹 '{obj.name}': Manteniendo '{survivor_name}', borrando {len(to_remove_names)} extras...")
+                
+                for name in to_remove_names:
+                    try:
+                        uv = uv_layers.get(name)
+                        if uv:
+                            uv_layers.remove(uv)
+                    except Exception as e:
+                        print(f"   ⚠️ Error al borrar UV {name} en {obj.name}: {e}")
     
     def execute(self, context):
         """Conversión a GTA SA"""
@@ -101,40 +146,46 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             print("🧹 PASO 3: Limpiando texturas...")
             self.cleanup_texture_names()
 
-            print("🎨 PASO 3.5: Rasterización PRE-conversión...")
-            try:
-                from ..operators.texture_export import execute_pre_conversion_rasterization
-                rasterized_count, total_materials = execute_pre_conversion_rasterization()
-                print(f"✅ Rasterización completada: {rasterized_count}/{total_materials} materiales")
-            except ImportError as ie:
-                print(f"⚠️ Módulo texture_export no disponible: {ie}")
-            except Exception as e:
-                print(f"⚠️ Error en rasterización pre-conversión: {e}")
-                # No fallar la conversión por errores de rasterización
+            print("🧹 PASO 3: Limpiando texturas...")
+            self.cleanup_texture_names()
+
+            # print("🎨 PASO 3.5: Rasterización PRE-conversión...")
+            # try:
+            #     from ..operators.texture_export import execute_pre_conversion_rasterization
+            #     rasterized_count, total_materials = execute_pre_conversion_rasterization()
+            #     print(f"✅ Rasterización completada: {rasterized_count}/{total_materials} materiales")
+            # except ImportError as ie:
+            #     print(f"⚠️ Módulo texture_export no disponible: {ie}")
+            # except Exception as e:
+            #     print(f"⚠️ Error en rasterización pre-conversión: {e}")
+            #     # No fallar la conversión por errores de rasterización
+            
+            print("⏭️ Paso 3.5 omitido (Movido a POST-UNION)")
 
             # === CHECK 2: RASTERIZAR TEXTURAS (BAKE DIFUSO) ===
-            if bool(getattr(settings, 'rasterize_textures', False)):
-                print("🔥 PASO 4: RASTERIZAR TEXTURAS (Bake Difuso)...")
-                try:
-                    # 1. Rasterizar colores sólidos (pre-pass)
-                    print("  🧩 Sub-paso: Rasterizando colores sólidos...")
-                    created_images = self.rasterize_solid_base_color_to_texture(size=256)
-                    
-                    # 2. Ejecutar Smart Baking (Lógica principal de bake)
-                    print("  🔥 Sub-paso: Ejecutando Smart Baking...")
-                    bpy.ops.universalgta.manual_smart_baking()
-                    print("✅ Rasterización y Baking completados")
-                except Exception as e:
-                    print(f"⚠️ Error en Rasterización/Bake: {e}")
-            else:
-                print("⏭️ Paso 4 omitido (Rasterizar texturas desactivado)")
+            # NOTA: Este paso está DESACTIVADO porque el PASO 3.5 ya ejecuta
+            # execute_pre_conversion_rasterization() que hace todo el trabajo.
+            # Ejecutarlo dos veces causa errores de referencias inválidas.
+            # if bool(getattr(settings, 'rasterize_textures', False)):
+            #     print("🔥 PASO 4: RASTERIZAR TEXTURAS (Bake Difuso)...")
+            #     try:
+            #         # 1. Rasterizar colores sólidos (pre-pass)
+            #         print("  🧩 Sub-paso: Rasterizando colores sólidos...")
+            #         created_images = self.rasterize_solid_base_color_to_texture(size=256)
+            #         
+            #         # 2. Ejecutar Smart Baking (Lógica principal de bake)
+            #         print("  🔥 Sub-paso: Ejecutando Smart Baking...")
+            #         bpy.ops.universalgta.manual_smart_baking()
+            #         print("✅ Rasterización y Baking completados")
+            #     except Exception as e:
+            #         print(f"⚠️ Error en Rasterización/Bake: {e}")
+            # else:
+            #     print("⏭️ Paso 4 omitido (Rasterizar texturas desactivado)")
+            print("⏭️ Paso 4 omitido (Se ejecutará en Paso 8.5)")
 
             # === CHECK 1: LIMPIAR MATERIALES (ESTRICTO) ===
-            if bool(getattr(settings, 'clean_materials', True)):
-                print("ARTIST PASO 5: LIMPIEZA ESTRICTA DE MATERIALES...")
-                self.perform_strict_material_cleanup()
-            else:
-                print("⏭️ Paso 5 omitido (Limpiar materiales desactivado)")
+            # La limpieza debe ser DESPUES del Bake para no romper materiales complejos antes de tiempo.
+            print("⏭️ Paso 5 omitido (Movido tras Bake - Paso 8.6)")
 
             print("💾 PASO 5: Guardando pose...")
             self.save_current_pose()
@@ -148,7 +199,67 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             print("🔗 PASO 8: Uniendo mallas...")
             self.merge_child_meshes_ultimate()
             
+            print("🎨 PASO 8.5: Rasterización 'Quirúrgica' (Separar -> Bake -> Unir)...")
+            try:
+                from ..operators.texture_export import execute_pre_conversion_rasterization
+                
+                # 1. Identificar objeto unido
+                united_obj = bpy.context.active_object
+                if not united_obj or united_obj.type != 'MESH':
+                    # Fallback si por alguna razón no hay objeto activo correcto
+                    print("⚠️ No se detectó objeto malla activo para separar. Buscando 'sackboy' o similar...")
+                    # Intento de recuperación simple, o continuar sin separar
+                
+                united_name = united_obj.name
+                
+                # 2. Separar por material
+                print(f"   ✂️ Separando '{united_name}' por materiales para bake limpio...")
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.mesh.separate(type='MATERIAL')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # Las partes quedan seleccionadas tras el separate
+                parts = [o for o in bpy.context.selected_objects if o.type == 'MESH']
+                print(f"   🧩 Sub-partes generadas: {len(parts)}")
+                
+                # 3. Ejecutar Rasterización (Ahora cada material tiene su propio objeto limpio)
+                rasterized_count, total_materials = execute_pre_conversion_rasterization()
+                print(f"✅ Rasterización completada: {rasterized_count}/{total_materials} materiales")
+                
+                # 4. Volver a unir
+                print(f"   🔗 Re-uniendo partes...")
+                # Deseleccionar todo primero
+                bpy.ops.object.select_all(action='DESELECT')
+                
+                # Seleccionar partes
+                for part in parts:
+                    if part.name in bpy.context.scene.objects: # Verificar validez
+                         part.select_set(True)
+                
+                # Activar uno para ser el principal (intentar preservar el que tenga el nombre original si existe, o el primero)
+                # Al separar, Blender suele nombrar "Obj", "Obj.001".
+                # El original puede haber cambiado de nombre o ser uno de ellos.
+                if parts:
+                    bpy.context.view_layer.objects.active = parts[0]
+                    bpy.ops.object.join()
+                    
+                    # Restaurar nombre original
+                    bpy.context.active_object.name = united_name
+                    print(f"   ✅ Malla re-unida: {united_name}")
+
+            except Exception as e:
+                print(f"⚠️ Error en rasterización quirúrgica: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            print("✨ PASO 8.6: Limpieza Final de Materiales...")
+            mode = getattr(settings, 'material_process_mode', 'CLEAN')
+            if mode != 'NONE':
+                self.perform_strict_material_cleanup()
+
             print("🎭 PASO 9: Procesando shapekeys y modificadores...")
+            self.process_shapekeys_and_modifiers()
             self.process_shapekeys_and_modifiers()
             
             print("⚖️ PASO 10: Creando weight mixing...")
@@ -168,6 +279,9 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
             
             print("🔧 PASO 14: Configurando modificador...")
             self.setup_armature_modifier_ultimate()
+            
+            print("🧹 PASO 15: Limpieza Final de UV Maps...")
+            self.remove_extra_uv_maps()
             
             print("📐 PASO 15: Aplicando transformaciones finales...")
             self.apply_final_transforms()
@@ -473,164 +587,42 @@ class UNIVERSALGTA_OT_execute_conversion(Operator):
         return True
     
     def perform_strict_material_cleanup(self) -> bool:
-        """Limpieza ESTRICTA de materiales (Check 1) - VERSIÓN ROBUSTA
-        - Busca el Image Texture más probable (incluso si no está conectado al Principled).
-        - Fuerza la estructura: Image -> Principled -> Output.
-        - Elimina TODO lo demás.
+        """Limpieza ESTRICTA de materiales (Check 1) - VERSIÓN SEGURA
+        Usa la lógica unificada de _simplify_to_nearest_image que respeta:
+        - Imágenes directas (las conecta y limpia)
+        - Colores RVA (los preserva)
+        - Tintes complejos (aborta limpieza)
         """
-        print("🧼 Iniciando Limpieza Estricta de Materiales (Robusta)...")
-        materials_processed = 0
-        
-        for material in bpy.data.materials:
-            if not material or not material.use_nodes:
-                continue
+        print("🧼 Iniciando Limpieza Estricta de Materiales (Segura)...")
+        try:
+            from ..operators.texture_export import _simplify_to_nearest_image, _find_principled
+            
+            materials_processed = 0
+            for material in bpy.data.materials:
+                if not material or not material.use_nodes:
+                    continue
                 
-            try:
-                tree = material.node_tree
-                nodes = tree.nodes
-                links = tree.links
+                # Ignorar materiales de UI o internos de Blender si los hubiera
+                if material.name.startswith("Dots Stroke"): continue
                 
-                # 1. Buscar o Crear Principled y Output
-                principled = None
-                output_node = None
-                
-                # Buscar existentes
-                for node in nodes:
-                    if node.type == 'BSDF_PRINCIPLED':
-                        principled = node
-                    elif node.type == 'OUTPUT_MATERIAL':
-                        output_node = node
-                        
-                # Si no existen, crearlos
-                if not principled:
-                    principled = nodes.new('ShaderNodeBsdfPrincipled')
-                    principled.location = (0, 300)
-                
-                if not output_node:
-                    output_node = nodes.new('ShaderNodeOutputMaterial')
-                    output_node.location = (300, 300)
-                
-                # 2. Encontrar la Textura Difusa ("The Chosen One")
-                found_image_node = None
-                
-                # Estrategia A: Conectada al Principled Base Color (Ideal)
-                if not found_image_node:
-                    base_input = principled.inputs.get('Base Color')
-                    if base_input and base_input.is_linked:
-                        node = base_input.links[0].from_node
-                        if node.type == 'TEX_IMAGE':
-                            found_image_node = node
-                        else:
-                            # BFS corto para buscar imagen
-                            queue = [node]
-                            visited = {node}
-                            while queue:
-                                curr = queue.pop(0)
-                                if curr.type == 'TEX_IMAGE':
-                                    found_image_node = curr
-                                    break
-                                for inp in curr.inputs:
-                                    if inp.is_linked:
-                                        nxt = inp.links[0].from_node
-                                        if nxt not in visited:
-                                            visited.add(nxt)
-                                            queue.append(nxt)
-
-                # Estrategia B: Buscar en el Output (por si es MMDShaderDev -> Output)
-                if not found_image_node and output_node.inputs[0].is_linked:
-                    shader_node = output_node.inputs[0].links[0].from_node
-                    if shader_node != principled:
-                        # Buscar imagen conectada a este shader misterioso
-                        queue = [shader_node]
-                        visited = {shader_node}
-                        while queue:
-                            curr = queue.pop(0)
-                            if curr.type == 'TEX_IMAGE':
-                                found_image_node = curr
-                                break
-                            # Limite de profundidad para no volvernos locos
-                            if len(visited) > 10: 
-                                continue
-                                
-                            for inp in curr.inputs:
-                                if inp.is_linked:
-                                    nxt = inp.links[0].from_node
-                                    if nxt not in visited:
-                                        visited.add(nxt)
-                                        queue.append(nxt)
-
-                # Estrategia C: Fuerza bruta (Cualquier Image Texture en el árbol)
-                if not found_image_node:
-                    # Preferir una que tenga "diff", "col", "base" en el nombre
-                    candidates = [n for n in nodes if n.type == 'TEX_IMAGE']
-                    if candidates:
-                        # Simple heurística: primera encontrada
-                        found_image_node = candidates[0]
-                
-                # 3. Referencia de imagen
-                image_ref = found_image_node.image if (found_image_node and found_image_node.image) else None
-                
-                # 4. LIMPIEZA NUCLEAR (Eliminar todo menos Principled y Output)
-                nodes_to_remove = []
-                for n in nodes:
-                    if n != principled and n != output_node:
-                        nodes_to_remove.append(n)
-                        
-                for n in nodes_to_remove:
-                    nodes.remove(n)
-                
-                # 5. RECONSTRUCCIÓN
-                # Conectar Principled -> Output
-                links.new(principled.outputs[0], output_node.inputs[0])
-                
-                if image_ref:
-                    # Crear nuevo nodo de imagen limpio
-                    new_tex = nodes.new('ShaderNodeTexImage')
-                    new_tex.image = image_ref
-                    new_tex.location = (principled.location.x - 300, principled.location.y)
-                    new_tex.label = "Difuso (Clean)"
+                try:
+                    principled = _find_principled(material)
+                    if principled:
+                        if _simplify_to_nearest_image(material, principled):
+                            materials_processed += 1
+                except Exception as e:
+                    print(f"⚠️ Error limpiando material {material.name}: {e}")
                     
-                    # Conectar Color -> Base Color
-                    if 'Base Color' in principled.inputs:
-                        links.new(new_tex.outputs['Color'], principled.inputs['Base Color'])
-                        
-                    # Conectar Alpha -> Alpha
-                    if 'Alpha' in principled.inputs:
-                        links.new(new_tex.outputs['Alpha'], principled.inputs['Alpha'])
-                else:
-                    # Si no hay imagen, poner gris GTA standard
-                    if 'Base Color' in principled.inputs:
-                        principled.inputs['Base Color'].default_value = (0.906, 0.906, 0.906, 1.0)
+            print(f"✅ Limpieza completada: {materials_processed} materiales modificados.")
+            return True
+            
+        except ImportError:
+            print("❌ Error: No se pudo importar texture_export para limpieza.")
+            return False
+        except Exception as e:
+            print(f"❌ Error fatal en limpieza de materiales: {e}")
+            return False
 
-                # Ajustes finales del Principled
-                if 'Specular IOR Level' in principled.inputs:
-                    principled.inputs['Specular IOR Level'].default_value = 0.0
-                elif 'Specular' in principled.inputs:
-                    principled.inputs['Specular'].default_value = 0.0
-                
-                if 'Roughness' in principled.inputs:
-                    principled.inputs['Roughness'].default_value = 1.0
-                
-                if 'Metallic' in principled.inputs:
-                    principled.inputs['Metallic'].default_value = 0.0
-
-                materials_processed += 1
-                
-            except Exception as e:
-                print(f"⚠️ Error limpiando material {material.name}: {e}")
-                
-        # --- User Request: Renombrar etiquetas de nodos al finalizar limpieza ---
-        print("🏷️ Actualizando etiquetas de nodos de imagen (Post-Limpieza)...")
-        for mat in bpy.data.materials:
-            try:
-                if mat.use_nodes:
-                    for n in mat.node_tree.nodes:
-                        if n.type == 'TEX_IMAGE' and n.image:
-                            n.label = n.image.name
-            except: pass
-
-        print(f"✅ Limpieza estricta ROBUSTA completada en {materials_processed} materiales")
-        return True
 
     def rasterize_solid_base_color_to_texture(self, size: int = 256) -> int:
         """Crear texturas 256x256 para materiales con Base Color sólido sin textura.
