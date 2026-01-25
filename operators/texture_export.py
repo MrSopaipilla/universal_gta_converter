@@ -14,6 +14,7 @@ from bpy.props import (
 from bpy_extras.io_utils import ExportHelper
 from mathutils import Color, Vector
 from mathutils import Color, Vector
+import array # Para manipulación eficiente de pixels
 
 
 FORMAT_EXTENSION_MAP = {
@@ -551,8 +552,10 @@ def perform_advanced_baking(material, resolution=None):
         baked_image = None
         emission = None
         target_node = None
+        diffuse_node = None
         source_node = None
         rgb_node = None
+        source_obj = None # Para Selected-to-Active
         
         try:
             # Configurar Cycles
@@ -588,40 +591,88 @@ def perform_advanced_baking(material, resolution=None):
             
             print(f"   🔌 Principled desconectado temporalmente")
             
-            # === GESTIÓN DE UV AVANZADA (PRE-BAKE) ===
-            print(f"   🗺️ Preparando UVs: Re-proyección y Pack...")
+            # === GESTIÓN UV (FLOAT2 STABLE PIPELINE) ===
+            # Optimización Multi-Material: Si 'Float2' ya existe, lo reusamos para no invalidar bakes previos.
             
-            # 1. Identificar y Preservar Source UV
-            original_uv_layer = obj.data.uv_layers.active
-            if not original_uv_layer and obj.data.uv_layers:
-                original_uv_layer = obj.data.uv_layers[0]
+            print(f"   🗺️ UV Pipeline Stable: Check Float2...")
             
-            if not original_uv_layer:
-                 # Si no hay UVs, crear uno base
-                 original_uv_layer = obj.data.uv_layers.new(name='original_uv_src')
+            # 1. Asegurar Source ('original_uv_src')
+            # Creamos una COPIA del estado actual para no perder nombre/datos del usuario.
+            if 'original_uv_src' in obj.data.uv_layers:
+                 original_uv_layer = obj.data.uv_layers['original_uv_src']
             else:
-                 original_uv_layer.name = 'original_uv_src'
+                 # Crear copia de seguridad dedicada para Input (Fuente de Apariencia)
+                 if obj.data.uv_layers:
+                      # .new() duplica la capa activa por defecto en Blender
+                      original_uv_layer = obj.data.uv_layers.new(name='original_uv_src')
+                 else:
+                      original_uv_layer = obj.data.uv_layers.new(name='original_uv_src')
             
-            # 2. Crear Target UV (bake_temp)
-            # Duplicamos el original para mantener la topologia básica, luego empacamos
-            bake_temp_layer = obj.data.uv_layers.new(name='bake_temp')
+            # 2. Asegurar Target ('Float2')
+            need_pack = False
+            if 'Float2' in obj.data.uv_layers:
+                 uv_target_layer = obj.data.uv_layers['Float2']
+                 print("   ♻️ Reusando UV 'Float2' existente")
+            else:
+                 # Limpiar temporales antiguos
+                 for uv in [l for l in obj.data.uv_layers if l.name in ['UV_TEMP', 'bake_temp']]:
+                     obj.data.uv_layers.remove(uv)
+                     
+                 uv_target_layer = obj.data.uv_layers.new(name='Float2')
+                 need_pack = True
             
-            # Configurar source como Render (para que la textura original se lea bien)
-            original_uv_layer.active_render = True
+            # 3. Configurar Roles
+            original_uv_layer.active_render = True # Inputs
+            obj.data.uv_layers.active = uv_target_layer # Target
             
-            # Configurar target como Activo (para que el Bake escriba aquí)
-            obj.data.uv_layers.active = bake_temp_layer
-            
-            # 3. Pack Islands en Target (Corrección 0-1)
+            # 4. Pack Islands (POR MATERIAL)
+            # Siempre empacamos antes de bakear para asegurar 0-1 perfecto en este material.
+            # Al seleccionar solo el material actual, maximizamos su resolución y no rompemos otros.
             bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.mesh.select_all(action='SELECT')
-            try:
-                # Pack: No rotar (preservar orientación visual), Margen pequeño
-                bpy.ops.uv.pack_islands(rotate=False, margin=0.001)
-                print("   ✅ UV Pack completado en 'bake_temp'")
-            except Exception as e:
-                print(f"⚠️ Error en Pack UV: {e}")
+            bpy.ops.mesh.select_all(action='DESELECT')
+            
+            # Seleccionar caras del material activo
+            match_slots = [i for i, s in enumerate(obj.material_slots) if s.material == material]
+            if match_slots:
+                obj.active_material_index = match_slots[0]
+                bpy.ops.object.material_slot_select()
+                
+                try:
+                    # Scale=True, Rotate=False, Margin=0.001
+                    bpy.ops.uv.pack_islands(rotate=False, scale=True, margin=0.001)
+                    print(f"   ✅ Float2: Pack completado para material '{material.name}'")
+                except Exception as e:
+                     print(f"⚠️ Pack Warning: {e}")
+            
             bpy.ops.object.mode_set(mode='OBJECT')
+            
+            # Force Update
+            bpy.context.view_layer.update()
+
+            # 5. FORZAR INPUTS A ORIGINAL UV
+            if nodes:
+                try:
+                    for n in nodes:
+                        if n.type == 'TEX_IMAGE': 
+                            if not n.inputs['Vector'].is_linked:
+                                 uv_node = nodes.new('ShaderNodeUVMap')
+                                 uv_node.uv_map = 'original_uv_src'
+                                 links.new(uv_node.outputs['UV'], n.inputs['Vector'])
+                except: pass
+
+            # === CREAR SETUP DE NODOS ===
+
+            # 5. FORZAR INPUTS A ORIGINAL UV
+            # Esto es vital para que la apariencia (sampling) use las coordenadas viejas
+            if nodes:
+                try:
+                    for n in nodes:
+                        if n.type == 'TEX_IMAGE': 
+                            if not n.inputs['Vector'].is_linked:
+                                 uv_node = nodes.new('ShaderNodeUVMap')
+                                 uv_node.uv_map = 'original_uv_src'
+                                 links.new(uv_node.outputs['UV'], n.inputs['Vector'])
+                except: pass
 
             # === CREAR SETUP DE NODOS ===
             # (El UV que se usa para mostrar en Viewport es 'bake_temp' ahora, 
@@ -640,12 +691,15 @@ def perform_advanced_baking(material, resolution=None):
             target_node.location = (output_node.location.x - 600, output_node.location.y - 300)
             nodes.active = target_node
             
-            # Crear nodos para Bake
+            # Crear nodos para Bake (Diffuse para RGB, Emission para Alpha)
             emission = nodes.new('ShaderNodeEmission')
-            emission.label = "Bake_Emission"
-            transparent = nodes.new('ShaderNodeBsdfTransparent')
-            mix_shader = nodes.new('ShaderNodeMixShader')
-            mix_shader.location = (output_node.location.x - 200, output_node.location.y)
+            emission.label = "Bake_Alpha_Emission"
+            diffuse_node = nodes.new('ShaderNodeBsdfDiffuse')
+            diffuse_node.label = "Bake_RGB_Diffuse"
+            
+            # (El resto del código de MixShader ya no es necesario con el bake dual)
+            # transparent = nodes.new('ShaderNodeBsdfTransparent') 
+            # mix_shader = nodes.new('ShaderNodeMixShader')
             
             # Identificar Fuentes (Color y Alpha)
             source_color_socket = None
@@ -675,67 +729,138 @@ def perform_advanced_baking(material, resolution=None):
                          # Si es valor fijo, lo seteamos en el mix shader directamente abajo
                          pass 
 
-                # ESTRATEGIA 2: Búsqueda Recursiva Inteligente (Soporte MMD/Reroutes)
+                # ESTRATEGIA 2: Grupos/Shaders Complejos (MMD, Mix, etc.)
                 else:
-                    print(f"   🕵️ Shader Complejo ({active_shader.type}): Buscando textura con prioridad...")
+                    print(f"   🕵️ Shader Complejo ({active_shader.type}): Analizando componentes...")
                     
-                    def find_image_input(node, depth=0):
-                        if depth > 10: return None
-                        
-                        linked_inputs = [inp for inp in node.inputs if inp.is_linked]
-                        priority_keys = ['base', 'diff', 'col', 'tex', 'albedo', 'img']
-                        avoid_keys = ['norm', 'spec', 'rough', 'disp', 'bump', 'alpha', 'fac']
-
-                        # Paso 1: Buscar TEX_IMAGE directo en inputs PRIORITARIOS
-                        for inp in linked_inputs:
-                            name = inp.name.lower()
-                            # Si es un input "de color"
-                            if any(k in name for k in priority_keys) and not any(k in name for k in avoid_keys):
-                                src = inp.links[0].from_node
-                                if src.type == 'TEX_IMAGE':
-                                    print(f"      ✅ Match directo prioritario: Input '{inp.name}' -> {src.name}")
-                                    return src
-                        
-                        # Paso 2: Buscar en inputs NO prohibidos
-                        for inp in linked_inputs:
-                            name = inp.name.lower()
-                            if not any(k in name for k in avoid_keys):
-                                src = inp.links[0].from_node
-                                if src.type == 'TEX_IMAGE':
-                                    print(f"      ✅ Match directo standard: Input '{inp.name}' -> {src.name}")
-                                    return src
-
-                        # Paso 3: Recursión (Nodos intermedios, Reroutes, Grupos)
-                        for inp in linked_inputs:
-                            src = inp.links[0].from_node
-                            if src.type in ['GROUP', 'REROUTE', 'BSDF_PRINCIPLED', 'MIX_SHADER', 'ADD_SHADER']:
-                                res = find_image_input(src, depth+1)
-                                if res: return res
-                        
-                        # Paso 4: Desesperación (Cualquier imagen)
-                        for inp in linked_inputs:
-                            src = inp.links[0].from_node
-                            if src.type == 'TEX_IMAGE':
-                                print(f"      ⚠️ Match de desesperación (ignoring name): Input '{inp.name}' -> {src.name}")
-                                return src
-                                
-                        return None
-
-                    found_tex_node = find_image_input(active_shader)
+                    found_mmd_reconstruction = False
                     
-                    if found_tex_node:
-                        print(f"   🎯 Textura seleccionada: {found_tex_node.name} (Img: {found_tex_node.image.name if found_tex_node.image else 'None'})")
-                        if 'Color' in found_tex_node.outputs:
-                            source_color_socket = found_tex_node.outputs['Color']
-                        if 'Alpha' in found_tex_node.outputs:
-                            source_alpha_socket = found_tex_node.outputs['Alpha']
+                    # PRIORITY 1: Reconstrucción Manual MMD (Base + Sphere)
+                    # Esta es la única forma segura de recuperar el color "brillante" (Sphere Map) 
+                    # ya que la salida del shader suele ser dependiente de la luz (Toon) y sale gris.
+                    mmd_base = None
+                    mmd_sphere = None
+                    
+                    for inp in active_shader.inputs:
+                        if inp.is_linked:
+                             src = inp.links[0].from_node
+                             if src.type == 'TEX_IMAGE':
+                                 if 'Base Tex' in inp.name: mmd_base = src
+                                 elif 'Sphere Tex' in inp.name: mmd_sphere = src
+                    
+                    if mmd_base:
+                        found_mmd_reconstruction = True
+                        print(f"   🧬 Reconstrucción MMD: Base encontrada ({mmd_base.name})")
+                        
+                        target_socket = mmd_base.outputs.get('Color')
+                        
+                        # APLICAR TINTE AMBIENTAL (Ambient Color)
+                        # Muchos mats MMD usan textura gris + Ambient Color para dar el color final.
+                        ambient_color_val = (1.0, 1.0, 1.0, 1.0)
+                        if 'Ambient Color' in active_shader.inputs:
+                             try:
+                                 vals = active_shader.inputs['Ambient Color'].default_value
+                                 if len(vals) >= 3: ambient_color_val = vals
+                             except: pass
+                        
+                        # APLICAR TINTE AMBIENTAL (Solo si es Colorido)
+                        # Filtro de Saturación: Evita oscurecer materiales con ambient gris/blanco.
+                        # Solo aplicamos tinte si el color es realmente un color (ej: Azul de ojos).
+                        r, g, b = ambient_color_val[:3]
+                        saturation = max(r,g,b) - min(r,g,b)
+                        
+                        if saturation > 0.05:
+                             print(f"   🎨 Ambient Color SATURADO ({saturation:.2f}) de {ambient_color_val[:3]} -> Aplicando Tinte MULTIPLY")
+                             mix_tint = nodes.new('ShaderNodeMixRGB')
+                             mix_tint.blend_type = 'MULTIPLY'
+                             mix_tint.inputs['Fac'].default_value = 1.0
+                             mix_tint.inputs[2].default_value = ambient_color_val
+                             
+                             links.new(target_socket, mix_tint.inputs[1])
+                             target_socket = mix_tint.outputs['Color']
+                        else:
+                             print(f"   ⚪ Ambient Color DESATURADO ({saturation:.2f}) -> Ignorando (Evita oscurecer piel/ropa)")
+                        
+                        # APLICAR ESFERA (Deshabilitado Temporalmente)
+                        # Los matcaps de esfera producen manchas negras horribles si no se proyectan bien.
+                        # En el bake esto es casi imposible de garantizar sin cámara.
+                        # Priorizamos limpieza sobre brillos rotos.
+                        if mmd_sphere:
+                             print(f"   🚫 Sphere Tex detectada ({mmd_sphere.name}) pero IGNORADA para evitar artefactos (manchas negras)")
+                             # Si en el futuro se quiere activar, usar ADD con factor muy bajo (0.1)
+                             # links.new(target_socket, mix_add.inputs[1]) ...
+                        
+                        source_color_socket = target_socket
+                        
+                        # Intentar recuperar Alpha de la base
+                        if 'Alpha' in mmd_base.outputs:
+                             source_alpha_socket = mmd_base.outputs['Alpha']
+                        
+                        source_color_socket = target_socket
+                        
+                        # Intentar recuperar Alpha de la base
+                        if 'Alpha' in mmd_base.outputs:
+                             source_alpha_socket = mmd_base.outputs['Alpha']
+
+                    # PRIORITY 2: Usar la SALIDA del Grupo (si no pudimos reconstruir)
+                    elif 'Color' in active_shader.outputs:
+                        source_color_socket = active_shader.outputs['Color']
+                        print(f"   🧬 Usando salida 'Color' del Grupo (Fallback)")
+                        if 'Alpha' in active_shader.outputs:
+                             source_alpha_socket = active_shader.outputs['Alpha']
+                    
+                    # PRIORITY 3: Rastrear inputs recursivamente (Último recurso)
                     else:
-                        print("   ❌ No se encontró ninguna textura rastreando inputs.")
-                        # Intentar fallback por nombres directos en el shader activo (último recurso)
-                        for name in ['Base Tex', 'Base Color', 'Diffuse', 'Color']:
-                            if name in active_shader.inputs and active_shader.inputs[name].is_linked:
-                                source_color_socket = active_shader.inputs[name].links[0].from_socket
-                                break
+                        print(f"   ⚠️ Fallback: Rastreando texturas de entrada...")
+                    
+                        def find_image_input(node, depth=0):
+                            if depth > 10: return None
+                            
+                            linked_inputs = [inp for inp in node.inputs if inp.is_linked]
+                            priority_keys = ['base', 'diff', 'col', 'tex', 'albedo', 'img']
+                            avoid_keys = ['norm', 'spec', 'rough', 'disp', 'bump', 'alpha', 'fac']
+
+                            # Paso 1: Buscar TEX_IMAGE directo en inputs PRIORITARIOS
+                            for inp in linked_inputs:
+                                name = inp.name.lower()
+                                if any(k in name for k in priority_keys) and not any(k in name for k in avoid_keys):
+                                    src = inp.links[0].from_node
+                                    if src.type == 'TEX_IMAGE':
+                                        print(f"      ✅ Match directo prioritario: Input '{inp.name}' -> {src.name}")
+                                        return src
+                            
+                            # Paso 2: Buscar standard
+                            for inp in linked_inputs:
+                                name = inp.name.lower()
+                                if not any(k in name for k in avoid_keys):
+                                    src = inp.links[0].from_node
+                                    if src.type == 'TEX_IMAGE':
+                                        return src
+
+                            # Paso 3: Recursión
+                            for inp in linked_inputs:
+                                src = inp.links[0].from_node
+                                if src.type in ['GROUP', 'REROUTE', 'BSDF_PRINCIPLED', 'MIX_SHADER', 'ADD_SHADER']:
+                                    res = find_image_input(src, depth+1)
+                                    if res: return res
+                                    
+                            return None
+
+                        found_tex_node = find_image_input(active_shader)
+                        
+                        if found_tex_node:
+                            print(f"   🎯 Textura seleccionada: {found_tex_node.name}")
+                            if 'Color' in found_tex_node.outputs:
+                                source_color_socket = found_tex_node.outputs['Color']
+                            if 'Alpha' in found_tex_node.outputs:
+                                source_alpha_socket = found_tex_node.outputs['Alpha']
+                        else:
+                            print("   ❌ No se encontró textura visual válida.")
+                            # Ultimo recurso: nombre a ciegas
+                            for name in ['Base Tex', 'Base Color', 'Diffuse', 'Color']:
+                                if name in active_shader.inputs and active_shader.inputs[name].is_linked:
+                                    source_color_socket = active_shader.inputs[name].links[0].from_socket
+                                    break
             
             # Fallback global
             if not source_color_socket and not emission.inputs['Color'].is_linked:
@@ -748,46 +873,107 @@ def perform_advanced_baking(material, resolution=None):
                       emission.inputs['Color'].default_value = saved_color
                  else:
                       print("   ⚠️ FALLBACK CRÍTICO: Usando MAGENTA por falta de datos.")
-                      emission.inputs['Color'].default_value = (1, 0, 1, 1) # Magenta Debug
+                      emission.inputs['Color'].default_value = (1, 0, 1, 1)
 
-            # Conexiones Finales
+            # === BAKE DUAL (RGB + ALPHA) ===
+
+            # 1️⃣ FASE 1: BAKE DEL COLOR (RGB)
+            print(f"   ⏳ Fase 1/2: Bakeando RGB (DIFFUSE Color)...")
+            
+            # Conexión para Diffuse
             if source_color_socket:
-                links.new(source_color_socket, emission.inputs['Color'])
-            
-            links.new(transparent.outputs['BSDF'], mix_shader.inputs[1])
-            links.new(emission.outputs['Emission'], mix_shader.inputs[2])
-            
-            if source_alpha_socket:
-                links.new(source_alpha_socket, mix_shader.inputs['Fac'])
-            elif not active_shader and not source_alpha_socket: 
-                 mix_shader.inputs['Fac'].default_value = 1.0
+                 links.new(source_color_socket, diffuse_node.inputs['Color'])
+            else:
+                 # Fallback al color guardado
+                 diffuse_node.inputs['Color'].default_value = emission.inputs['Color'].default_value
 
-            links.new(mix_shader.outputs['Shader'], output_node.inputs['Surface'])
+            links.new(diffuse_node.outputs['BSDF'], output_node.inputs['Surface'])
             
-            print(f"   🔗 Setup: {'Complex' if active_shader else 'Simple'} -> Mix(Transp, Emit) -> Output")
-
-            # === BAKE CON TIPO EMIT ===
-            print(f"   ⏳ Bakeando {resolution}x{resolution} (EMIT - Preservando Nodos)...")
-            bpy.context.scene.render.bake.use_selected_to_active = False
-            bpy.context.scene.render.bake.use_cage = False
-            bpy.context.scene.render.bake.margin = 16 # Margen para evitar bordes negros
-            bpy.context.scene.render.bake.use_clear = True
+            # Configuración Bake Diffuse (Single Object)
+            bpy.context.scene.render.bake.use_selected_to_active = False # Single Object bake es más limpio para esto
+            bpy.context.scene.render.bake.margin = 16
+            bpy.context.scene.render.bake.use_clear = True 
             bpy.context.scene.render.bake.target = 'IMAGE_TEXTURES'
             
-            bpy.ops.object.bake(type='EMIT')
+            # Bake solo Color (sin sombras ni luces)
+            bpy.ops.object.bake(type='DIFFUSE', pass_filter={'COLOR'})
             
+            # 2️⃣ FASE 2: BAKE DEL ALPHA (EMIT)
+            print(f"   ⏳ Fase 2/2: Bakeando ALPHA (EMIT)...")
+            
+            # Imagen temporal para Alpha
+            alpha_image = bpy.data.images.new("temp_alpha_bake", width=resolution, height=resolution, alpha=False)
+            target_node.image = alpha_image # Desviar el bake a la temp
+            
+            if source_alpha_socket:
+                 links.new(source_alpha_socket, emission.inputs['Color'])
+            else:
+                 # Si no hay canal de alpha, es 100% opaco
+                 emission.inputs['Color'].default_value = (1, 1, 1, 1)
+            
+            links.new(emission.outputs['Emission'], output_node.inputs['Surface'])
+            
+            bpy.ops.object.bake(type='EMIT', use_clear=True)
+            
+            # 3️⃣ FUSIÓN DE CANALES (Optimized Merge)
+            print("   🤝 Combinando Canales (Array Buffer Fast Path)...")
+            target_node.image = baked_image # Volver a la imagen final
+            
+            # OPTIMIZACIÓN CRÍTICA: Usar 'array' y 'foreach' evita crear millones de objetos float en Python.
+            # Esto previene crasheos por Out Of Memory (OOM) en texturas grandes (2k/4k).
+            count = len(baked_image.pixels)
+            
+            # Buffer A: RGB Image (Destino)
+            rgb_arr = array.array('f', [0.0] * count)
+            baked_image.pixels.foreach_get(rgb_arr)
+            
+            # Buffer B: Alpha Image (Fuente de Máscara)
+            alpha_arr = array.array('f', [0.0] * count)
+            alpha_image.pixels.foreach_get(alpha_arr)
+            
+            # FUSIÓN: Canal A (Index 3, 7...) recibe Canal R (Index 0, 4...)
+            # Slice assignment es muy rápido en arrays
+            try:
+                rgb_arr[3::4] = alpha_arr[0::4]
+                baked_image.pixels.foreach_set(rgb_arr)
+            except Exception as e:
+                print(f"⚠️ Error en fusión de píxeles: {e}")
+                pass 
+            
+            # Limpieza inmediata de memoria
+            del alpha_arr
+            del rgb_arr
+            
+            # Limpieza de imagen temporal
+            bpy.data.images.remove(alpha_image) 
+            
+            # Empaquetar el resultado final
             baked_image.pack()
             baked_image.use_fake_user = True
             
-            print(f"   ✅ Bake completado: {baked_name}")
+            print(f"   ✅ Bake RGBA completado: {baked_name}")
+            
+            # === FINALIZACIÓN SAFE ===
+            # No borramos 'original_uv_src' aquí para permitir que otros materiales se bakeen.
+            # Pero aseguramos que 'Float2' sea el ACTIVO VISUALMENTE.
+            if 'Float2' in obj.data.uv_layers:
+                obj.data.uv_layers['Float2'].active = True
+                obj.data.uv_layers['Float2'].active_render = True
+            
+            print(f"   ✅ Bake completado: {baked_name} (UV Active: Float2)")
 
         finally:
             # === LIMPIEZA Y RESTAURACIÓN ===
+            
+            # Eliminar Source Copy (si quedó remanente)
+            if 'source_obj' in locals() and source_obj:
+                 try: bpy.data.objects.remove(source_obj, do_unlink=True)
+                 except: pass
+
             # Eliminar nodos temporales
-            if emission and emission.name in nodes:
-                nodes.remove(emission)
-            if target_node and target_node.name in nodes:
-                nodes.remove(target_node)
+            for n in [emission, diffuse_node, target_node]:
+                if n and n.name in nodes:
+                    nodes.remove(n)
             # source_node y rgb_node ya no se crean en esta version
             
             # Reconectar Principled al Output
@@ -875,21 +1061,26 @@ def replace_material_with_baked(material, baked_image):
         image_node.location = (principled.location.x - 300, principled.location.y)
         image_node.label = baked_image.name
         
-        # Conectar Color
+        # Conectar Color y Alpha (Un solo PNG RGBA)
         base_color = principled.inputs.get('Base Color')
+        alpha_socket_in = principled.inputs.get('Alpha')
+        
         if base_color:
-             # Limpiar primero
+            # Limpiar primero
             while base_color.is_linked: links.remove(base_color.links[0])
             links.new(image_node.outputs['Color'], base_color)
             
-        # El Alpha ya debería estar conectado si preservamos los nodos y enlaces.
-        # Si se rompió el enlace (porque borramos nodos intermedios que no trackeamos), intentamos reconectar
-        # si alpha_source_node sigue vivo.
-        if alpha_source_socket and alpha_source_node in nodes.keys(): # check invalid ref
-             if alpha_socket and not alpha_socket.is_linked:
-                 links.new(alpha_source_socket, alpha_socket)
-
-        print(f"✅ Material reemplazado con baked: {material.name}")
+        if alpha_socket_in:
+            # Conectar el Alpha de la nueva textura bakeada
+            while alpha_socket_in.is_linked: links.remove(alpha_socket_in.links[0])
+            links.new(image_node.outputs['Alpha'], alpha_socket_in)
+            
+        # Configurar transparencia real en el material para Blender (Tramado solicitado)
+        material.blend_method = 'HASHED'
+        material.shadow_method = 'HASHED' # Sombra tramada también
+        material.use_screen_refraction = False
+        
+        print(f"✅ Material '{material.name}' reemplazado con textura RGBA bakeada (Hashed).")
         return True
         
     except Exception as e:
