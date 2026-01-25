@@ -588,8 +588,11 @@ def perform_advanced_baking(material, resolution=None):
             
             print(f"   🔌 Principled desconectado temporalmente")
             
-            # === CREAR SETUP LIMPIO PARA BAKE ===
+            # === CREAR SETUP LIMPIO PARA BAKE (SOPORTE ALPHA Y MMD) ===
             
+            # Activar Transparecia en Film para capturar alpha
+            bpy.context.scene.render.film_transparent = True
+
             # Crear Imagen Target
             baked_name = f"{material.name}_b_d"
             if baked_name in bpy.data.images:
@@ -602,31 +605,102 @@ def perform_advanced_baking(material, resolution=None):
             target_node.select = True
             target_node.location = (output_node.location.x - 600, output_node.location.y - 300)
             nodes.active = target_node
-
-            # === CONFIGURAR EMISION PARA BAKE (Preservando Nodos) ===
             
-            # Crear Emission
+            # Crear nodos para Bake
             emission = nodes.new('ShaderNodeEmission')
-            emission.location = (output_node.location.x - 200, output_node.location.y)
-            emission.label = "SimpleBake_Emission"
+            emission.label = "Bake_Emission"
+            transparent = nodes.new('ShaderNodeBsdfTransparent')
+            mix_shader = nodes.new('ShaderNodeMixShader')
+            mix_shader.location = (output_node.location.x - 200, output_node.location.y)
             
-            # Conectar lo que estaba en Base Color al Emission
-            # (Esto preserva Mix nodes, Math nodes, y toda la cadena compleja)
-            if base_color_socket and base_color_socket.is_linked:
-                # Obtener el socket de salida del nodo origen
-                source_socket_out = base_color_socket.links[0].from_socket
-                # Conectar al Emission
-                links.new(source_socket_out, emission.inputs['Color'])
-                print(f"   🔗 Setup: Cadena de Nodos Compleja -> Emission -> Output")
-            elif saved_color:
-                # Si no había nada conectado, usar el color guardado
-                emission.inputs['Color'].default_value = saved_color
-                print(f"   🔗 Setup: Color Sólido {saved_color[:3]} -> Emission -> Output")
-            else:
-                 emission.inputs['Color'].default_value = (1, 1, 1, 1)
+            # Identificar Fuentes (Color y Alpha)
+            source_color_socket = None
+            source_alpha_socket = None
             
-            # Conectar Emission al Output
-            links.new(emission.outputs['Emission'], output_node.inputs['Surface'])
+            # Analizar el nodo conectado al Output Original (si existe)
+            active_shader = None
+            if original_output_connection:
+                active_shader = original_output_connection.node
+            
+            if active_shader:
+                print(f"   🕵️ Analizando Shader: {active_shader.name} ({active_shader.type})")
+                
+                # ESTRATEGIA 1: Principled BSDF
+                if active_shader.type == 'BSDF_PRINCIPLED':
+                    # Color
+                    if active_shader.inputs.get('Base Color') and active_shader.inputs['Base Color'].is_linked:
+                        source_color_socket = active_shader.inputs['Base Color'].links[0].from_socket
+                    else:
+                        # Color solido del principled
+                        emission.inputs['Color'].default_value = active_shader.inputs['Base Color'].default_value
+                    
+                    # Alpha
+                    if active_shader.inputs.get('Alpha') and active_shader.inputs['Alpha'].is_linked:
+                        source_alpha_socket = active_shader.inputs['Alpha'].links[0].from_socket
+                    elif active_shader.inputs.get('Alpha'):
+                         # Si es valor fijo, lo seteamos en el mix shader directamente abajo
+                         pass 
+
+                # ESTRATEGIA 2: Búsqueda Recursiva de Imagen en Grupos (MMD, etc.)
+                else:
+                    print(f"   🕵️ Shader Complejo/Grupo: Buscando textura recursivamente...")
+                    
+                    # Función auxiliar para buscar imagen
+                    def find_image_input(node, depth=0):
+                        if depth > 3: return None
+                        for input_socket in node.inputs:
+                            if input_socket.is_linked:
+                                from_node = input_socket.links[0].from_node
+                                if from_node.type == 'TEX_IMAGE':
+                                    return from_node
+                                elif from_node.type == 'GROUP':
+                                    res = find_image_input(from_node, depth+1)
+                                    if res: return res
+                        return None
+
+                    # Buscar imagen principal
+                    found_tex_node = find_image_input(active_shader)
+                    
+                    if found_tex_node:
+                        print(f"   ✅ Textura encontrada en red de nodos: {found_tex_node.name} (Image: {found_tex_node.image.name if found_tex_node.image else 'None'})")
+                        if 'Color' in found_tex_node.outputs:
+                            source_color_socket = found_tex_node.outputs['Color']
+                        if 'Alpha' in found_tex_node.outputs:
+                            source_alpha_socket = found_tex_node.outputs['Alpha']
+                    else:
+                        print("   ⚠️ No se encontró textura conectada explícitamente. Intentando fallback por nombres...")
+                        # Fallback por nombres (el código anterior, por si acaso)
+                        for name in ['Base Tex', 'Base Color', 'Diffuse', 'Color', 'Albedo']:
+                            if name in active_shader.inputs and active_shader.inputs[name].is_linked:
+                                source_color_socket = active_shader.inputs[name].links[0].from_socket
+                                break
+            
+            # Fallback global: Saved Color
+            if not source_color_socket and not emission.inputs['Color'].is_linked:
+                 if saved_image: 
+                     # Re-crear nodo imagen si teníamos la referencia pero no el link
+                     tmp_img = nodes.new('ShaderNodeTexImage')
+                     tmp_img.image = saved_image
+                     source_color_socket = tmp_img.outputs['Color']
+                     source_alpha_socket = tmp_img.outputs['Alpha']
+                 elif saved_color:
+                      emission.inputs['Color'].default_value = saved_color
+
+            # Conexiones Finales
+            if source_color_socket:
+                links.new(source_color_socket, emission.inputs['Color'])
+            
+            links.new(transparent.outputs['BSDF'], mix_shader.inputs[1])
+            links.new(emission.outputs['Emission'], mix_shader.inputs[2])
+            
+            if source_alpha_socket:
+                links.new(source_alpha_socket, mix_shader.inputs['Fac'])
+            elif not active_shader and not source_alpha_socket: 
+                 mix_shader.inputs['Fac'].default_value = 1.0
+
+            links.new(mix_shader.outputs['Shader'], output_node.inputs['Surface'])
+            
+            print(f"   🔗 Setup: {'Complex' if active_shader else 'Simple'} -> Mix(Transp, Emit) -> Output")
 
             # === BAKE CON TIPO EMIT ===
             print(f"   ⏳ Bakeando {resolution}x{resolution} (EMIT - Preservando Nodos)...")
@@ -901,33 +975,51 @@ def _connect_alpha_if_available(material, image_node, principled):
 
 def _simplify_to_nearest_image(material, principled) -> bool:
     """Mantiene solo la TEX_IMAGE o COLOR más cercano al Base Color.
-    Preserva el color RVA si no hay imagen.
-    Devuelve True si se simplificó algo.
+    Soporta extracción desde grupos MMD.
+    Garantiza conexión Principled -> Output.
     """
     try:
-        nodes = material.node_tree.nodes
-        links = material.node_tree.links
+        tree = material.node_tree
+        nodes = tree.nodes
+        links = tree.links
         
-        # 1. Intentar buscar imagen
+        # Asegurar Output
+        output_node = None
+        for n in nodes:
+            if n.type == 'OUTPUT_MATERIAL':
+                output_node = n
+                break
+        if not output_node:
+            output_node = nodes.new('ShaderNodeOutputMaterial')
+            output_node.location = (300, 300)
+
+        # 1. Intentar buscar imagen (Estrategia Standard)
         image_node, chain_nodes = _trace_nearest_image_to_base_color(principled)
         
-        # --- PROTECCIÓN RVA (COLOR TINT) ---
-        # Si hay nodos de mezcla de color en la cadena, NO limpiar, para preservar el tinte.
-        if chain_nodes:
-            # Lista de tipos de nodos que modifican color y debemos preservar
-            color_modifiers = {
-                'ShaderNodeMixRGB', 'ShaderNodeMix', # Blender 3.4+ usa ShaderNodeMix para color
-                'ShaderNodeHueSaturation', 'ShaderNodeRGBCurves', 
-                'ShaderNodeBrightContrast', 'ShaderNodeGamma', 
-                'ShaderNodeInvert'
-            }
-            
-            for node in chain_nodes:
-                if node.type in ['MIX_RGB', 'CURVE_RGB', 'HUE_SATURATION', 'BRIGHTCONTRAST', 'GAMMA', 'INVERT'] or \
-                   node.bl_idname in color_modifiers:
-                    print(f"🎨 {material.name}: Tinte/Color RVA detectado (nodo {node.name}) -> Limpieza cancelada")
-                    return False
-        # -----------------------------------
+        # 1.5 Estrategia MMD/Compleja (Si standard falló)
+        if not image_node:
+            # Buscar qué hay conectado al Output
+            if output_node.inputs['Surface'].is_linked:
+                surface_node = output_node.inputs['Surface'].links[0].from_node
+                if surface_node != principled:
+                    # Es un grupo o shader extraño. Buscar imagen ahí.
+                    # Búsqueda simple de inputs
+                    for inp in surface_node.inputs:
+                        if inp.is_linked:
+                            src = inp.links[0].from_node
+                            if src.type == 'TEX_IMAGE':
+                                image_node = src
+                                break
+                    
+                    # Búsqueda fuerza bruta si falla (primera imagen visible que parezca difusa)
+                    if not image_node:
+                        for n in nodes:
+                            if n.type == 'TEX_IMAGE' and n.image:
+                                # Filtros simples
+                                name_lower = n.image.name.lower()
+                                if 'nm' not in name_lower and 'norm' not in name_lower and 'spec' not in name_lower:
+                                    image_node = n
+                                    break
         
         target_node = None
         
@@ -954,25 +1046,13 @@ def _simplify_to_nearest_image(material, principled) -> bool:
                     # Ya está conectado, no hace falta tocar links
                 else:
                     # Es algo complejo sin imagen (Mix, etc.)
-                    # ¿Debemos colapsarlo? El usuario pidió no quitar color RVA.
-                    # Si borramos el Mix, perdemos el color.
-                    # Mejor estrategia: Si es complejo y no hay imagen, NO TOCAR.
-                    # O capturar el color base si es simple.
-                    return False
+                   return False # ABORTAR LIMPIEZA para no romper
             else:
-                 # No hay nada conectado, es color directo en el socket.
-                 # Preservar este valor (al borrar otros nodos no afecta, pero ok)
-                 pass
+                 pass # Color directo preservado
 
         # 3. Limpieza de nodos basura
         # Mantener Principled, Output y el target_node (si existe)
-        to_keep = {principled}
-        
-        # Buscar output node activo
-        for n in nodes: 
-            if n.type == 'OUTPUT_MATERIAL' and n.is_active_output:
-                to_keep.add(n)
-                break
+        to_keep = {principled, output_node}
         
         if target_node:
             to_keep.add(target_node)
@@ -982,6 +1062,13 @@ def _simplify_to_nearest_image(material, principled) -> bool:
         
         # Solo borrar si realmente vamos a limpiar algo sustancial
         if not remove_list:
+            # AUNQUE NO BORREMOS, ASEGURAR OUTPUT
+            if not output_node.inputs['Surface'].is_linked or \
+               output_node.inputs['Surface'].links[0].from_node != principled:
+                # Solo reconectar si el conectado NO es un grupo complejo que decidimos mantener
+                # Si abortamos arriba, no llegamos aqui.
+                # Si llegamos aqui, es porque simplificamos a imagen o color.
+                links.new(principled.outputs[0], output_node.inputs[0])
             return False
             
         for n in remove_list:
@@ -989,9 +1076,13 @@ def _simplify_to_nearest_image(material, principled) -> bool:
                 nodes.remove(n)
             except: pass
 
-        print(f"🧹 {material.name}: limpieza realizada (nodos eliminados={len(remove_list)})")
+        # 4. RECONEXIÓN FINAL GARANTIZADA
+        # Si llegamos aquí, hemos limpiado. El Principled DEBE ir al Output.
+        links.new(principled.outputs[0], output_node.inputs[0])
 
+        print(f"🧹 {material.name}: limpieza realizada (nodos eliminados={len(remove_list)})")
         return True
+        
     except Exception as e:
         print(f"⚠️ Error limpiando {material.name}: {e}")
         return False
