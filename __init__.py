@@ -7,9 +7,9 @@ bl_info = {
     "name": "Universal to GTA SA Converter",
     "author": "YoshiMaincra + Cursor AI",
     "version": (1, 2, 0),
-    "blender": (4, 5, 0),
+    "blender": (5, 0, 0),
     "location": "View3D > Sidebar > Tool > Universal GTA",
-    "description": "Convierte armatures personalizados a GTA SA con Smart Auto-Detect inteligente (Mixamo, Source/SFM, etc.), sistema de auto-corrección mejorado y herramientas avanzadas. Compatible con Blender 4.5",
+    "description": "Convierte armatures personalizados a GTA SA con Smart Auto-Detect inteligente (Mixamo, Source/SFM, etc.), sistema de auto-corrección mejorado y herramientas avanzadas. Compatible con Blender 5.0 y 5.0.1 (Recomendada)",
     "category": "Rigging",
 }
 

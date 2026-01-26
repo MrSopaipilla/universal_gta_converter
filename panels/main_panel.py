@@ -594,7 +594,7 @@ class UNIVERSALGTA_PT_InfoPanel(Panel):
         tech_col.scale_y = 0.9
         tech_col.label(text=f"Blender: {bpy.app.version_string}")
         tech_col.label(text="Python: 3.x Compatible")
-        tech_col.label(text="Compatible: Blender 4.5+ & 5.0")
+        tech_col.label(text="Compatible: Blender 5.0 & 5.0.1 (Recommended)")
 
         layout.separator()
         thanks_box = layout.box()

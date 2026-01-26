@@ -507,5 +507,5 @@ Para más información, sugerencias o reportar bugs, contacta a través del cana
 ---
 
 **Versión**: 1.2  
-**Compatibilidad**: Blender 4.5+ y 5.0+  
+**Compatibilidad**: Blender 5.0 y 5.0.1 (Recomendada)  
 
