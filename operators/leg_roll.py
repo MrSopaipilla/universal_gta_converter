@@ -24,7 +24,7 @@ class UNIVERSALGTA_OT_apply_leg_roll(Operator):
         bpy.context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='EDIT')
 
-        offset = context.scene.gta_leg_roll_angle
+        offset = context.scene.gta_leg_roll_angle * 8.0
         
         # Valores de referencia GTA SA (Asimetria natural)
         ref_left = -14.2734
@@ -53,6 +53,10 @@ class UNIVERSALGTA_OT_apply_leg_roll(Operator):
         
         armature.data.update_tag()
         context.view_layer.update()
+
+        # Activar visualización de ejes en el armature
+        if armature.data:
+            armature.data.show_axes = True
 
         bpy.ops.object.mode_set(mode='OBJECT')
 

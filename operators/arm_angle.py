@@ -8,8 +8,8 @@ def register_properties():
         name="Arm Angle",
         description="Ángulo de rotación para los brazos (+ derecho, - izquierdo)",
         default=0.0,
-        min=-360.0,
-        max=360.0,
+        min=-90.0,
+        max=90.0,
         subtype='ANGLE'
     )
 
@@ -51,10 +51,14 @@ class UNIVERSALGTA_OT_set_arm_angles(Operator):
         base_left = scene.gta_arm_roll_base_left
         base_right = scene.gta_arm_roll_base_right
         
-        angle = context.scene.gta_arm_angle
+        angle = context.scene.gta_arm_angle * 8.0  # Multiplicador para mayor sensibilidad
         
         l_upper_arm.roll = math.radians(base_left + angle)
         r_upper_arm.roll = math.radians(base_right - angle)
+        
+        # Activar visualización de ejes en el armature
+        if armature.data:
+            armature.data.show_axes = True
         
         bpy.ops.object.mode_set(mode=original_mode)
         
