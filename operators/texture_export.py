@@ -1349,8 +1349,26 @@ def _simplify_to_nearest_image(material, principled) -> bool:
         # 4. RECONEXIÓN FINAL GARANTIZADA
         # Si llegamos aquí, hemos limpiado. El Principled DEBE ir al Output.
         links.new(principled.outputs[0], output_node.inputs[0])
+        
+        # 5. ESTABLECER EMISSION A 0 (Para modo CLEAN)
+        # Cuando se usa "Solo Limpieza", también queremos eliminar cualquier emisión
+        try:
+            emission_input = principled.inputs.get('Emission')
+            if emission_input:
+                # Desconectar cualquier enlace al Emission
+                while emission_input.is_linked:
+                    links.remove(emission_input.links[0])
+                # Establecer el valor a 0 (negro, sin emisión)
+                emission_input.default_value = (0.0, 0.0, 0.0, 1.0)
+                
+            # También establecer Emission Strength a 0 si existe
+            emission_strength = principled.inputs.get('Emission Strength')
+            if emission_strength:
+                emission_strength.default_value = 0.0
+        except Exception as e_emission:
+            print(f"⚠️ No se pudo establecer Emission a 0 en {material.name}: {e_emission}")
 
-        print(f"🧹 {material.name}: limpieza realizada (nodos eliminados={len(remove_list)})")
+        print(f"🧹 {material.name}: limpieza realizada (nodos eliminados={len(remove_list)}, Emission=0)")
         return True
         
     except Exception as e:
