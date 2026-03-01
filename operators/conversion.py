@@ -1496,8 +1496,28 @@ class UNIVERSALGTA_OT_smart_auto_detect(Operator):
                 mapping_file = mapping_files[best_type]
                 print(f"[SMART_DETECT] Seleccionado mapping '{best_type}' con {best_score:.1%} de coincidencia")
             else:
-                mapping_file = empty_mapping_file
-                print(f"[SMART_DETECT] Ningún mapping supera 20%. Usando mapping vacío.")
+                # Generar mapping dinámico: (vacío) - (Hueso del esqueleto Source)
+                print(f"[SMART_DETECT] Ningún mapping supera 20%. Generando mapping dinámico desde huesos del source...")
+                mapping_file = None  # No cargar archivo, generar dinámicamente
+                
+                settings.bone_mappings.clear()
+                source_arm = settings.source_armature
+                bone_index = 0
+                for bone in source_arm.data.bones:
+                    m = settings.bone_mappings.add()
+                    m.source_bone = bone.name
+                    m.target_bone = ""
+                    m.enabled = False
+                    m.detection_method = "Manual"
+                    m.confidence = 0.0
+                    bone_index += 1
+                
+                total_detected += bone_index
+                print(f"[SMART_DETECT] Generados {bone_index} mappings dinámicos desde source armature")
+                
+                # Reportar y salir directamente
+                self.report({'INFO'}, f"✅ Smart Auto Detect: {bone_index} huesos del source listados para mapeo manual")
+                return {'FINISHED'}
 
             # Cargar mapping seleccionado
             loaded = False
