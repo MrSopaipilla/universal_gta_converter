@@ -24,32 +24,29 @@ class UNIVERSALGTA_OT_apply_leg_roll(Operator):
         bpy.context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='EDIT')
 
-        offset = context.scene.gta_leg_roll_angle * 8.0
+        angle = context.scene.gta_leg_roll_angle
         
-        # Valores de referencia GTA SA (Asimetria natural)
-        ref_left = -14.2734
-        ref_right = -148.123
+        # Valores de referencia solicitados para ángulo 0
+        ref_left = -4.17456
+        ref_right = 4.04106
 
-        # Aplicar offset simetricamente (invertido para R para mantener simetria visual de la operacion)
-        bone_names = {
-            ' L Thigh': ref_left + offset,
-            ' R Thigh': ref_right - offset
+        # Aplicar angle como offset sobre la base de referencia solicitada
+        bone_rolls = {
+            ' L Thigh': math.radians(ref_left) + (angle * 8.0),
+            ' R Thigh': math.radians(ref_right) - (angle * 8.0)
         }
 
         edit_bones = armature.data.edit_bones
         bones_modified = 0
 
-        armature.data.update_tag()
-        context.view_layer.update()
-
-        for name, roll_angle in bone_names.items():
+        for name, roll_val in bone_rolls.items():
             if name in edit_bones:
                 bone = edit_bones[name]
-                try:
-                    bone.roll = math.radians(roll_angle)
-                    bones_modified += 1
-                except Exception as e:
-                    print(f"[LEG ROLL] Error en {name}: {e}")
+                bone.roll = roll_val
+                bones_modified += 1
+
+        armature.data.update_tag()
+        context.view_layer.update()
         
         armature.data.update_tag()
         context.view_layer.update()
