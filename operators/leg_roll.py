@@ -27,13 +27,14 @@ class UNIVERSALGTA_OT_apply_leg_roll(Operator):
         angle = context.scene.gta_leg_roll_angle
         
         # Valores de referencia solicitados para ángulo 0
-        ref_left = -4.17456
-        ref_right = 4.04106
+        # Ajustados con un desfase de -90° para corregir el swap de ejes X/Z (Invertir X con Z)
+        ref_left = -4.17456 - 90.0
+        ref_right = 4.04106 - 90.0
 
         # Aplicar angle como offset sobre la base de referencia solicitada
         bone_rolls = {
-            ' L Thigh': math.radians(ref_left) + (angle * 8.0),
-            ' R Thigh': math.radians(ref_right) - (angle * 8.0)
+            ' L Thigh': math.radians(ref_left) + angle,
+            ' R Thigh': math.radians(ref_right) - angle
         }
 
         edit_bones = armature.data.edit_bones
