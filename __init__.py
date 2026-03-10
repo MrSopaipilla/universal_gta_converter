@@ -251,7 +251,7 @@ else:
     except ImportError:
         MATERIAL_OPERATORS = []
         
-    # === OPERADORES DE TEXTURAS (COMPLETOS) ===
+    # === OPERADORES DE TEXTURAS ===
     try:
         from .operators.texture_export import (
             UNIVERSALGTA_OT_pre_conversion_rasterization,
@@ -260,6 +260,7 @@ else:
             UNIVERSALGTA_OT_export_textures_with_browser,
             UNIVERSALGTA_OT_quick_material_rgb_fix,
             UNIVERSALGTA_OT_manual_smart_baking,
+            TextureExporterProperties,
         )
         TEXTURE_EXPORT_OPERATORS = [
             UNIVERSALGTA_OT_pre_conversion_rasterization,
@@ -476,6 +477,7 @@ else:
     all_classes = [
         BoneMappingItem,
         UniversalGTASettings,
+        TextureExporterProperties,
         UNIVERSALGTA_UL_BoneMappingList,
     ]
     
@@ -580,6 +582,13 @@ else:
             except Exception:
                 pass
         
+        # Registrar la propiedad de exportación de texturas
+        if not hasattr(bpy.types.Scene, 'texture_exporter_props'):
+            try:
+                bpy.types.Scene.texture_exporter_props = PointerProperty(type=TextureExporterProperties)
+            except Exception as e:
+                print(f"[ADDON] [ERROR] No se pudo registrar texture_exporter_props: {e}")
+
         if registered_count > 0:
             print("[ADDON] Universal GTA Converter v1.2 cargado correctamente.")
 
@@ -609,6 +618,13 @@ else:
             print("[ADDON] ✓ Propiedad universal_gta_settings eliminada")
         except Exception as e:
             print(f"[ADDON] [ERROR] Error eliminando propiedad: {e}")
+        
+        try:
+            if hasattr(bpy.types.Scene, 'texture_exporter_props'):
+                del bpy.types.Scene.texture_exporter_props
+            print("[ADDON] ✓ Propiedad texture_exporter_props eliminada")
+        except Exception as e:
+            print(f"[ADDON] [ERROR] Error eliminando propiedad texture_exporter_props: {e}")
         
         # Desregistrar clases EN ORDEN INVERSO
         failed_count = 0
